@@ -21,7 +21,7 @@ const Mindmap = () => {
                 id: "sub11",
               },
               {
-                topic: "開源心智圖基本功能",
+                topic: "心智圖基本功能",
                 id: "sub12",
               },
             ],
@@ -44,12 +44,13 @@ const Mindmap = () => {
                     children: [
                       { topic: "卡片視窗", id: "subsub2121" },
                       { topic: "拖曳 & 節點資料整合", id: "subsub2122" },
+                      { topic: "搜尋功能", id: "subsub2123" },
                     ],
                   },
                   {
-                    topic: "重新開發心智圖功能",
+                    topic: "心智圖功能優化",
                     id: "subsub213",
-                    children: [{ topic: "快捷鍵顯示", id: "subsub2131" }],
+                    children: [{ topic: "顯示快捷鍵", id: "subsub2131" }],
                   },
                 ],
               },
@@ -64,6 +65,10 @@ const Mindmap = () => {
                   {
                     topic: "心智圖檔案匯出",
                     id: "subsub222",
+                    children: [
+                      { topic: "圖片", id: "subsub2221" },
+                      { topic: "PDF", id: "subsub2222" },
+                    ],
                   },
                   {
                     topic: "公開分享心智圖",
