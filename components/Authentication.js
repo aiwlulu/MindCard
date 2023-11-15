@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { authContext } from "@/lib/store/auth-context";
 import { FcGoogle } from "react-icons/fc";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
@@ -14,9 +14,25 @@ function Authentication() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    email: "demo@gmail.com",
-    password: "123456",
+    email: "",
+    password: "",
   });
+
+  useEffect(() => {
+    if (isRegistering) {
+      setFormData({
+        name: "",
+        email: "",
+        password: "",
+      });
+    } else {
+      setFormData({
+        name: "",
+        email: "demo@gmail.com",
+        password: "123456",
+      });
+    }
+  }, [isRegistering]);
 
   const togglePasswordVisibility = () => {
     setPasswordVisible((prev) => !prev);

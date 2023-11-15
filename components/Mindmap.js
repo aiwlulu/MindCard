@@ -1,135 +1,32 @@
-import React, { useEffect, useRef } from "react";
-import MindElixir from "mind-elixir";
+import React, { useEffect, useRef, useContext } from "react";
+import { MindmapContext } from "@/lib/store/mindmap-context";
+import ShortcutGuide from "./ShortcutGuide";
 
-const Mindmap = () => {
+const MindMap = ({ id }) => {
   const mapRef = useRef(null);
-  const ME = useRef(null);
+  const { loadMindmap } = useContext(MindmapContext);
 
   useEffect(() => {
-    const defaultData = {
-      nodeData: {
-        id: "root",
-        topic: "MindCard Demo\nby 育如 (2023/11/6)",
-        root: true,
-        children: [
-          {
-            topic: "已完成",
-            id: "node1",
-            children: [
-              {
-                topic: "首頁 & 基本會員系統",
-                id: "sub11",
-              },
-              {
-                topic: "心智圖基本功能",
-                id: "sub12",
-              },
-            ],
-          },
-          {
-            topic: "待完成",
-            id: "node2",
-            children: [
-              {
-                topic: "主要",
-                id: "sub21",
-                children: [
-                  {
-                    topic: "資料串接 Firebase",
-                    id: "subsub211",
-                  },
-                  {
-                    topic: "心智圖卡片整合",
-                    id: "subsub212",
-                    children: [
-                      { topic: "卡片視窗", id: "subsub2121" },
-                      { topic: "拖曳 & 節點資料整合", id: "subsub2122" },
-                      { topic: "搜尋功能", id: "subsub2123" },
-                    ],
-                  },
-                  {
-                    topic: "心智圖功能優化",
-                    id: "subsub213",
-                    children: [{ topic: "顯示快捷鍵", id: "subsub2131" }],
-                  },
-                ],
-              },
-              {
-                topic: "次要",
-                id: "sub22",
-                children: [
-                  {
-                    topic: "心智圖卡片連結資訊",
-                    id: "subsub221",
-                  },
-                  {
-                    topic: "心智圖檔案匯出",
-                    id: "subsub222",
-                    children: [
-                      { topic: "圖片", id: "subsub2221" },
-                      { topic: "PDF", id: "subsub2222" },
-                    ],
-                  },
-                  {
-                    topic: "公開分享心智圖",
-                    id: "subsub223",
-                  },
-                ],
-              },
-            ],
-          },
-          {
-            topic: "預計使用技術",
-            id: "node3",
-            children: [
-              {
-                topic: "React",
-                id: "sub31",
-              },
-              {
-                topic: "Next.js",
-                id: "sub32",
-              },
-              {
-                topic: "Tailwind",
-                id: "sub33",
-              },
-              {
-                topic: "Firebase",
-                id: "sub34",
-              },
-              {
-                topic: "SVG",
-                id: "sub35",
-              },
-              {
-                topic: "Drag & Drop",
-                id: "sub36",
-              },
-            ],
-          },
-        ],
-      },
-    };
-
-    ME.current = new MindElixir({
-      el: mapRef.current,
-      direction: MindElixir.RIGHT,
-      contextMenu: false,
-      nodeMenu: false,
-      allowUndo: false,
-      newTopicName: "New Topic",
-    });
-    ME.current.init(defaultData);
-  }, []);
+    if (id) {
+      if (mapRef.current) {
+        mapRef.current.innerHTML = "";
+      }
+      loadMindmap(id, mapRef.current);
+    }
+  }, [id, loadMindmap]);
 
   return (
     <div className="showcase">
       <div className="block">
-        <div ref={mapRef} style={{ height: "90vh", width: "100%" }}></div>
+        <div
+          ref={mapRef}
+          id="map"
+          style={{ height: "90vh", width: "100%" }}
+        ></div>
       </div>
+      <ShortcutGuide />
     </div>
   );
 };
 
-export default Mindmap;
+export default MindMap;
