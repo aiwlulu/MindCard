@@ -80,9 +80,11 @@ function Nav() {
             </button>
           </>
         )}
-        <button onClick={logoutAndRedirect} className="btn btn-danger">
-          Sign out
-        </button>
+        {user && !loading && (
+          <button onClick={logoutAndRedirect} className="btn btn-danger">
+            Sign out
+          </button>
+        )}
       </div>
     </header>
   );

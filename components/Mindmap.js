@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useContext } from "react";
+import { useEffect, useRef, useContext } from "react";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import ShortcutGuide from "./ShortcutGuide";
+import Card from "./Card";
 
 const MindMap = ({ id }) => {
   const mapRef = useRef(null);
@@ -25,6 +26,7 @@ const MindMap = ({ id }) => {
         ></div>
       </div>
       <ShortcutGuide />
+      <Card />
     </div>
   );
 };
