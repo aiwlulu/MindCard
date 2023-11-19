@@ -26,7 +26,7 @@ const MindMap = ({ id }) => {
         ></div>
       </div>
       <ShortcutGuide />
-      <Card />
+      <Card currentMindmapId={id} />
     </div>
   );
 };

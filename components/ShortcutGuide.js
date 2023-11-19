@@ -8,7 +8,7 @@ const ShortcutGuide = () => {
   };
 
   return (
-    <div className="fixed bottom-8 left-8">
+    <div className="fixed bottom-6 left-8">
       <button
         onClick={toggleGuide}
         className="text-white transition duration-150 ease-in-out  font-semi py-2 px-4 rounded"
