@@ -5,11 +5,7 @@ import MindMapList from "@/components/MindMapList";
 import {
   collection,
   addDoc,
-  onSnapshot,
   serverTimestamp,
-  query,
-  where,
-  orderBy,
   doc,
   deleteDoc,
 } from "firebase/firestore";
@@ -20,35 +16,36 @@ import { MindmapContext } from "@/lib/store/mindmap-context";
 export default function MindmapPage() {
   const router = useRouter();
   const { user } = useContext(authContext);
-  const { loadMindmap } = useContext(MindmapContext);
+  const { loadMindmap, getAllMindmaps } = useContext(MindmapContext);
   const [mindMaps, setMindMaps] = useState([]);
   const [selectedMindMap, setSelectedMindMap] = useState(null);
 
   useEffect(() => {
     if (user) {
-      const q = query(
-        collection(db, "mindmaps"),
-        where("userId", "==", user.uid),
-        orderBy("createdAt", "desc")
-      );
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const maps = [];
-        querySnapshot.forEach((doc) => {
-          const createdAt = doc.data().createdAt;
-          maps.push({
-            id: doc.id,
-            title: doc.data().data.nodeData.topic,
-            description: createdAt
-              ? new Date(createdAt.seconds * 1000).toLocaleString("en-US")
-              : "Not available",
-          });
-        });
-        setMindMaps(maps);
+      getAllMindmaps().then((maps) => {
+        const formattedMaps = maps.map((map) => ({
+          ...map,
+          description: map.createdAt
+            ? formatDate(new Date(map.createdAt.seconds * 1000))
+            : "Not available",
+        }));
+        setMindMaps(formattedMaps);
       });
-
-      return () => unsubscribe();
     }
-  }, [user]);
+  }, [user, getAllMindmaps]);
+
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const day = date.getDate().toString().padStart(2, "0");
+    const hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const seconds = date.getSeconds().toString().padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const formattedHour = hours % 12 || 12;
+
+    return `${year}/${month}/${day}, ${formattedHour}:${minutes}:${seconds} ${ampm}`;
+  };
 
   const handleMindMapCreate = async () => {
     if (user) {
