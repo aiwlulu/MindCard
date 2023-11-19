@@ -33,6 +33,7 @@ const ShortcutGuide = () => {
             </li>
             <li className="font-medium">PageUp / Alt + ↑ - Move Up Node</li>
             <li className="font-medium">PageDown / Alt + ↓ - Move Down Node</li>
+            <li className="font-medium">Ctrl + S - Save Mind Map</li>
             <li className="font-medium">Ctrl + C - Copy Selected Node</li>
             <li className="font-medium">Ctrl + V - Paste the Copied Node</li>
             <li className="font-medium">Ctrl + “+”- Zoom In Mind Map</li>

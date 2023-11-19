@@ -45,6 +45,23 @@ function Nav() {
     fetchDisplayName();
   }, [user]);
 
+  useEffect(() => {
+    if (showSaveButton) {
+      const handleKeyDown = (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === "s") {
+          event.preventDefault();
+          saveMindmap();
+        }
+      };
+
+      window.addEventListener("keydown", handleKeyDown);
+
+      return () => {
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [saveMindmap, showSaveButton]);
+
   return (
     <header className="w-11/12 mx-auto px-6 py-2 flex items-center">
       <div className="flex items-center gap-4">
