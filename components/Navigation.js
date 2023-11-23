@@ -87,7 +87,7 @@ function Nav() {
               onClick={navigateToMindmap}
               className="btn btn-primary mr-2"
             >
-              MyMind
+              Folder
             </button>
             <button
               onClick={() => saveMindmap()}
