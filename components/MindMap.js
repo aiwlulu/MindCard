@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useContext } from "react";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import ShortcutGuide from "./ShortcutGuide";
 import Card from "./Card";
+import { toast } from "react-toastify";
 
 const GuideBanner = ({ onClose }) => {
   return (
@@ -19,10 +20,11 @@ const GuideBanner = ({ onClose }) => {
 
 const MindMap = ({ id }) => {
   const mapRef = useRef(null);
-  const { loadMindmap } = useContext(MindmapContext);
   const [showBanner, setShowBanner] = useState(
     localStorage.getItem("hideGuideBanner") !== "true"
   );
+  const { loadMindmap, selectedNode, setSelectedNode, updateNodeHyperlink } =
+    useContext(MindmapContext);
 
   useEffect(() => {
     if (id) {
@@ -38,6 +40,20 @@ const MindMap = ({ id }) => {
     localStorage.setItem("hideGuideBanner", "true");
   };
 
+  const onDragEnd = (result) => {
+    const draggedCardId = result.draggableId;
+    const hyperlink = `${window.location.origin}/mindmap/${draggedCardId}`;
+
+    if (selectedNode) {
+      updateNodeHyperlink(hyperlink);
+      setSelectedNode(null);
+    } else {
+      toast.error("Please select a node before dragging a card.", {
+        autoClose: 1500,
+      });
+    }
+  };
+
   return (
     <div className="relative bg-gray-900 text-gray-200">
       {showBanner && <GuideBanner onClose={handleCloseBanner} />}
@@ -50,7 +66,7 @@ const MindMap = ({ id }) => {
           ></div>
         </div>
         <ShortcutGuide />
-        <Card currentMindmapId={id} />
+        <Card currentMindmapId={id} onDragEnd={onDragEnd} />
       </div>
     </div>
   );

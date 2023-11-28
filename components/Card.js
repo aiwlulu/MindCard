@@ -2,22 +2,10 @@ import React, { useState, useEffect, useContext } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 
-const Card = ({ currentMindmapId }) => {
+const Card = ({ currentMindmapId, onDragEnd }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [mindmaps, setMindmaps] = useState([]);
   const { getAllMindmaps } = useContext(MindmapContext);
-
-  const onDragEnd = (result) => {
-    if (!result.destination) {
-      return;
-    }
-
-    const reordered = Array.from(mindmaps);
-    const [removed] = reordered.splice(result.source.index, 1);
-    reordered.splice(result.destination.index, 0, removed);
-
-    setMindmaps(reordered);
-  };
 
   useEffect(() => {
     const fetchMindmaps = async () => {
