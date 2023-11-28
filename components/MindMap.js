@@ -54,6 +54,14 @@ const MindMap = ({ id }) => {
     }
   };
 
+  const removeHyperlink = () => {
+    if (selectedNode && selectedNode.id) {
+      updateNodeHyperlink("");
+    } else {
+      toast.error("Please select a node first", { autoClose: 1500 });
+    }
+  };
+
   return (
     <div className="relative bg-gray-900 text-gray-200">
       {showBanner && <GuideBanner onClose={handleCloseBanner} />}
@@ -66,7 +74,11 @@ const MindMap = ({ id }) => {
           ></div>
         </div>
         <ShortcutGuide />
-        <Card currentMindmapId={id} onDragEnd={onDragEnd} />
+        <Card
+          currentMindmapId={id}
+          onDragEnd={onDragEnd}
+          removeHyperlink={removeHyperlink}
+        />
       </div>
     </div>
   );
