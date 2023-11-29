@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { BsFillInfoCircleFill } from "react-icons/bs";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
@@ -9,6 +10,7 @@ const Card = ({ currentMindmapId, onDragEnd, removeHyperlink }) => {
   const [mindmaps, setMindmaps] = useState([]);
   const { getAllMindmaps, selectedNode, setSelectedNode } =
     useContext(MindmapContext);
+  const [showInstruction, setShowInstruction] = useState(false);
 
   useEffect(() => {
     const fetchMindmaps = async () => {
@@ -57,15 +59,45 @@ const Card = ({ currentMindmapId, onDragEnd, removeHyperlink }) => {
           </div>
 
           {isOpen && (
-            <>
-              <div className="mb-2">
+            <div className="flex flex-col items-start">
+              <div className="mb-2 flex items-center">
                 <button
-                  className="mt-2 py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all duration-200 hover:scale-105"
+                  className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all duration-200 hover:scale-105"
                   onClick={handleRemoveHyperlinkClick}
                 >
                   Remove Hyperlink
                 </button>
+                <BsFillInfoCircleFill
+                  onClick={() => setShowInstruction(!showInstruction)}
+                  className="text-white ml-4 cursor-pointer"
+                  size={24}
+                />
               </div>
+
+              {showInstruction && (
+                <div className="p-4 mb-2 text-white bg-blue-500 bg-opacity-80 rounded">
+                  <div className="space-y-2">
+                    <p>
+                      The card feature allows you to associate nodes from other
+                      mind maps with the current document.
+                    </p>
+                    <p>
+                      Create or Update Hyperlink: Select a node then drag & drop
+                      a card.
+                    </p>
+                    <p>
+                      Remove Hyperlink: Select the node and click "Remove
+                      Hyperlink" button.
+                    </p>
+                    <button
+                      onClick={() => setShowInstruction(false)}
+                      className="mt-2 py-1 px-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg hover:scale-105"
+                    >
+                      Got it
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <Droppable droppableId="mindmaps">
                 {(provided) => (
@@ -97,7 +129,7 @@ const Card = ({ currentMindmapId, onDragEnd, removeHyperlink }) => {
                   </div>
                 )}
               </Droppable>
-            </>
+            </div>
           )}
         </div>
       </div>
