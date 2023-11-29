@@ -26,10 +26,10 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
   };
 
   return (
-    <div className="mt-10 ml-20 mr-20 grid grid-cols-5 gap-4 items-center">
-      <div className="flex items-center justify-center">
+    <div className="mt-10 mx-4 sm:mx-10 md:mx-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-center">
+      <div className="flex items-center justify-center col-span-2 sm:col-span-1">
         <button
-          className="btn btn-primary-outline px-4 py-2"
+          className="btn btn-primary-outline px-4 py-2 text-center"
           onClick={onMindMapCreate}
         >
           + New
@@ -39,7 +39,7 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
       {mindMaps.map((map) => (
         <div
           key={map.id}
-          className="relative cursor-pointer p-4 bg-slate-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105"
+          className="relative cursor-pointer p-4 bg-slate-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 ease-in-out transform hover:scale-105 col-span-2 sm:col-span-1"
           onClick={() => handleMindMapSelect(map.id)}
         >
           <BsTrash
@@ -49,8 +49,8 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
               handleDelete(map.id);
             }}
           />
-          <h3 className="text-lg font-semibold">{map.title}</h3>
-          <p className="text-sm text-slate-300">{map.description}</p>
+          <h3 className="text-lg font-semibold truncate">{map.title}</h3>
+          <p className="text-sm text-slate-300 truncate">{map.description}</p>
         </div>
       ))}
     </div>

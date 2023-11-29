@@ -77,7 +77,7 @@ function Nav() {
         >
           MindCard
         </strong>
-        {user && !loading && <small className="ml-8">Hi, {displayName}!</small>}
+        {user && !loading && <small className="ml-2">Hi, {displayName}!</small>}
       </div>
       <div className="flex-grow"></div>
       <div className="flex items-center gap-4">
