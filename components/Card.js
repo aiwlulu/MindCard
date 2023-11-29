@@ -75,7 +75,7 @@ const Card = ({ currentMindmapId, onDragEnd, removeHyperlink }) => {
               </div>
 
               {showInstruction && (
-                <div className="p-4 mb-2 text-white bg-blue-500 bg-opacity-80 rounded">
+                <div className="p-4 mb-2 text-white bg-blue-500 bg-opacity-60 rounded">
                   <div className="space-y-2">
                     <p>
                       The card feature allows you to associate nodes from other
