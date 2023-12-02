@@ -105,7 +105,7 @@ const Card = ({ currentMindmapId, onDragEnd, removeHyperlink }) => {
                     {...provided.droppableProps}
                     ref={provided.innerRef}
                     className="w-80 p-4 overflow-auto bg-gray-800 rounded-md shadow-lg"
-                    style={{ maxHeight: "calc(100vh - 5rem)" }}
+                    style={{ maxHeight: "calc(100vh - 7rem)" }}
                   >
                     {mindmaps.map((map) => (
                       <Draggable key={map.id} draggableId={map.id}>
