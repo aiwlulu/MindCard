@@ -73,7 +73,9 @@ const MindMap = ({ id }) => {
             style={{ height: "90vh", width: "100%" }}
           ></div>
         </div>
-        <ShortcutGuide />
+        <div className="hidden lg:block">
+          <ShortcutGuide />
+        </div>
         <Card
           currentMindmapId={id}
           onDragEnd={onDragEnd}

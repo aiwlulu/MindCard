@@ -1,4 +1,5 @@
 "use client";
+import { IoIosFolder, IoMdLogOut, IoIosSave } from "react-icons/io";
 import { useContext, useEffect, useState } from "react";
 import { authContext } from "@/lib/store/auth-context";
 import { useRouter, usePathname } from "next/navigation";
@@ -63,7 +64,7 @@ function Nav() {
   }, [saveMindmap, showSaveButton]);
 
   return (
-    <header className="w-11/12 mx-auto px-6 py-2 flex items-center">
+    <header className="w-11/12 mx-auto px-4 sm:px-6 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <img
           src="/icon.png"
@@ -78,30 +79,34 @@ function Nav() {
           MindCard
         </strong>
         {user && !loading && (
-          <small className="ml-2 truncate">Hi, {displayName}!</small>
+          <small className="ml-2 truncate hidden md:block">
+            Hi, {displayName}!
+          </small>
         )}
       </div>
-      <div className="flex-grow"></div>
       <div className="flex items-center gap-4">
         {user && !loading && showSaveButton && (
           <>
             <button
               onClick={navigateToMindmap}
-              className="btn btn-primary mr-2"
+              className="btn btn-primary lg:mr-4"
             >
-              Folder
+              <IoIosFolder size={20} className="block lg:hidden" />
+              <span className="hidden lg:block">Folder</span>
             </button>
             <button
               onClick={() => saveMindmap()}
-              className="btn btn-primary mr-2"
+              className="btn btn-primary lg:mr-4"
             >
-              Save
+              <IoIosSave size={20} className="block lg:hidden" />
+              <span className="hidden lg:block">Save</span>
             </button>
           </>
         )}
         {user && !loading && (
           <button onClick={logoutAndRedirect} className="btn btn-danger">
-            Sign out
+            <IoMdLogOut size={20} className="block lg:hidden" />
+            <span className="hidden lg:block">Sign out</span>
           </button>
         )}
       </div>

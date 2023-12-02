@@ -116,7 +116,9 @@ const Card = ({ currentMindmapId, onDragEnd, removeHyperlink }) => {
                             {...provided.dragHandleProps}
                             className="mb-2 p-3 bg-gray-700 rounded shadow cursor-pointer"
                           >
-                            <h3 className="text-white text-lg">{map.title}</h3>
+                            <h3 className="text-white text-lg truncate">
+                              {map.title}
+                            </h3>
                           </div>
                         )}
                       </Draggable>
