@@ -40,23 +40,22 @@ const MindMap = ({ id }) => {
     localStorage.setItem("hideGuideBanner", "true");
   };
 
-  const onDragEnd = (result) => {
-    const draggedCardId = result.draggableId;
-    const hyperlink = `${window.location.origin}/mindmap/${draggedCardId}`;
+  const handleDrop = (e) => {
+    const cardData = JSON.parse(e.dataTransfer.getData("application/json"));
+    const cardId = cardData.id;
+    updateNodeHyperlink(selectedNode.id, { id: cardId });
+    setSelectedNode(null);
+  };
 
+  const handleDragOver = (e) => {
     if (selectedNode) {
-      updateNodeHyperlink(hyperlink);
-      setSelectedNode(null);
-    } else {
-      toast.error("Please select a node before dragging a card.", {
-        autoClose: 1500,
-      });
+      e.preventDefault();
     }
   };
 
   const removeHyperlink = () => {
     if (selectedNode && selectedNode.id) {
-      updateNodeHyperlink("");
+      updateNodeHyperlink(selectedNode.id, "");
     } else {
       toast.error("Please select a node first", { autoClose: 1500 });
     }
@@ -71,16 +70,14 @@ const MindMap = ({ id }) => {
             ref={mapRef}
             id="map"
             style={{ height: "90vh", width: "100%" }}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
           ></div>
         </div>
         <div className="hidden lg:block">
           <ShortcutGuide />
         </div>
-        <Card
-          currentMindmapId={id}
-          onDragEnd={onDragEnd}
-          removeHyperlink={removeHyperlink}
-        />
+        <Card currentMindmapId={id} removeHyperlink={removeHyperlink} />
       </div>
     </div>
   );
