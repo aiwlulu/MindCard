@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { BsFillInfoCircleFill } from "react-icons/bs";
 import { MindmapContext } from "@/lib/store/mindmap-context";
-import Swal from "sweetalert2";
+import SweetAlert from "./SweetAlert";
 import { toast } from "react-toastify";
 
 const Card = ({ currentMindmapId, removeHyperlink }) => {
@@ -28,19 +28,14 @@ const Card = ({ currentMindmapId, removeHyperlink }) => {
       return;
     }
 
-    Swal.fire({
+    SweetAlert({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
       icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Yes, delete it!",
-    }).then((result) => {
-      if (result.isConfirmed) {
+      onConfirm: () => {
         removeHyperlink();
         setSelectedNode(null);
-      }
+      },
     });
   };
 

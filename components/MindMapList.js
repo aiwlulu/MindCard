@@ -1,6 +1,6 @@
 import { useRouter } from "next/navigation";
 import { BsTrash } from "react-icons/bs";
-import Swal from "sweetalert2";
+import SweetAlert from "./SweetAlert";
 
 function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
   const router = useRouter();
@@ -9,20 +9,13 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
     router.push(`/mindmap/${id}`);
   };
 
-  const handleDelete = async (id) => {
-    const result = await Swal.fire({
+  const handleDelete = (id) => {
+    SweetAlert({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
       icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Yes, delete it!",
+      onConfirm: () => onDeleteMindMap(id),
     });
-
-    if (result.isConfirmed) {
-      onDeleteMindMap(id);
-    }
   };
 
   return (
