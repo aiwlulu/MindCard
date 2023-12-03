@@ -2,6 +2,9 @@
 import React, { useEffect, useState, useContext } from "react";
 import dynamic from "next/dynamic";
 import { MindmapContext } from "@/lib/store/mindmap-context";
+import silenceConsole from "@/lib/utils/silenceConsole";
+
+silenceConsole();
 
 const DynamicMindmap = dynamic(() => import("@/components/MindMap"), {
   ssr: false,
