@@ -41,14 +41,29 @@ const MindMap = ({ id }) => {
   };
 
   const handleDrop = (e) => {
-    const cardData = JSON.parse(e.dataTransfer.getData("application/json"));
-    const cardId = cardData.id;
-    updateNodeHyperlink(selectedNode.id, { id: cardId });
-    setSelectedNode(null);
+    e.preventDefault();
+    if (!e.dataTransfer.types.includes("card/json")) {
+      return;
+    }
+
+    const jsonData = e.dataTransfer.getData("card/json");
+
+    let cardData;
+    try {
+      cardData = JSON.parse(jsonData);
+    } catch (error) {
+      toast.error("Invalid card data.", { autoClose: 1500 });
+      return;
+    }
+
+    if (selectedNode && cardData.id) {
+      updateNodeHyperlink(selectedNode.id, { id: cardData.id });
+      setSelectedNode(null);
+    }
   };
 
   const handleDragOver = (e) => {
-    if (selectedNode) {
+    if (e.dataTransfer.types.includes("card/json")) {
       e.preventDefault();
     }
   };

@@ -22,7 +22,7 @@ const Card = ({ currentMindmapId, removeHyperlink }) => {
 
   const handleRemoveHyperlinkClick = () => {
     if (!selectedNode) {
-      toast.error("Please select a node before delete hyperlink.", {
+      toast.error("Please select a node before deleting a hyperlink.", {
         autoClose: 1500,
       });
       return;
@@ -41,13 +41,16 @@ const Card = ({ currentMindmapId, removeHyperlink }) => {
 
   const handleDragStart = (e, map) => {
     if (!selectedNode) {
-      toast.error("Please select a node before create or update hyperlink.", {
-        autoClose: 1500,
-      });
+      toast.error(
+        "Please select a node before creating or updating a hyperlink.",
+        {
+          autoClose: 1500,
+        }
+      );
       return;
     }
     const cardData = JSON.stringify({ id: map.id, title: map.title });
-    e.dataTransfer.setData("application/json", cardData);
+    e.dataTransfer.setData("card/json", cardData);
   };
 
   return (
