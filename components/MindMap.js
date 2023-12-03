@@ -77,7 +77,9 @@ const MindMap = ({ id }) => {
         <div className="hidden lg:block">
           <ShortcutGuide />
         </div>
-        <Card currentMindmapId={id} removeHyperlink={removeHyperlink} />
+        <div className="hidden lg:block">
+          <Card currentMindmapId={id} removeHyperlink={removeHyperlink} />
+        </div>
       </div>
     </div>
   );

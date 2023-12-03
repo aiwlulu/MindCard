@@ -73,15 +73,13 @@ function Nav() {
           onClick={navigateToMindmap}
         />
         <strong
-          className="text-xl font-semibold cursor-pointer"
+          className="text-xl font-semibold cursor-pointer hidden md:block"
           onClick={navigateToMindmap}
         >
           MindCard
         </strong>
         {user && !loading && (
-          <small className="ml-2 truncate hidden md:block">
-            Hi, {displayName}!
-          </small>
+          <small className="ml-2 truncate">Hi, {displayName}!</small>
         )}
       </div>
       <div className="flex items-center gap-4">
