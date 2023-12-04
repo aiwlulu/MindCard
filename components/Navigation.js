@@ -22,7 +22,9 @@ function Nav() {
   };
 
   const navigateToMindmap = () => {
-    router.push("/mindmap");
+    if (pathname !== "/") {
+      router.push("/mindmap");
+    }
   };
 
   useEffect(() => {
