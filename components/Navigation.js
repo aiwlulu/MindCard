@@ -69,11 +69,12 @@ function Nav() {
         <img
           src="/icon.png"
           alt="logo"
-          className="w-16 h-16 cursor-pointer"
+          className="w-16 h-16 cursor-pointer logo-hover"
           onClick={navigateToMindmap}
         />
+
         <strong
-          className="text-xl font-semibold cursor-pointer hidden md:block"
+          className="text-xl font-semibold cursor-pointer hidden md:block mindcard-hover"
           onClick={navigateToMindmap}
         >
           MindCard

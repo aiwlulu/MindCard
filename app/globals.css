@@ -3,10 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    scroll-behavior: smooth;
-  }
-
   body {
     @apply relative text-white bg-slate-900;
   }
@@ -39,6 +35,14 @@
 
   .input-group {
     @apply flex flex-col gap-4;
+  }
+
+  .logo-hover:hover {
+    @apply filter brightness-110 transition-all duration-300 ease-in-out hover:scale-105;
+  }
+
+  .mindcard-hover:hover {
+    @apply text-indigo-200  no-underline transition-all duration-300 ease-in-out hover:scale-105;
   }
 }
 
