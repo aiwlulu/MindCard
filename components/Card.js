@@ -111,16 +111,25 @@ const Card = ({ currentMindmapId, removeHyperlink }) => {
               style={{ maxHeight: "calc(100vh - 12rem)" }}
               onDragOver={(e) => e.preventDefault()}
             >
-              {mindmaps.map((map) => (
-                <div
-                  key={map.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, map)}
-                  className="mb-2 p-3 bg-gray-700 rounded shadow cursor-pointer"
-                >
-                  <h3 className="text-white text-lg truncate">{map.title}</h3>
+              {mindmaps.length === 0 ? (
+                <div className="text-white text-center p-4">
+                  <p>
+                    This area will display your mind maps but does not include
+                    the current file.
+                  </p>
                 </div>
-              ))}
+              ) : (
+                mindmaps.map((map) => (
+                  <div
+                    key={map.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, map)}
+                    className="mb-2 p-3 bg-gray-700 rounded shadow cursor-pointer"
+                  >
+                    <h3 className="text-white text-lg truncate">{map.title}</h3>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
