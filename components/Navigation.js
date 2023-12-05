@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { MindmapContext } from "@/lib/store/mindmap-context";
+import { BsDownload } from "react-icons/bs";
 
 function Nav() {
   const { user, loading, logout } = useContext(authContext);
@@ -15,6 +16,7 @@ function Nav() {
   const pathname = usePathname();
   const showSaveButton =
     pathname.startsWith("/mindmap/") && pathname.length > 9;
+  const { exportMindMap } = useContext(MindmapContext);
 
   const logoutAndRedirect = () => {
     logout();
@@ -65,6 +67,17 @@ function Nav() {
     }
   }, [saveMindmap, showSaveButton]);
 
+  const handleExport = async () => {
+    const mindmapId = pathname.split("/mindmap/")[1];
+    if (mindmapId) {
+      try {
+        await exportMindMap(mindmapId);
+      } catch (error) {
+        console.error("Error when trying to export:", error);
+      }
+    }
+  };
+
   return (
     <header className="w-11/12 mx-auto px-4 sm:px-6 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -88,6 +101,10 @@ function Nav() {
       <div className="flex items-center gap-4">
         {user && !loading && showSaveButton && (
           <>
+            <button onClick={handleExport} className="btn btn-primary lg:mr-4">
+              <BsDownload size={20} className="block lg:hidden" />
+              <span className="hidden lg:block">Export</span>
+            </button>
             <button
               onClick={navigateToMindmap}
               className="btn btn-primary lg:mr-4"
