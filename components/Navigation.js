@@ -101,9 +101,12 @@ function Nav() {
       <div className="flex items-center gap-4">
         {user && !loading && showSaveButton && (
           <>
-            <button onClick={handleExport} className="btn btn-primary lg:mr-4">
-              <BsDownload size={20} className="block lg:hidden" />
-              <span className="hidden lg:block">Export</span>
+            <button
+              onClick={() => saveMindmap()}
+              className="btn btn-primary lg:mr-4"
+            >
+              <IoIosSave size={20} className="block lg:hidden" />
+              <span className="hidden lg:block">Save</span>
             </button>
             <button
               onClick={navigateToMindmap}
@@ -112,12 +115,10 @@ function Nav() {
               <IoIosFolder size={20} className="block lg:hidden" />
               <span className="hidden lg:block">Folder</span>
             </button>
-            <button
-              onClick={() => saveMindmap()}
-              className="btn btn-primary lg:mr-4"
-            >
-              <IoIosSave size={20} className="block lg:hidden" />
-              <span className="hidden lg:block">Save</span>
+
+            <button onClick={handleExport} className="btn btn-primary lg:mr-4">
+              <BsDownload size={20} className="block lg:hidden" />
+              <span className="hidden lg:block">Export</span>
             </button>
           </>
         )}
