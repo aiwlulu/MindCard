@@ -80,11 +80,16 @@ function Nav() {
   };
 
   const [autoSave, setAutoSave] = useState(() => {
-    return JSON.parse(localStorage.getItem("autoSave")) || false;
+    if (typeof window !== "undefined") {
+      return JSON.parse(localStorage.getItem("autoSave")) || false;
+    }
+    return false;
   });
 
   useEffect(() => {
-    localStorage.setItem("autoSave", JSON.stringify(autoSave));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("autoSave", JSON.stringify(autoSave));
+    }
   }, [autoSave]);
 
   useEffect(() => {
@@ -97,15 +102,17 @@ function Nav() {
   }, [autoSave, user, loading, showSaveButton]);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setAutoSave((currentAutoSave) => !currentAutoSave);
-
-      setTimeout(() => {
+    if (typeof window !== "undefined") {
+      const timeout = setTimeout(() => {
         setAutoSave((currentAutoSave) => !currentAutoSave);
-      }, 500);
-    }, 500);
 
-    return () => clearTimeout(timeout);
+        setTimeout(() => {
+          setAutoSave((currentAutoSave) => !currentAutoSave);
+        }, 500);
+      }, 500);
+
+      return () => clearTimeout(timeout);
+    }
   }, []);
 
   return (
