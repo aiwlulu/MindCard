@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import { BsDownload } from "react-icons/bs";
+import { Switch } from "@headlessui/react";
 
 function Nav() {
   const { user, loading, logout } = useContext(authContext);
@@ -78,6 +79,35 @@ function Nav() {
     }
   };
 
+  const [autoSave, setAutoSave] = useState(() => {
+    return JSON.parse(localStorage.getItem("autoSave")) || false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("autoSave", JSON.stringify(autoSave));
+  }, [autoSave]);
+
+  useEffect(() => {
+    if (autoSave && user && !loading && showSaveButton) {
+      const interval = setInterval(() => {
+        saveMindmap();
+      }, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [autoSave, user, loading, showSaveButton]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setAutoSave((currentAutoSave) => !currentAutoSave);
+
+      setTimeout(() => {
+        setAutoSave((currentAutoSave) => !currentAutoSave);
+      }, 500);
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, []);
+
   return (
     <header className="w-11/12 mx-auto px-4 sm:px-6 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -101,6 +131,22 @@ function Nav() {
       <div className="flex items-center gap-4">
         {user && !loading && showSaveButton && (
           <>
+            <div className="items-center gap-3 lg:flex hidden">
+              <Switch
+                checked={autoSave}
+                onChange={setAutoSave}
+                className={`${
+                  autoSave ? "bg-lime-600" : "bg-gray-400"
+                } relative inline-flex items-center h-6 rounded-full w-11`}
+              >
+                <span
+                  className={`${
+                    autoSave ? "translate-x-6" : "translate-x-1"
+                  } inline-block w-4 h-4 transform bg-white rounded-full`}
+                />
+              </Switch>
+              <span className="text-lime-500 mr-2">Auto Save (30s)</span>
+            </div>
             <button
               onClick={() => saveMindmap()}
               className="btn btn-primary lg:mr-4"
@@ -108,6 +154,7 @@ function Nav() {
               <IoIosSave size={20} className="block lg:hidden" />
               <span className="hidden lg:block">Save</span>
             </button>
+
             <button
               onClick={navigateToMindmap}
               className="btn btn-primary lg:mr-4"
