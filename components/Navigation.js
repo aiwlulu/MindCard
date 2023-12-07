@@ -86,7 +86,7 @@ function Nav() {
         saveMindmap().catch((error) => {
           toast.error("Failed to save mindmap:", error);
         });
-      }, 1500);
+      }, 15000);
       return () => clearInterval(interval);
     }
   }, [autoSave, user, loading, showSaveButton]);
