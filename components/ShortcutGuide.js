@@ -32,7 +32,7 @@ const ShortcutGuide = () => {
               Please avoid copying and pasting the root node (it can't be
               deleted).
             </p>
-            <li className="font-normal">Ctrl + “+”- Zoom In Mind Map</li>
+            <li className="font-normal">Ctrl + “+” - Zoom In Mind Map</li>
             <li className="font-normal">Ctrl + “-” - Zoom Out Mind Map</li>
             <li className="font-normal">Ctrl + 0 - Reset Zoom Level</li>
             <li className="font-normal">F1 - Center the Map</li>
