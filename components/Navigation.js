@@ -118,7 +118,7 @@ function Nav() {
               <label
                 className={`${
                   autoSave ? "bg-lime-600" : "bg-gray-400"
-                } relative inline-flex items-center h-6 rounded-full w-11`}
+                } relative inline-flex items-center h-6 rounded-full w-11 cursor-pointer`}
               >
                 <input
                   type="checkbox"
