@@ -6,12 +6,15 @@ import { toast } from "react-toastify";
 
 const GuideBanner = ({ onClose }) => {
   return (
-    <div className="absolute top-0 left-0 w-full bg-blue-900 bg-opacity-30 text-blue-100 py-2 px-4 flex justify-between items-center text-sm md:text-base z-50">
-      <span>
+    <div className="absolute top-0 left-0 w-full bg-blue-900 bg-opacity-30 text-blue-100 py-2 px-4 justify-between items-center text-sm md:text-base z-50 flex">
+      <span className="lg:flex hidden">
         Right-click on a node to interact with it. Double-click on a node to
         edit its content. Or use the "Show Shortcuts" button for more tips.
       </span>
-      <button onClick={onClose} className="text-blue-100 text-2xl leading-none">
+      <span className="lg:hidden">
+        Double-click on a node to edit its content.
+      </span>
+      <button onClick={onClose} className="text-blue-100 text-2xl">
         ×
       </button>
     </div>
