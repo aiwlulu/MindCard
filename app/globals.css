@@ -83,11 +83,9 @@ nextjs-portal {
   bottom: 120%;
   left: 50%;
   transform: translateX(-50%) translateY(10px);
-  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
   font-size: 14px;
-  transition: opacity 0.3s, visibility 0.3s;
-  opacity: 0;
-  visibility: hidden;
+  visibility: visible;
+  opacity: 1;
   white-space: nowrap;
 }
 
@@ -97,11 +95,6 @@ nextjs-portal {
 
 .lt span:hover::after {
   transform: translateX(-10%) translateY(10px);
-}
-
-.mind-elixir-toolbar span:hover::after {
-  visibility: visible;
-  opacity: 1;
 }
 
 #fullscreen:hover::after {
