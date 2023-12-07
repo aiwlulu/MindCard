@@ -81,18 +81,12 @@ function Nav() {
   const [autoSave, setAutoSave] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("autoSave", JSON.stringify(autoSave));
-    }
-  }, [autoSave]);
-
-  useEffect(() => {
     if (autoSave && user && !loading && showSaveButton) {
       const interval = setInterval(() => {
         saveMindmap().catch((error) => {
           toast.error("Failed to save mindmap:", error);
         });
-      }, 15000);
+      }, 1500);
       return () => clearInterval(interval);
     }
   }, [autoSave, user, loading, showSaveButton]);
