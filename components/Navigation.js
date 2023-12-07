@@ -132,7 +132,9 @@ function Nav() {
                   } inline-block w-4 h-4 transform bg-white rounded-full`}
                 />
               </label>
-              <span className="text-lime-500 mr-2">Auto Save (15s)</span>
+              <span className="text-sm text-lime-500 mr-2">
+                Auto Save (15s)
+              </span>
             </div>
             <button
               onClick={() => saveMindmap()}

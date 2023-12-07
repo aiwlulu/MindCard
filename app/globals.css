@@ -46,7 +46,6 @@
   }
 }
 
-/* Scrollbar customization for WebKit browsers */
 ::-webkit-scrollbar {
   width: 12px;
 }
