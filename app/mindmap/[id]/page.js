@@ -4,7 +4,21 @@ import dynamic from "next/dynamic";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import silenceConsole from "@/lib/utils/silenceConsole";
 
-silenceConsole();
+const options = {
+  blackList: [
+    "ME_version",
+    "layout",
+    "linkDiv",
+    "selectNode",
+    "addChild",
+    "editTopic",
+    "New Topic",
+    "insertSibling_DOM",
+    "FindEle: Node",
+  ],
+};
+
+silenceConsole(options);
 
 const DynamicMindmap = dynamic(() => import("@/components/MindMap"), {
   ssr: false,

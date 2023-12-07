@@ -24,9 +24,14 @@ const ShortcutGuide = () => {
             <li className="font-normal">Del - Delete Selected Node</li>
             <li className="font-normal">PageUp / Alt + ↑ - Move Up Node</li>
             <li className="font-normal">PageDown / Alt + ↓ - Move Down Node</li>
+            <li className="font-normal">Ctrl + Z - Undo</li>
             <li className="font-normal">Ctrl + S - Save Mind Map</li>
             <li className="font-normal">Ctrl + C - Copy Selected Node</li>
             <li className="font-normal">Ctrl + V - Paste the Copied Node</li>
+            <p className="font-normal text-red-300">
+              Please avoid copying and pasting the root node (it can't be
+              deleted).
+            </p>
             <li className="font-normal">Ctrl + “+”- Zoom In Mind Map</li>
             <li className="font-normal">Ctrl + “-” - Zoom Out Mind Map</li>
             <li className="font-normal">Ctrl + 0 - Reset Zoom Level</li>
