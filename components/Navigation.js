@@ -7,7 +7,6 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import { BsDownload } from "react-icons/bs";
-import { Switch } from "@headlessui/react";
 
 function Nav() {
   const { user, loading, logout } = useContext(authContext);
@@ -79,12 +78,7 @@ function Nav() {
     }
   };
 
-  const [autoSave, setAutoSave] = useState(() => {
-    if (typeof window !== "undefined") {
-      return JSON.parse(localStorage.getItem("autoSave")) || false;
-    }
-    return false;
-  });
+  const [autoSave, setAutoSave] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -95,25 +89,13 @@ function Nav() {
   useEffect(() => {
     if (autoSave && user && !loading && showSaveButton) {
       const interval = setInterval(() => {
-        saveMindmap();
-      }, 30000);
+        saveMindmap().catch((error) => {
+          toast.error("Failed to save mindmap:", error);
+        });
+      }, 15000);
       return () => clearInterval(interval);
     }
   }, [autoSave, user, loading, showSaveButton]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const timeout = setTimeout(() => {
-        setAutoSave((currentAutoSave) => !currentAutoSave);
-
-        setTimeout(() => {
-          setAutoSave((currentAutoSave) => !currentAutoSave);
-        }, 500);
-      }, 500);
-
-      return () => clearTimeout(timeout);
-    }
-  }, []);
 
   return (
     <header className="w-11/12 mx-auto px-4 sm:px-6 py-2 flex items-center justify-between">
@@ -139,20 +121,24 @@ function Nav() {
         {user && !loading && showSaveButton && (
           <>
             <div className="items-center gap-3 lg:flex hidden">
-              <Switch
-                checked={autoSave}
-                onChange={setAutoSave}
+              <label
                 className={`${
                   autoSave ? "bg-lime-600" : "bg-gray-400"
                 } relative inline-flex items-center h-6 rounded-full w-11`}
               >
+                <input
+                  type="checkbox"
+                  checked={autoSave}
+                  onChange={() => setAutoSave(!autoSave)}
+                  className="opacity-0 w-0 h-0"
+                />
                 <span
                   className={`${
                     autoSave ? "translate-x-6" : "translate-x-1"
                   } inline-block w-4 h-4 transform bg-white rounded-full`}
                 />
-              </Switch>
-              <span className="text-lime-500 mr-2">Auto Save (30s)</span>
+              </label>
+              <span className="text-lime-500 mr-2">Auto Save (15s)</span>
             </div>
             <button
               onClick={() => saveMindmap()}
