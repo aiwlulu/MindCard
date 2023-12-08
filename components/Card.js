@@ -109,7 +109,6 @@ const Card = ({ currentMindmapId, removeHyperlink }) => {
             <div
               className="w-80 p-4 overflow-auto bg-gray-800 rounded-md shadow-lg"
               style={{ maxHeight: "calc(100vh - 12rem)" }}
-              onDragOver={(e) => e.preventDefault()}
             >
               {mindmaps.length === 0 ? (
                 <div className="text-white text-center p-4">
