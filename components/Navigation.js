@@ -132,7 +132,7 @@ function Nav() {
                   } inline-block w-4 h-4 transform bg-white rounded-full`}
                 />
               </label>
-              <span className="text-sm text-lime-500 mr-2">
+              <span className="text-sm text-lime-500 mr-2 truncate">
                 Auto Save (15s)
               </span>
             </div>
@@ -161,7 +161,7 @@ function Nav() {
         {user && !loading && (
           <button onClick={logoutAndRedirect} className="btn btn-danger">
             <IoMdLogOut size={20} className="block lg:hidden" />
-            <span className="hidden lg:block">Sign out</span>
+            <span className="hidden lg:block truncate">Sign out</span>
           </button>
         )}
       </div>
