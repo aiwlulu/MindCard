@@ -80,7 +80,7 @@ function Nav() {
   };
 
   return (
-    <header className="w-11/12 mx-auto px-4 sm:px-6 py-2 flex items-center justify-between">
+    <header className="h-20 w-full md:w-11/12 mx-auto px-4 sm:px-6 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <img
           src="/icon.png"
@@ -88,15 +88,14 @@ function Nav() {
           className="w-16 h-16 cursor-pointer logo-hover"
           onClick={navigateToMindmap}
         />
-
         <strong
-          className="text-xl font-semibold cursor-pointer hidden md:block mindcard-hover"
+          className="text-xl font-semibold cursor-pointer mindcard-hover"
           onClick={navigateToMindmap}
         >
           MindCard
         </strong>
-        {user && !loading && (
-          <small className="ml-2 truncate">Hi, {displayName}!</small>
+        {user && !loading && !showSaveButton && (
+          <small className="truncate">Hi, {displayName}!</small>
         )}
       </div>
       <div className="flex items-center gap-4">
@@ -115,13 +114,16 @@ function Nav() {
 
             <button
               onClick={navigateToMindmap}
-              className="btn btn-primary lg:mr-4"
+              className="btn btn-primary lg:mr-4 hidden md:block"
             >
               <IoIosFolder size={20} className="block lg:hidden" />
               <span className="hidden lg:block">Folder</span>
             </button>
 
-            <button onClick={handleExport} className="btn btn-primary lg:mr-4">
+            <button
+              onClick={handleExport}
+              className="btn btn-primary lg:mr-4 hidden md:block"
+            >
               <BsDownload size={20} className="block lg:hidden" />
               <span className="hidden lg:block">Export</span>
             </button>
