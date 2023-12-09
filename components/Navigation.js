@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import { BsDownload } from "react-icons/bs";
+import AutoSaveToggle from "./AutoSaveToggle";
 
 function Nav() {
   const { user, loading, logout } = useContext(authContext);
@@ -78,19 +79,6 @@ function Nav() {
     }
   };
 
-  const [autoSave, setAutoSave] = useState(false);
-
-  useEffect(() => {
-    if (autoSave && user && !loading && showSaveButton) {
-      const interval = setInterval(() => {
-        saveMindmap().catch((error) => {
-          toast.error("Failed to save mindmap:", error);
-        });
-      }, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [autoSave, user, loading, showSaveButton]);
-
   return (
     <header className="w-11/12 mx-auto px-4 sm:px-6 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -115,26 +103,7 @@ function Nav() {
         {user && !loading && showSaveButton && (
           <>
             <div className="items-center gap-3 lg:flex hidden">
-              <label
-                className={`${
-                  autoSave ? "bg-lime-600" : "bg-gray-400"
-                } relative inline-flex items-center h-6 rounded-full w-11 cursor-pointer`}
-              >
-                <input
-                  type="checkbox"
-                  checked={autoSave}
-                  onChange={() => setAutoSave(!autoSave)}
-                  className="opacity-0 w-0 h-0"
-                />
-                <span
-                  className={`${
-                    autoSave ? "translate-x-6" : "translate-x-1"
-                  } inline-block w-4 h-4 transform bg-white rounded-full`}
-                />
-              </label>
-              <span className="text-sm text-lime-500 mr-2 truncate">
-                Auto Save (15s)
-              </span>
+              <AutoSaveToggle />
             </div>
             <button
               onClick={() => saveMindmap()}
