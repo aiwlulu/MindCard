@@ -10,6 +10,7 @@ const options = {
     "layout",
     "linkDiv",
     "selectNode",
+    "selectNodes",
     "addChild",
     "editTopic",
     "New Topic",
