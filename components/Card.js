@@ -49,7 +49,7 @@ const Card = ({ currentMindmapId, removeHyperlink }) => {
       );
       return;
     }
-    const cardData = JSON.stringify({ id: map.id, title: map.title });
+    const cardData = JSON.stringify({ id: map.id });
     e.dataTransfer.setData("card/json", cardData);
   };
 
