@@ -15,6 +15,7 @@ const options = {
     "New Topic",
     "insertSibling_DOM",
     "FindEle: Node",
+    "DrawCustomLink",
   ],
 };
 
