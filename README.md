@@ -23,25 +23,25 @@
 ## Features
 
 1️⃣ Create or Delete File
-![Create or Delete File](.public/readme/feature-1.gif)
+![Create or Delete File](https://github.com/aiwlulu/MindCard/blob/main/public/readme/feature-1.gif?raw=true)
 
 2️⃣ Mind Map - Edit by Content Menu
-![Mind Map - Edit by Content Menu](.public/readme/feature-2.gif)
+![Mind Map - Edit by Content Menu](https://github.com/aiwlulu/MindCard/blob/main/public/readme/feature-2.gif?raw=true)
 
 3️⃣ Mind Map - Edit by Shortcuts
-![Mind Map - Edit by Shortcuts](.public/readme/feature-3.gif)
+![Mind Map - Edit by Shortcuts](https://github.com/aiwlulu/MindCard/blob/main/public/readme/feature-3.gif?raw=true)
 
 4️⃣ Card Link - Create or Update
-![Card Link - Create or Update](.public/readme/feature-4.gif)
+![Card Link - Create or Update](https://github.com/aiwlulu/MindCard/blob/main/public/readme/feature-4.gif?raw=true)
 
 5️⃣ Card Link - Remove
-![Card Link - Remove](.public/readme/feature-5.gif)
+![Card Link - Remove](https://github.com/aiwlulu/MindCard/blob/main/public/readme/feature-5.gif?raw=true)
 
 6️⃣ Auto Save
-![Auto Save](.public/readme/feature-6.gif)
+![Auto Save](https://github.com/aiwlulu/MindCard/blob/main/public/readme/feature-6.gif?raw=true)
 
 7️⃣ Export to SVG (with Card Link)
-![Export to SVG (with Card Link)](.public/readme/feature-7.gif)
+![Export to SVG (with Card Link)](https://github.com/aiwlulu/MindCard/blob/main/public/readme/feature-7.gif?raw=true)
 
 ---
 
