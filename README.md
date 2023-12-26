@@ -23,25 +23,25 @@
 ## Features
 
 1️⃣ Create or Delete File
-![Create or Delete File](https://hackmd.io/_uploads/S18UvNuva.gif)
+![Create or Delete File](.public/readme/feature-1.gif)
 
 2️⃣ Mind Map - Edit by Content Menu
-![Mind Map - Edit by Content Menu](https://hackmd.io/_uploads/BJ3ruVuDT.gif)
+![Mind Map - Edit by Content Menu](.public/readme/feature-2.gif)
 
 3️⃣ Mind Map - Edit by Shortcuts
-![Mind Map - Edit by Shortcuts](https://hackmd.io/_uploads/r1VIjNOwp.gif)
+![Mind Map - Edit by Shortcuts](.public/readme/feature-3.gif)
 
 4️⃣ Card Link - Create or Update
-![Card Link - Create or Update](https://hackmd.io/_uploads/B1QwCV_D6.gif)
+![Card Link - Create or Update](.public/readme/feature-4.gif)
 
 5️⃣ Card Link - Remove
-![Card Link - Remove](https://hackmd.io/_uploads/SJXcUHOvp.gif)
+![Card Link - Remove](.public/readme/feature-5.gif)
 
 6️⃣ Auto Save
-![Auto Save](https://hackmd.io/_uploads/Hk6Ddrdvp.gif)
+![Auto Save](.public/readme/feature-6.gif)
 
 7️⃣ Export to SVG (with Card Link)
-![Export to SVG (with Card Link)](https://hackmd.io/_uploads/B1xvOSdPT.gif)
+![Export to SVG (with Card Link)](.public/readme/feature-7.gif)
 
 ---
 
