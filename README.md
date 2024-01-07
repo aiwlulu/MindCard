@@ -47,13 +47,13 @@
 
 ## Technologies
 
-![image](https://hackmd.io/_uploads/HJkmEkwPa.png)
+![image](https://hackmd.io/_uploads/B1AsiDud6.png)
 
 ---
 
 ## Component Structure
 
-![image](https://hackmd.io/_uploads/H1i7q_Wva.png)
+![image](https://hackmd.io/_uploads/ry5MhPddT.png)
 
 ---
 
