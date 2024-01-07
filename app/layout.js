@@ -1,3 +1,4 @@
+import React from "react";
 import "./globals.css";
 import Head from "./head";
 import { ToastContainer } from "react-toastify";

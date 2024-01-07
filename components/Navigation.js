@@ -1,6 +1,6 @@
 "use client";
 import { IoIosFolder, IoMdLogOut, IoIosSave } from "react-icons/io";
-import { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { authContext } from "@/lib/store/auth-context";
 import { useRouter, usePathname } from "next/navigation";
 import { db } from "@/lib/firebase";

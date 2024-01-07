@@ -1,3 +1,4 @@
+import React from "react";
 import { RaceBy } from "@uiball/loaders";
 
 export default function Loading() {

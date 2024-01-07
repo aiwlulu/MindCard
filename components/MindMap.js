@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useContext } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import ShortcutGuide from "./ShortcutGuide";
 import Card from "./Card";
