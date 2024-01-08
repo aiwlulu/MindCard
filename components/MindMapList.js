@@ -2,6 +2,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { BsTrash } from "react-icons/bs";
 import SweetAlert from "./SweetAlert";
+import debounce from "lodash.debounce";
 
 function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
   const router = useRouter();
@@ -19,12 +20,16 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
     });
   };
 
+  const handleCreate = debounce(() => {
+    onMindMapCreate();
+  }, 300);
+
   return (
     <div className="mt-10 mx-4 sm:mx-10 md:mx-20 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-center">
       <div className="flex items-center justify-center col-span-2 sm:col-span-1">
         <button
           className="btn btn-primary-outline px-4 py-2 text-center"
-          onClick={onMindMapCreate}
+          onClick={handleCreate}
         >
           + New
         </button>
