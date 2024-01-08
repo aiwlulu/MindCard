@@ -17,22 +17,23 @@ function Authentication() {
     email: "",
     password: "",
   });
+  const [useDemoAccount, setUseDemoAccount] = useState(true);
 
   useEffect(() => {
-    if (isRegistering) {
-      setFormData({
-        name: "",
-        email: "",
-        password: "",
-      });
-    } else {
+    if (useDemoAccount) {
       setFormData({
         name: "",
         email: "demo@gmail.com",
         password: "123456",
       });
+    } else {
+      setFormData({
+        name: "",
+        email: "",
+        password: "",
+      });
     }
-  }, [isRegistering]);
+  }, [useDemoAccount, isRegistering]);
 
   const togglePasswordVisibility = () => {
     setPasswordVisible((prev) => !prev);
@@ -64,6 +65,24 @@ function Authentication() {
         }
       });
     }
+  };
+
+  const handleRegisterLoginToggle = () => {
+    if (isRegistering) {
+      setUseDemoAccount(true);
+    }
+
+    setIsRegistering((prev) => {
+      if (!prev) {
+        setUseDemoAccount(false);
+        setFormData({
+          name: "",
+          email: "",
+          password: "",
+        });
+      }
+      return !prev;
+    });
   };
 
   return (
@@ -98,6 +117,7 @@ function Authentication() {
                 required
               />
             )}
+
             <input
               className={`p-2 ${
                 isRegistering ? "" : "mt-4"
@@ -132,6 +152,18 @@ function Authentication() {
                 )}
               </span>
             </div>
+            {!isRegistering && (
+              <label className="flex items-center mt-2 ml-2">
+                <input
+                  type="checkbox"
+                  checked={useDemoAccount}
+                  onChange={() => setUseDemoAccount(!useDemoAccount)}
+                />
+                <span className="text-sm ml-3">
+                  Click to Fill in the Demo Account
+                </span>
+              </label>
+            )}
             <button className="py-2 mt-1 w-full btn btn-primary-outline">
               {isRegistering ? "Register" : "Login"}
             </button>
@@ -159,7 +191,7 @@ function Authentication() {
               <button
                 type="button"
                 className="py-2 px-3 btn btn-primary-outline"
-                onClick={() => setIsRegistering((prev) => !prev)}
+                onClick={handleRegisterLoginToggle}
               >
                 {isRegistering ? "Login" : "Register"}
               </button>
