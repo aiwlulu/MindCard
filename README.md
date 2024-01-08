@@ -47,7 +47,7 @@
 
 ## Technologies
 
-![image](https://hackmd.io/_uploads/B1AsiDud6.png)
+![image](https://hackmd.io/_uploads/HJBzgJYda.png)
 
 ---
 
