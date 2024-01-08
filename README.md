@@ -8,7 +8,7 @@
 
 🔗 Check out live demo to see more: [Live Demo](https://mind-card.vercel.app/)
 
-![image](https://hackmd.io/_uploads/BkTT3LZwT.png)
+![image](https://hackmd.io/_uploads/B1wy4zY_p.png)
 
 ![image](https://hackmd.io/_uploads/ByDCOCwDp.png)
 
