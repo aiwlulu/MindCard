@@ -8,6 +8,7 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import { BsDownload } from "react-icons/bs";
 import AutoSaveToggle from "./AutoSaveToggle";
+import debounce from "lodash.debounce";
 
 function Nav() {
   const { user, loading, logout } = useContext(authContext);
@@ -79,6 +80,18 @@ function Nav() {
     }
   };
 
+  const debouncedSaveMindmap = debounce(() => {
+    saveMindmap();
+  }, 300);
+
+  const debouncedExportMindMap = debounce(async (mindmapId) => {
+    try {
+      await exportMindMap(mindmapId);
+    } catch (error) {
+      console.error("Error when trying to export:", error);
+    }
+  }, 300);
+
   return (
     <header className="h-20 w-full md:w-11/12 mx-auto px-4 sm:px-6 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -105,7 +118,7 @@ function Nav() {
               <AutoSaveToggle />
             </div>
             <button
-              onClick={() => saveMindmap()}
+              onClick={debouncedSaveMindmap}
               className="btn btn-primary lg:mr-4"
             >
               <IoIosSave size={20} className="block lg:hidden" />
@@ -121,7 +134,9 @@ function Nav() {
             </button>
 
             <button
-              onClick={handleExport}
+              onClick={() =>
+                debouncedExportMindMap(pathname.split("/mindmap/")[1])
+              }
               className="btn btn-primary lg:mr-4 hidden md:block"
             >
               <BsDownload size={20} className="block lg:hidden" />
