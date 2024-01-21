@@ -1,4 +1,4 @@
-# MindCard
+# [MindCard](https://mind-card.vercel.app/)
 
 > MindCard is a mind mapping tool that treats each mind map as a card, allowing for the breakdown and reuse of complex information, enabling limitless expansion of thoughts.
 
