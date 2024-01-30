@@ -15,7 +15,7 @@ function AutoSaveToggle() {
           .catch((error) => {
             toast.error("Failed to save mindmap:", error);
           });
-      }, 5000);
+      }, 30000);
     }
   };
 
@@ -57,7 +57,7 @@ function AutoSaveToggle() {
         />
       </label>
       <span className="text-sm text-lime-500 ml-2 mr-2 truncate">
-        Auto Save (5s)
+        Auto Save (30s)
       </span>
     </div>
   );
