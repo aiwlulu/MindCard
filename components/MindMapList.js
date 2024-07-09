@@ -1,13 +1,22 @@
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+"use client";
+import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BsTrash } from "react-icons/bs";
 import SweetAlert from "./SweetAlert";
 import debounce from "lodash.debounce";
 
 function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
   const router = useRouter();
-  const [currentPage, setCurrentPage] = useState(1);
+  const searchParams = useSearchParams();
+  const initialPage = parseInt(searchParams.get("page")) || 1;
+  const [currentPage, setCurrentPage] = useState(initialPage);
   const mapsPerPage = 15;
+
+  useEffect(() => {
+    if (initialPage !== currentPage) {
+      setCurrentPage(initialPage);
+    }
+  }, [initialPage]);
 
   const totalPages = Math.ceil(mindMaps.length / mapsPerPage);
 
@@ -30,6 +39,7 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
+    router.push(`/mindmap/?page=${pageNumber}`);
   };
 
   const indexOfLastMap = currentPage * mapsPerPage;
