@@ -10,7 +10,7 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
   const searchParams = useSearchParams();
   const initialPage = parseInt(searchParams.get("page")) || 1;
   const [currentPage, setCurrentPage] = useState(initialPage);
-  const mapsPerPage = 15;
+  const mapsPerPage = 23;
 
   useEffect(() => {
     if (initialPage !== currentPage) {
