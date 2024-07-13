@@ -159,8 +159,7 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
           </div>
         ))}
       </div>
-
-      <div className="mt-4 flex justify-center">{renderPageNumbers()}</div>
+      <div className="my-4 flex justify-center">{renderPageNumbers()}</div>
     </div>
   );
 }
