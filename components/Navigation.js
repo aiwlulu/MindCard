@@ -9,16 +9,17 @@ import { MindmapContext } from "@/lib/store/mindmap-context";
 import { BsDownload } from "react-icons/bs";
 import AutoSaveToggle from "./AutoSaveToggle";
 import debounce from "lodash.debounce";
+import { Menu, MenuButton, MenuItems, MenuItem } from "@headlessui/react";
 
 function Nav() {
   const { user, loading, logout } = useContext(authContext);
-  const { saveMindmap } = useContext(MindmapContext);
+  const { saveMindmap, exportMindMap } = useContext(MindmapContext);
   const router = useRouter();
   const [displayName, setDisplayName] = useState(null);
+  const [showExportOptions, setShowExportOptions] = useState(false);
   const pathname = usePathname();
   const showSaveButton =
     pathname.startsWith("/mindmap/") && pathname.length > 9;
-  const { exportMindMap } = useContext(MindmapContext);
 
   const logoutAndRedirect = () => {
     logout();
@@ -29,6 +30,11 @@ function Nav() {
     if (pathname !== "/") {
       router.push("/mindmap");
     }
+  };
+
+  const handleExport = (format) => {
+    exportMindMap(format);
+    setShowExportOptions(false);
   };
 
   useEffect(() => {
@@ -69,27 +75,8 @@ function Nav() {
     }
   }, [saveMindmap, showSaveButton]);
 
-  const handleExport = async () => {
-    const mindmapId = pathname.split("/mindmap/")[1];
-    if (mindmapId) {
-      try {
-        await exportMindMap(mindmapId);
-      } catch (error) {
-        console.error("Error when trying to export:", error);
-      }
-    }
-  };
-
   const debouncedSaveMindmap = debounce(() => {
     saveMindmap();
-  }, 300);
-
-  const debouncedExportMindMap = debounce(async (mindmapId) => {
-    try {
-      await exportMindMap(mindmapId);
-    } catch (error) {
-      console.error("Error when trying to export:", error);
-    }
   }, 300);
 
   return (
@@ -133,15 +120,38 @@ function Nav() {
               <span className="hidden lg:block">Folder</span>
             </button>
 
-            <button
-              onClick={() =>
-                debouncedExportMindMap(pathname.split("/mindmap/")[1])
-              }
-              className="btn btn-primary lg:mr-4 hidden md:block"
-            >
-              <BsDownload size={20} className="block lg:hidden" />
-              <span className="hidden lg:block">Export</span>
-            </button>
+            <Menu as="div" className="relative inline-block text-left">
+              <MenuButton className="btn btn-primary flex items-center gap-2">
+                <BsDownload size={20} className="block lg:hidden" />
+                <span className="hidden lg:block">Export</span>
+              </MenuButton>
+              <MenuItems className="absolute right-0 mt-2 w-40 bg-slate-700 text-white shadow-md rounded-md py-1 z-50">
+                <MenuItem>
+                  {({ active }) => (
+                    <button
+                      onClick={() => handleExport("svg")}
+                      className={`${
+                        active ? "bg-slate-600" : "bg-slate-700"
+                      } flex items-center w-full px-4 py-2 text-sm text-left whitespace-nowrap rounded-md`}
+                    >
+                      Export as SVG
+                    </button>
+                  )}
+                </MenuItem>
+                <MenuItem>
+                  {({ active }) => (
+                    <button
+                      onClick={() => handleExport("markdown")}
+                      className={`${
+                        active ? "bg-slate-600" : "bg-slate-700"
+                      } flex items-center w-full px-4 py-2 text-sm text-left whitespace-nowrap rounded-md`}
+                    >
+                      Export as Markdown
+                    </button>
+                  )}
+                </MenuItem>
+              </MenuItems>
+            </Menu>
           </>
         )}
         {user && !loading && (
