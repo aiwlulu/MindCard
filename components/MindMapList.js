@@ -1,16 +1,23 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BsTrash } from "react-icons/bs";
 import SweetAlert from "./SweetAlert";
 import debounce from "lodash.debounce";
+import SearchBar from "./SearchBar";
 
 function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialPage = parseInt(searchParams.get("page")) || 1;
   const [currentPage, setCurrentPage] = useState(initialPage);
+  const [searchTerm, setSearchTerm] = useState("");
   const mapsPerPage = 23;
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
 
   useEffect(() => {
     if (initialPage !== currentPage) {
@@ -18,7 +25,14 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
     }
   }, [initialPage]);
 
-  const totalPages = Math.ceil(mindMaps.length / mapsPerPage);
+  const filteredMindMaps = useMemo(() => {
+    if (!searchTerm) return mindMaps;
+    return mindMaps.filter((map) =>
+      map.title.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [mindMaps, searchTerm]);
+
+  const totalPages = Math.ceil(filteredMindMaps.length / mapsPerPage);
 
   const handleMindMapSelect = (id) => {
     router.push(`/mindmap/${id}`);
@@ -44,7 +58,7 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
 
   const indexOfLastMap = currentPage * mapsPerPage;
   const indexOfFirstMap = indexOfLastMap - mapsPerPage;
-  const currentMaps = mindMaps.slice(indexOfFirstMap, indexOfLastMap);
+  const currentMaps = filteredMindMaps.slice(indexOfFirstMap, indexOfLastMap);
 
   const renderPageNumbers = () => {
     const pageNumbers = [];
@@ -131,6 +145,8 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
 
   return (
     <div className="mt-10 mx-4 sm:mx-10 md:mx-20">
+      <SearchBar value={searchTerm} onChange={handleSearchChange} />
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-center">
         <div className="flex items-center justify-center col-span-2 sm:col-span-1">
           <button
