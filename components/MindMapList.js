@@ -12,7 +12,7 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
   const initialPage = parseInt(searchParams.get("page")) || 1;
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [searchTerm, setSearchTerm] = useState("");
-  const mapsPerPage = 23;
+  const mapsPerPage = 19;
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
