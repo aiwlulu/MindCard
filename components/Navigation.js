@@ -1,15 +1,20 @@
 "use client";
-import { IoIosFolder, IoMdLogOut, IoIosSave } from "react-icons/io";
 import React, { useContext, useEffect, useState } from "react";
 import { authContext } from "@/lib/store/auth-context";
 import { useRouter, usePathname } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { MindmapContext } from "@/lib/store/mindmap-context";
-import { BsDownload } from "react-icons/bs";
 import AutoSaveToggle from "./AutoSaveToggle";
-import debounce from "lodash.debounce";
+import debounce from "@/lib/utils/debounce";
 import { Menu, MenuButton, MenuItems, MenuItem } from "@headlessui/react";
+import Image from "next/image";
+import {
+  DownloadIcon,
+  FolderIcon,
+  LogoutIcon,
+  SaveIcon,
+} from "./Icons";
 
 function Nav() {
   const { user, loading, logout } = useContext(authContext);
@@ -82,10 +87,12 @@ function Nav() {
   return (
     <header className="h-20 w-full md:w-11/12 mx-auto px-4 sm:px-6 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <img
+        <Image
           src="/icon.png"
-          alt="logo"
-          className="w-16 h-16 cursor-pointer logo-hover"
+          alt="MindCard logo"
+          width={64}
+          height={64}
+          className="cursor-pointer logo-hover"
           onClick={navigateToMindmap}
         />
         <strong
@@ -108,7 +115,7 @@ function Nav() {
               onClick={debouncedSaveMindmap}
               className="btn btn-primary lg:mr-4"
             >
-              <IoIosSave size={20} className="block lg:hidden" />
+              <SaveIcon size={20} className="block lg:hidden" />
               <span className="hidden lg:block">Save</span>
             </button>
 
@@ -116,13 +123,13 @@ function Nav() {
               onClick={navigateToMindmap}
               className="btn btn-primary lg:mr-4 hidden md:block"
             >
-              <IoIosFolder size={20} className="block lg:hidden" />
+              <FolderIcon size={20} className="block lg:hidden" />
               <span className="hidden lg:block">Folder</span>
             </button>
 
             <Menu as="div" className="relative inline-block text-left">
               <MenuButton className="btn btn-primary flex items-center gap-2">
-                <BsDownload size={20} className="block lg:hidden" />
+                <DownloadIcon size={20} className="block lg:hidden" />
                 <span className="hidden lg:block">Export</span>
               </MenuButton>
               <MenuItems className="absolute right-0 mt-2 w-40 bg-slate-700 text-white shadow-md rounded-md py-1 z-50">
@@ -156,7 +163,7 @@ function Nav() {
         )}
         {user && !loading && (
           <button onClick={logoutAndRedirect} className="btn btn-danger">
-            <IoMdLogOut size={20} className="block lg:hidden" />
+            <LogoutIcon size={20} className="block lg:hidden" />
             <span className="hidden lg:block truncate">Sign out</span>
           </button>
         )}
