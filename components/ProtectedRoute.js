@@ -13,7 +13,7 @@ export default function ProtectedRoute({ children }) {
     if (!loading && !user) {
       router.push("/");
     }
-  }, [user, loading]);
+  }, [user, loading, router]);
 
   if (loading) {
     return <Loading />;
