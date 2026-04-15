@@ -1,10 +1,10 @@
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BsTrash } from "react-icons/bs";
 import SweetAlert from "./SweetAlert";
-import debounce from "lodash.debounce";
+import debounce from "@/lib/utils/debounce";
 import SearchBar from "./SearchBar";
+import { TrashIcon } from "./Icons";
 
 function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
   const router = useRouter();
@@ -23,7 +23,7 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
     if (initialPage !== currentPage) {
       setCurrentPage(initialPage);
     }
-  }, [initialPage]);
+  }, [initialPage, currentPage]);
 
   const filteredMindMaps = useMemo(() => {
     if (!searchTerm) return mindMaps;
@@ -163,7 +163,7 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
             className="relative cursor-pointer p-4 bg-slate-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 ease-in-out transform hover:scale-105 col-span-2 sm:col-span-1"
             onClick={() => handleMindMapSelect(map.id)}
           >
-            <BsTrash
+            <TrashIcon
               className="absolute top-2 right-2 text-red-500 hover:text-red-700 cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation();
