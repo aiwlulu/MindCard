@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import silenceConsole from "@/lib/utils/silenceConsole";
@@ -30,16 +30,16 @@ export default function Page({ params }) {
   const { loadMindmap, currentMindmapTitle } = useContext(MindmapContext);
   const [selectedMindMap, setSelectedMindMap] = useState(null);
 
-  const handleMindMapSelect = (id) => {
+  const handleMindMapSelect = useCallback((id) => {
     loadMindmap(id);
     setSelectedMindMap(id);
-  };
+  }, [loadMindmap]);
 
   useEffect(() => {
     if (params.id) {
       handleMindMapSelect(params.id);
     }
-  }, [params.id]);
+  }, [params.id, handleMindMapSelect]);
 
   useEffect(() => {
     document.title = currentMindmapTitle
