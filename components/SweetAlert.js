@@ -1,6 +1,5 @@
-import Swal from "sweetalert2";
-
 const SweetAlert = async ({ title, text, icon, onConfirm, onCancel }) => {
+  const { default: Swal } = await import("sweetalert2");
   const result = await Swal.fire({
     title,
     text,
