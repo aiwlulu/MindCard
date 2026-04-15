@@ -4,15 +4,24 @@ const SweetAlert = async ({ title, text, icon, onConfirm, onCancel }) => {
     title,
     text,
     icon,
-    background: "#2D3748",
-    color: "#F7FAFC",
+    iconColor: "#F6AD55",
+    background: "#1F2937",
+    color: "#F8FAFC",
     showCancelButton: true,
-    confirmButtonColor: "#E53E3E",
-    cancelButtonColor: "#718096",
+    focusCancel: true,
+    reverseButtons: true,
+    buttonsStyling: false,
     confirmButtonText: "Yes, delete it!",
+    cancelButtonText: "Cancel",
     customClass: {
-      confirmButton: "btn-red",
-      cancelButton: "btn-slate",
+      popup: "mindcard-swal-popup",
+      title: "mindcard-swal-title",
+      htmlContainer: "mindcard-swal-text",
+      actions: "mindcard-swal-actions",
+      confirmButton:
+        "mindcard-swal-btn mindcard-swal-btn-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300",
+      cancelButton:
+        "mindcard-swal-btn mindcard-swal-btn-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300",
     },
   });
 
