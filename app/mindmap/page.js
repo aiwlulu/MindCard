@@ -8,7 +8,7 @@ import {
   serverTimestamp,
   doc,
   deleteDoc,
-} from "firebase/firestore";
+} from "firebase/firestore/lite";
 import { db } from "@/lib/firebase";
 import { authContext } from "@/lib/store/auth-context";
 import { MindmapContext } from "@/lib/store/mindmap-context";
