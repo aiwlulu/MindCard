@@ -3,25 +3,21 @@ import React, { useContext, useEffect, useState } from "react";
 import { authContext } from "@/lib/store/auth-context";
 import { useRouter, usePathname } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore/lite";
 import { MindmapContext } from "@/lib/store/mindmap-context";
-import AutoSaveToggle from "./AutoSaveToggle";
-import debounce from "@/lib/utils/debounce";
-import { Menu, MenuButton, MenuItems, MenuItem } from "@headlessui/react";
 import Image from "next/image";
-import {
-  DownloadIcon,
-  FolderIcon,
-  LogoutIcon,
-  SaveIcon,
-} from "./Icons";
+import dynamic from "next/dynamic";
+import { LogoutIcon } from "./Icons";
+
+const MindmapActions = dynamic(() => import("./MindmapActions"), {
+  ssr: false,
+});
 
 function Nav() {
   const { user, loading, logout } = useContext(authContext);
   const { saveMindmap, exportMindMap } = useContext(MindmapContext);
   const router = useRouter();
   const [displayName, setDisplayName] = useState(null);
-  const [showExportOptions, setShowExportOptions] = useState(false);
   const pathname = usePathname();
   const showSaveButton =
     pathname.startsWith("/mindmap/") && pathname.length > 9;
@@ -39,7 +35,6 @@ function Nav() {
 
   const handleExport = (format) => {
     exportMindMap(format);
-    setShowExportOptions(false);
   };
 
   useEffect(() => {
@@ -80,10 +75,6 @@ function Nav() {
     }
   }, [saveMindmap, showSaveButton]);
 
-  const debouncedSaveMindmap = debounce(() => {
-    saveMindmap();
-  }, 300);
-
   return (
     <header className="h-20 w-full md:w-11/12 mx-auto px-4 sm:px-6 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -107,59 +98,11 @@ function Nav() {
       </div>
       <div className="flex items-center gap-4">
         {user && !loading && showSaveButton && (
-          <>
-            <div className="items-center gap-3 lg:flex hidden">
-              <AutoSaveToggle />
-            </div>
-            <button
-              onClick={debouncedSaveMindmap}
-              className="btn btn-primary lg:mr-4"
-            >
-              <SaveIcon size={20} className="block lg:hidden" />
-              <span className="hidden lg:block">Save</span>
-            </button>
-
-            <button
-              onClick={navigateToMindmap}
-              className="btn btn-primary lg:mr-4 hidden md:block"
-            >
-              <FolderIcon size={20} className="block lg:hidden" />
-              <span className="hidden lg:block">Folder</span>
-            </button>
-
-            <Menu as="div" className="relative inline-block text-left">
-              <MenuButton className="btn btn-primary flex items-center gap-2">
-                <DownloadIcon size={20} className="block lg:hidden" />
-                <span className="hidden lg:block">Export</span>
-              </MenuButton>
-              <MenuItems className="absolute right-0 mt-2 w-40 bg-slate-700 text-white shadow-md rounded-md py-1 z-50">
-                <MenuItem>
-                  {({ active }) => (
-                    <button
-                      onClick={() => handleExport("svg")}
-                      className={`${
-                        active ? "bg-slate-600" : "bg-slate-700"
-                      } flex items-center w-full px-4 py-2 text-sm text-left whitespace-nowrap rounded-md`}
-                    >
-                      Export as SVG
-                    </button>
-                  )}
-                </MenuItem>
-                <MenuItem>
-                  {({ active }) => (
-                    <button
-                      onClick={() => handleExport("markdown")}
-                      className={`${
-                        active ? "bg-slate-600" : "bg-slate-700"
-                      } flex items-center w-full px-4 py-2 text-sm text-left whitespace-nowrap rounded-md`}
-                    >
-                      Export as Markdown
-                    </button>
-                  )}
-                </MenuItem>
-              </MenuItems>
-            </Menu>
-          </>
+          <MindmapActions
+            onSave={saveMindmap}
+            onNavigateToMindmap={navigateToMindmap}
+            onExport={handleExport}
+          />
         )}
         {user && !loading && (
           <button onClick={logoutAndRedirect} className="btn btn-danger">
