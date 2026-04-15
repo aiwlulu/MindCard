@@ -12,6 +12,7 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
   const initialPage = parseInt(searchParams.get("page")) || 1;
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const mapsPerPage = 19;
 
   const handleSearchChange = (e) => {
@@ -52,8 +53,13 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
   }, 300);
 
   const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-    router.push(`/mindmap/?page=${pageNumber}`);
+    if (pageNumber === currentPage) return;
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setCurrentPage(pageNumber);
+      router.push(`/mindmap/?page=${pageNumber}`);
+      setIsTransitioning(false);
+    }, 200);
   };
 
   const indexOfLastMap = currentPage * mapsPerPage;
@@ -147,7 +153,11 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
     <div className="mt-10 mx-4 sm:mx-10 md:mx-20">
       <SearchBar value={searchTerm} onChange={handleSearchChange} />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-center">
+      <div
+        className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-center transition-opacity duration-200 ${
+          isTransitioning ? "opacity-0" : "opacity-100"
+        }`}
+      >
         <div className="flex items-center justify-center col-span-2 sm:col-span-1">
           <button
             className="btn btn-primary-outline px-4 py-2 text-center"
@@ -160,7 +170,7 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
         {currentMaps.map((map) => (
           <div
             key={map.id}
-            className="relative cursor-pointer p-4 bg-slate-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 ease-in-out transform hover:scale-105 col-span-2 sm:col-span-1"
+            className={`relative cursor-pointer p-4 bg-slate-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 ease-in-out transform hover:scale-105 col-span-2 sm:col-span-1`}
             onClick={() => handleMindMapSelect(map.id)}
           >
             <TrashIcon
