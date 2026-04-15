@@ -29,11 +29,11 @@ const ShortcutGuide = () => {
             <li className="font-normal">Ctrl + C - Copy Selected Node</li>
             <li className="font-normal">Ctrl + V - Paste the Copied Node</li>
             <p className="font-normal text-red-300">
-              Please avoid copying and pasting the root node (it can't be
+              Please avoid copying and pasting the root node (it can&apos;t be
               deleted).
             </p>
-            <li className="font-normal">Ctrl + “+” - Zoom In Mind Map</li>
-            <li className="font-normal">Ctrl + “-” - Zoom Out Mind Map</li>
+            <li className="font-normal">Ctrl + &quot;+&quot; - Zoom In Mind Map</li>
+            <li className="font-normal">Ctrl + &quot;-&quot; - Zoom Out Mind Map</li>
             <li className="font-normal">Ctrl + 0 - Reset Zoom Level</li>
             <li className="font-normal">F1 - Center the Map</li>
             <li className="font-normal">F2 - Edit Selected Node</li>
