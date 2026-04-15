@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext } from "react";
-import { BsFillInfoCircleFill } from "react-icons/bs";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import SweetAlert from "./SweetAlert";
 import { toast } from "react-toastify";
+import { InfoIcon } from "./Icons";
 
 const Card = ({ currentMindmapId, removeHyperlink }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -74,7 +74,7 @@ const Card = ({ currentMindmapId, removeHyperlink }) => {
               >
                 Remove Hyperlink
               </button>
-              <BsFillInfoCircleFill
+              <InfoIcon
                 onClick={() => setShowInstruction(!showInstruction)}
                 className="text-white ml-4 cursor-pointer"
                 size={24}
@@ -93,8 +93,8 @@ const Card = ({ currentMindmapId, removeHyperlink }) => {
                     card.
                   </p>
                   <p>
-                    Remove Hyperlink: Select the node and click "Remove
-                    Hyperlink" button.
+                    Remove Hyperlink: Select the node and click &quot;Remove
+                    Hyperlink&quot; button.
                   </p>
                   <button
                     onClick={() => setShowInstruction(false)}
