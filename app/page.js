@@ -12,7 +12,7 @@ export default function Home() {
     if (user) {
       router.push("/mindmap");
     }
-  }, [user]);
+  }, [user, router]);
 
   if (!user) {
     return <Authentication />;
