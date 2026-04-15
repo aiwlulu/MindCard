@@ -27,7 +27,7 @@ const DynamicMindmap = dynamic(() => import("@/components/MindMap"), {
 });
 
 export default function Page({ params }) {
-  const { loadMindmap } = useContext(MindmapContext);
+  const { loadMindmap, currentMindmapTitle } = useContext(MindmapContext);
   const [selectedMindMap, setSelectedMindMap] = useState(null);
 
   const handleMindMapSelect = (id) => {
@@ -40,6 +40,15 @@ export default function Page({ params }) {
       handleMindMapSelect(params.id);
     }
   }, [params.id]);
+
+  useEffect(() => {
+    document.title = currentMindmapTitle
+      ? `${currentMindmapTitle} | MindCard`
+      : "MindCard";
+    return () => {
+      document.title = "MindCard";
+    };
+  }, [currentMindmapTitle]);
 
   return (
     <>
