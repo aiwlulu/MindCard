@@ -1,8 +1,8 @@
 import React, { useState, useContext, useEffect } from "react";
 import { authContext } from "@/lib/store/auth-context";
-import { FcGoogle } from "react-icons/fc";
-import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import { toast } from "react-toastify";
+import Image from "next/image";
+import { EyeIcon, EyeOffIcon } from "./Icons";
 
 function Authentication() {
   const {
@@ -90,8 +90,13 @@ function Authentication() {
       <h1 className="mt-4 mb-6 text-5xl font-bold text-center">Welcome 👋</h1>
 
       <div className="flex flex-col overflow-hidden shadow-md shadow-slate-500 bg-slate-800 rounded-2xl">
-        <div className="h-52">
-          <img className="object-cover w-full h-full" src="/home.png" />
+        <div className="h-52 relative">
+          <Image
+            src="/home.png"
+            alt="MindCard welcome banner"
+            fill
+            className="object-cover"
+          />
         </div>
 
         <div className="px-4 py-4 w-70% mx-auto">
@@ -146,9 +151,9 @@ function Authentication() {
                 onClick={togglePasswordVisibility}
               >
                 {passwordVisible ? (
-                  <AiOutlineEye size={16} />
+                  <EyeIcon size={16} />
                 ) : (
-                  <AiOutlineEyeInvisible size={16} />
+                  <EyeOffIcon size={16} />
                 )}
               </span>
             </div>
@@ -179,7 +184,13 @@ function Authentication() {
               type="button"
               className="flex self-start gap-2 p-4 mx-auto mt-2 font-medium align-middle bg-gray-700 rounded-lg"
             >
-              <FcGoogle className="text-2xl" /> Login with Google
+              <span
+                className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm font-bold text-blue-600"
+                aria-hidden="true"
+              >
+                G
+              </span>
+              Login with Google
             </button>
 
             <div className="mt-2 text-xs flex justify-between items-center">
