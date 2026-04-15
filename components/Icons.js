@@ -74,7 +74,7 @@ export function LogoutIcon({ size = 20, className = "" }) {
   );
 }
 
-export function TrashIcon({ size = 18, className = "" }) {
+export function TrashIcon({ size = 18, className = "", onClick }) {
   return (
     <svg
       {...baseProps}
@@ -83,6 +83,7 @@ export function TrashIcon({ size = 18, className = "" }) {
       height={size}
       className={className}
       aria-hidden="true"
+      onClick={onClick}
     >
       <path d="M3 6h18" />
       <path d="M8 6V4h8v2" />
