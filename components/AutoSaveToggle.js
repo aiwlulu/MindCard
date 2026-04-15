@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useRef } from "react";
+import React, { useContext, useEffect, useState, useRef, useCallback } from "react";
 import { toast } from "react-toastify";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 
@@ -7,7 +7,7 @@ function AutoSaveToggle() {
   const [autoSave, setAutoSave] = useState(false);
   const autoSaveIntervalRef = useRef(null);
 
-  const startAutoSave = () => {
+  const startAutoSave = useCallback(() => {
     if (!autoSaveIntervalRef.current) {
       autoSaveIntervalRef.current = setInterval(() => {
         saveMindmap()
@@ -17,7 +17,7 @@ function AutoSaveToggle() {
           });
       }, 30000);
     }
-  };
+  }, [saveMindmap]);
 
   const stopAutoSave = () => {
     if (autoSaveIntervalRef.current) {
@@ -35,7 +35,7 @@ function AutoSaveToggle() {
     return () => {
       stopAutoSave();
     };
-  }, [autoSave, saveMindmap]);
+  }, [autoSave, startAutoSave]);
 
   return (
     <div className="flex items-center">
