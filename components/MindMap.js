@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
+import dynamic from "next/dynamic";
 import { MindmapContext } from "@/lib/store/mindmap-context";
-import ShortcutGuide from "./ShortcutGuide";
-import Card from "./Card";
 import { toast } from "react-toastify";
+
+const ShortcutGuide = dynamic(() => import("./ShortcutGuide"), {
+  ssr: false,
+});
+
+const Card = dynamic(() => import("./Card"), {
+  ssr: false,
+});
 
 const GuideBanner = ({ onClose }) => {
   return (
