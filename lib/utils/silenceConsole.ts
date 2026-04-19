@@ -1,50 +1,26 @@
 import type { SilenceConsoleOptions } from "@/lib/types";
 
-function silenceConsole(options: SilenceConsoleOptions): void {
-  const blackList = options.blackList ?? [];
+type ConsoleMethod = "log" | "warn" | "error" | "info" | "debug" | "time" | "timeEnd";
 
-  if (typeof window === "undefined") return;
+const METHODS: ConsoleMethod[] = ["log", "warn", "error", "info", "debug", "time", "timeEnd"];
 
-  const originalLog = console.log;
-  console.log = function (...args: unknown[]) {
-    const blocked = args.some(
-      (arg) =>
-        typeof arg === "string" &&
-        blackList.some((keyword) => arg.includes(keyword))
+function silenceConsole({ blackList = [] }: SilenceConsoleOptions): void {
+  if (typeof window === "undefined" || blackList.length === 0) return;
+
+  const isBlocked = (args: unknown[]) =>
+    args.some(
+      (arg) => typeof arg === "string" && blackList.some((kw) => arg.includes(kw))
     );
-    if (!blocked) originalLog.apply(console, args as Parameters<typeof originalLog>);
-  };
 
-  const originalError = console.error;
-  console.error = function (...args: unknown[]) {
-    const blocked = args.some(
-      (arg) =>
-        typeof arg === "string" &&
-        blackList.some((keyword) => arg.includes(keyword))
-    );
-    if (!blocked) originalError.apply(console, args as Parameters<typeof originalError>);
-  };
+  for (const name of METHODS) {
+    const original = console[name].bind(console) as (...args: unknown[]) => void;
+    console[name] = ((...args: unknown[]) => {
+      if (!isBlocked(args)) original(...args);
+    }) as Console[typeof name];
+  }
 
-  const originalTime = console.time;
-  console.time = function (label?: string) {
-    if (!label || !blackList.includes(label)) {
-      originalTime.call(console, label);
-    }
-  };
-
-  const originalTimeEnd = console.timeEnd;
-  console.timeEnd = function (label?: string) {
-    if (!label || !blackList.includes(label)) {
-      originalTimeEnd.call(console, label);
-    }
-  };
-
-  window.onerror = function (message) {
-    if (typeof message === "string" && blackList.some((kw) => message.includes(kw))) {
-      return true;
-    }
-    return false;
-  };
+  window.onerror = (message) =>
+    typeof message === "string" && blackList.some((kw) => message.includes(kw));
 }
 
 export default silenceConsole;
