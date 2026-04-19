@@ -1,4 +1,12 @@
-const SweetAlert = async ({ title, text, icon, onConfirm, onCancel }) => {
+import type { SweetAlertOptions } from "@/lib/types";
+
+const SweetAlert = async ({
+  title,
+  text,
+  icon,
+  onConfirm,
+  onCancel,
+}: SweetAlertOptions): Promise<void> => {
   const { default: Swal } = await import("sweetalert2");
   const result = await Swal.fire({
     title,

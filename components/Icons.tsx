@@ -1,14 +1,20 @@
 import React from "react";
 
+interface IconProps {
+  size?: number;
+  className?: string;
+  onClick?: React.MouseEventHandler<SVGSVGElement>;
+}
+
 const baseProps = {
   fill: "none",
   stroke: "currentColor",
   strokeWidth: 2,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
 };
 
-export function SaveIcon({ size = 20, className = "" }) {
+export function SaveIcon({ size = 20, className = "" }: IconProps) {
   return (
     <svg
       {...baseProps}
@@ -25,7 +31,7 @@ export function SaveIcon({ size = 20, className = "" }) {
   );
 }
 
-export function FolderIcon({ size = 20, className = "" }) {
+export function FolderIcon({ size = 20, className = "" }: IconProps) {
   return (
     <svg
       {...baseProps}
@@ -40,7 +46,7 @@ export function FolderIcon({ size = 20, className = "" }) {
   );
 }
 
-export function DownloadIcon({ size = 20, className = "" }) {
+export function DownloadIcon({ size = 20, className = "" }: IconProps) {
   return (
     <svg
       {...baseProps}
@@ -57,7 +63,7 @@ export function DownloadIcon({ size = 20, className = "" }) {
   );
 }
 
-export function LogoutIcon({ size = 20, className = "" }) {
+export function LogoutIcon({ size = 20, className = "" }: IconProps) {
   return (
     <svg
       {...baseProps}
@@ -74,7 +80,7 @@ export function LogoutIcon({ size = 20, className = "" }) {
   );
 }
 
-export function TrashIcon({ size = 18, className = "", onClick }) {
+export function TrashIcon({ size = 18, className = "", onClick }: IconProps) {
   return (
     <svg
       {...baseProps}
@@ -94,7 +100,7 @@ export function TrashIcon({ size = 18, className = "", onClick }) {
   );
 }
 
-export function InfoIcon({ size = 24, className = "" }) {
+export function InfoIcon({ size = 24, className = "", onClick }: IconProps) {
   return (
     <svg
       {...baseProps}
@@ -103,6 +109,7 @@ export function InfoIcon({ size = 24, className = "" }) {
       height={size}
       className={className}
       aria-hidden="true"
+      onClick={onClick}
     >
       <circle cx="12" cy="12" r="10" />
       <path d="M12 16v-4" />
@@ -111,7 +118,7 @@ export function InfoIcon({ size = 24, className = "" }) {
   );
 }
 
-export function EyeIcon({ size = 16, className = "" }) {
+export function EyeIcon({ size = 16, className = "" }: IconProps) {
   return (
     <svg
       {...baseProps}
@@ -127,7 +134,7 @@ export function EyeIcon({ size = 16, className = "" }) {
   );
 }
 
-export function EyeOffIcon({ size = 16, className = "" }) {
+export function EyeOffIcon({ size = 16, className = "" }: IconProps) {
   return (
     <svg
       {...baseProps}
