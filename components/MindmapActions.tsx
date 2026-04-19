@@ -5,18 +5,27 @@ import { Menu, MenuButton, MenuItems, MenuItem } from "@headlessui/react";
 import { DownloadIcon, FolderIcon, SaveIcon } from "./Icons";
 import debounce from "@/lib/utils/debounce";
 
+interface MindmapActionsProps {
+  onSave: () => void;
+  onNavigateToMindmap: () => void;
+  onExport: (format: string) => void;
+}
+
 export default function MindmapActions({
   onSave,
   onNavigateToMindmap,
   onExport,
-}) {
+}: MindmapActionsProps) {
   const debouncedSaveMindmap = debounce(() => {
     onSave();
   }, 300);
 
   return (
     <>
-      <button onClick={debouncedSaveMindmap} className="btn btn-primary lg:mr-4">
+      <button
+        onClick={debouncedSaveMindmap}
+        className="btn btn-primary lg:mr-4"
+      >
         <SaveIcon size={20} className="block lg:hidden" />
         <span className="hidden lg:block">Save</span>
       </button>
@@ -36,7 +45,7 @@ export default function MindmapActions({
         </MenuButton>
         <MenuItems className="absolute right-0 mt-2 w-40 bg-slate-700 text-white shadow-md rounded-md py-1 z-50">
           <MenuItem>
-            {({ active }) => (
+            {({ active }: { active: boolean }) => (
               <button
                 onClick={() => onExport("svg")}
                 className={`${
@@ -48,7 +57,7 @@ export default function MindmapActions({
             )}
           </MenuItem>
           <MenuItem>
-            {({ active }) => (
+            {({ active }: { active: boolean }) => (
               <button
                 onClick={() => onExport("markdown")}
                 className={`${

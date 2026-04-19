@@ -3,35 +3,37 @@ import dynamic from "next/dynamic";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import { toast } from "react-toastify";
 
-const ShortcutGuide = dynamic(() => import("./ShortcutGuide"), {
-  ssr: false,
-});
+const ShortcutGuide = dynamic(() => import("./ShortcutGuide"), { ssr: false });
+const Card = dynamic(() => import("./Card"), { ssr: false });
 
-const Card = dynamic(() => import("./Card"), {
-  ssr: false,
-});
+interface GuideBannerProps {
+  onClose: () => void;
+}
 
-const GuideBanner = ({ onClose }) => {
-  return (
-    <div className="absolute top-0 left-0 w-full bg-blue-900 bg-opacity-30 text-blue-100 py-2 px-4 justify-between items-center text-sm md:text-base z-50 flex">
-      <span className="lg:flex hidden">
-        Right-click on a node to interact with it. Double-click on a node to
-        edit its content. Or use the &quot;Show Shortcuts&quot; button for more tips.
-      </span>
-      <span className="lg:hidden">
-        Double-click on a node to edit its content.
-      </span>
-      <button onClick={onClose} className="text-blue-100 text-2xl">
-        ×
-      </button>
-    </div>
-  );
-};
+const GuideBanner: React.FC<GuideBannerProps> = ({ onClose }) => (
+  <div className="absolute top-0 left-0 w-full bg-blue-900 bg-opacity-30 text-blue-100 py-2 px-4 justify-between items-center text-sm md:text-base z-50 flex">
+    <span className="lg:flex hidden">
+      Right-click on a node to interact with it. Double-click on a node to edit
+      its content. Or use the &quot;Show Shortcuts&quot; button for more tips.
+    </span>
+    <span className="lg:hidden">
+      Double-click on a node to edit its content.
+    </span>
+    <button onClick={onClose} className="text-blue-100 text-2xl">
+      ×
+    </button>
+  </div>
+);
 
-const MindMap = ({ id }) => {
-  const mapRef = useRef(null);
+interface MindMapProps {
+  id: string | null;
+}
+
+const MindMap: React.FC<MindMapProps> = ({ id }) => {
+  const mapRef = useRef<HTMLDivElement>(null);
   const [showBanner, setShowBanner] = useState(
-    localStorage.getItem("hideGuideBanner") !== "true"
+    typeof window !== "undefined" &&
+      localStorage.getItem("hideGuideBanner") !== "true"
   );
   const { loadMindmap, selectedNode, setSelectedNode, updateNodeHyperlink } =
     useContext(MindmapContext);
@@ -41,7 +43,7 @@ const MindMap = ({ id }) => {
       if (mapRef.current) {
         mapRef.current.innerHTML = "";
       }
-      loadMindmap(id, mapRef.current);
+      void loadMindmap(id, mapRef.current);
     }
   }, [id, loadMindmap]);
 
@@ -50,37 +52,34 @@ const MindMap = ({ id }) => {
     localStorage.setItem("hideGuideBanner", "true");
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (!e.dataTransfer.types.includes("card/json")) {
-      return;
-    }
+    if (!e.dataTransfer.types.includes("card/json")) return;
 
     const jsonData = e.dataTransfer.getData("card/json");
-
-    let cardData;
+    let cardData: { id?: string };
     try {
-      cardData = JSON.parse(jsonData);
-    } catch (error) {
+      cardData = JSON.parse(jsonData) as { id?: string };
+    } catch {
       toast.error("Invalid card data.", { autoClose: 1500 });
       return;
     }
 
     if (selectedNode && cardData.id) {
-      updateNodeHyperlink(selectedNode.id, { id: cardData.id });
+      void updateNodeHyperlink(selectedNode.id, { id: cardData.id });
       setSelectedNode(null);
     }
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     if (e.dataTransfer.types.includes("card/json")) {
       e.preventDefault();
     }
   };
 
   const removeHyperlink = () => {
-    if (selectedNode && selectedNode.id) {
-      updateNodeHyperlink(selectedNode.id, "");
+    if (selectedNode?.id) {
+      void updateNodeHyperlink(selectedNode.id, "");
     } else {
       toast.error("Please select a node first", { autoClose: 1500 });
     }
@@ -97,7 +96,7 @@ const MindMap = ({ id }) => {
             style={{ height: "90vh", width: "100%" }}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
-          ></div>
+          />
         </div>
         <div className="hidden lg:block">
           <ShortcutGuide />

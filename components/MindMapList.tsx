@@ -5,17 +5,28 @@ import SweetAlert from "./SweetAlert";
 import debounce from "@/lib/utils/debounce";
 import SearchBar from "./SearchBar";
 import { TrashIcon } from "./Icons";
+import type { MindmapListItem } from "@/lib/types";
 
-function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
+interface MindMapListProps {
+  mindMaps: MindmapListItem[];
+  onMindMapCreate: () => void;
+  onDeleteMindMap: (id: string) => void;
+}
+
+function MindMapList({
+  mindMaps,
+  onMindMapCreate,
+  onDeleteMindMap,
+}: MindMapListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialPage = parseInt(searchParams.get("page")) || 1;
+  const initialPage = parseInt(searchParams.get("page") ?? "1", 10) || 1;
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [searchTerm, setSearchTerm] = useState("");
   const [isTransitioning, setIsTransitioning] = useState(false);
   const mapsPerPage = 19;
 
-  const handleSearchChange = (e) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
   };
@@ -35,12 +46,12 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
 
   const totalPages = Math.ceil(filteredMindMaps.length / mapsPerPage);
 
-  const handleMindMapSelect = (id) => {
+  const handleMindMapSelect = (id: string) => {
     router.push(`/mindmap/${id}`);
   };
 
-  const handleDelete = (id) => {
-    SweetAlert({
+  const handleDelete = (id: string) => {
+    void SweetAlert({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
       icon: "warning",
@@ -52,7 +63,7 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
     onMindMapCreate();
   }, 300);
 
-  const handlePageChange = (pageNumber) => {
+  const handlePageChange = (pageNumber: number) => {
     if (pageNumber === currentPage) return;
     setIsTransitioning(true);
     setTimeout(() => {
@@ -67,40 +78,30 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
   const currentMaps = filteredMindMaps.slice(indexOfFirstMap, indexOfLastMap);
 
   const renderPageNumbers = () => {
-    const pageNumbers = [];
+    const pageNumbers: React.ReactNode[] = [];
     const maxPageNumbersToShow = 5;
     const ellipsis = "...";
 
+    const pageBtn = (i: number) => (
+      <button
+        key={i}
+        className={`mx-2 mt-6 px-3 py-1 border ${
+          currentPage === i ? "border-blue-500" : "border-gray-300"
+        } rounded-full focus:outline-none`}
+        onClick={() => handlePageChange(i)}
+      >
+        {i}
+      </button>
+    );
+
     if (totalPages <= maxPageNumbersToShow) {
-      for (let i = 1; i <= totalPages; i++) {
-        pageNumbers.push(
-          <button
-            key={i}
-            className={`mx-2 mt-6 px-3 py-1 border ${
-              currentPage === i ? "border-blue-500" : "border-gray-300"
-            } rounded-full focus:outline-none`}
-            onClick={() => handlePageChange(i)}
-          >
-            {i}
-          </button>
-        );
-      }
+      for (let i = 1; i <= totalPages; i++) pageNumbers.push(pageBtn(i));
     } else {
-      let startPage = Math.max(currentPage - 2, 1);
-      let endPage = Math.min(currentPage + 2, totalPages);
+      const startPage = Math.max(currentPage - 2, 1);
+      const endPage = Math.min(currentPage + 2, totalPages);
 
       if (startPage > 1) {
-        pageNumbers.push(
-          <button
-            key={1}
-            className={`mx-2 mt-6 px-3 py-1 border ${
-              currentPage === 1 ? "border-blue-500" : "border-gray-300"
-            } rounded-full focus:outline-none`}
-            onClick={() => handlePageChange(1)}
-          >
-            1
-          </button>
-        );
+        pageNumbers.push(pageBtn(1));
         if (startPage > 2) {
           pageNumbers.push(
             <span key="start-ellipsis" className="mx-2 mt-6">
@@ -110,19 +111,7 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
         }
       }
 
-      for (let i = startPage; i <= endPage; i++) {
-        pageNumbers.push(
-          <button
-            key={i}
-            className={`mx-2 mt-6 px-3 py-1 border ${
-              currentPage === i ? "border-blue-500" : "border-gray-300"
-            } rounded-full focus:outline-none`}
-            onClick={() => handlePageChange(i)}
-          >
-            {i}
-          </button>
-        );
-      }
+      for (let i = startPage; i <= endPage; i++) pageNumbers.push(pageBtn(i));
 
       if (endPage < totalPages) {
         if (endPage < totalPages - 1) {
@@ -132,17 +121,7 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
             </span>
           );
         }
-        pageNumbers.push(
-          <button
-            key={totalPages}
-            className={`mx-2 mt-6 px-3 py-1 border ${
-              currentPage === totalPages ? "border-blue-500" : "border-gray-300"
-            } rounded-full focus:outline-none`}
-            onClick={() => handlePageChange(totalPages)}
-          >
-            {totalPages}
-          </button>
-        );
+        pageNumbers.push(pageBtn(totalPages));
       }
     }
 
@@ -170,13 +149,13 @@ function MindMapList({ mindMaps, onMindMapCreate, onDeleteMindMap }) {
         {currentMaps.map((map) => (
           <div
             key={map.id}
-            className={`relative cursor-pointer p-4 bg-slate-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 ease-in-out transform hover:scale-105 col-span-2 sm:col-span-1`}
+            className="relative cursor-pointer p-4 bg-slate-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 ease-in-out transform hover:scale-105 col-span-2 sm:col-span-1"
             onClick={() => handleMindMapSelect(map.id)}
           >
             <TrashIcon
               className="absolute top-2 right-2 text-red-500 hover:text-red-700 cursor-pointer"
               onClick={(e) => {
-                e.stopPropagation();
+                e?.stopPropagation();
                 handleDelete(map.id);
               }}
             />
