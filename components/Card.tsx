@@ -3,20 +3,25 @@ import { MindmapContext } from "@/lib/store/mindmap-context";
 import SweetAlert from "./SweetAlert";
 import { toast } from "react-toastify";
 import { InfoIcon } from "./Icons";
+import type { FirestoreMindmapDoc } from "@/lib/types";
 
-const Card = ({ currentMindmapId, removeHyperlink }) => {
+interface CardProps {
+  currentMindmapId: string | null;
+  removeHyperlink: () => void;
+}
+
+const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [mindmaps, setMindmaps] = useState([]);
+  const [mindmaps, setMindmaps] = useState<FirestoreMindmapDoc[]>([]);
   const { getAllMindmaps, selectedNode, setSelectedNode } =
     useContext(MindmapContext);
   const [showInstruction, setShowInstruction] = useState(false);
 
   useEffect(() => {
     const fetchMindmaps = async () => {
-      const allMindmaps = await getAllMindmaps(currentMindmapId);
+      const allMindmaps = await getAllMindmaps(currentMindmapId ?? undefined);
       setMindmaps(allMindmaps);
     };
-
     fetchMindmaps();
   }, [currentMindmapId, getAllMindmaps]);
 
@@ -28,7 +33,7 @@ const Card = ({ currentMindmapId, removeHyperlink }) => {
       return;
     }
 
-    SweetAlert({
+    void SweetAlert({
       title: "Are you sure?",
       text: "You won't be able to revert this!",
       icon: "warning",
@@ -39,18 +44,18 @@ const Card = ({ currentMindmapId, removeHyperlink }) => {
     });
   };
 
-  const handleDragStart = (e, map) => {
+  const handleDragStart = (
+    e: React.DragEvent<HTMLDivElement>,
+    map: FirestoreMindmapDoc
+  ) => {
     if (!selectedNode) {
       toast.error(
         "Please select a node before creating or updating a hyperlink.",
-        {
-          autoClose: 1500,
-        }
+        { autoClose: 1500 }
       );
       return;
     }
-    const cardData = JSON.stringify({ id: map.id });
-    e.dataTransfer.setData("card/json", cardData);
+    e.dataTransfer.setData("card/json", JSON.stringify({ id: map.id }));
   };
 
   return (
@@ -59,7 +64,7 @@ const Card = ({ currentMindmapId, removeHyperlink }) => {
         <div className="mb-2">
           <button
             className="text-white px-4 py-2 bg-gray-700 rounded-md"
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() => setIsOpen((prev) => !prev)}
           >
             {isOpen ? "Close" : "Card"}
           </button>
@@ -75,7 +80,7 @@ const Card = ({ currentMindmapId, removeHyperlink }) => {
                 Remove Hyperlink
               </button>
               <InfoIcon
-                onClick={() => setShowInstruction(!showInstruction)}
+                onClick={() => setShowInstruction((prev) => !prev)}
                 className="text-white ml-4 cursor-pointer"
                 size={24}
               />
@@ -89,8 +94,8 @@ const Card = ({ currentMindmapId, removeHyperlink }) => {
                     mind maps with the current document.
                   </p>
                   <p>
-                    Create or Update Hyperlink: Select a node then drag & drop a
-                    card.
+                    Create or Update Hyperlink: Select a node then drag &amp;
+                    drop a card.
                   </p>
                   <p>
                     Remove Hyperlink: Select the node and click &quot;Remove
