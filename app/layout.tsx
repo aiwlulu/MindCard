@@ -1,8 +1,7 @@
 import React from "react";
 import "./globals.css";
 import Head from "./head";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import ToastProvider from "@/components/ToastProvider";
 import Nav from "@/components/Navigation";
 import AuthContextProvider from "@/lib/store/auth-context";
 import { MindmapProvider } from "@/lib/store/mindmap-context";
@@ -19,7 +18,7 @@ export default function RootLayout({
       <body suppressHydrationWarning={true}>
         <AuthContextProvider>
           <MindmapProvider>
-            <ToastContainer />
+            <ToastProvider />
             <Nav />
             <ProtectedRoute>{children}</ProtectedRoute>
           </MindmapProvider>
