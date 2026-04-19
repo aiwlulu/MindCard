@@ -1,6 +1,11 @@
 import React from "react";
 
-function SearchBar({ value, onChange }) {
+interface SearchBarProps {
+  value: string;
+  onChange: React.ChangeEventHandler<HTMLInputElement>;
+}
+
+function SearchBar({ value, onChange }: SearchBarProps) {
   return (
     <div className="flex mt-4 mb-8">
       <input

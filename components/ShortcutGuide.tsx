@@ -1,17 +1,13 @@
 import React, { useState } from "react";
 
-const ShortcutGuide = () => {
+const ShortcutGuide: React.FC = () => {
   const [showGuide, setShowGuide] = useState(false);
-
-  const toggleGuide = () => {
-    setShowGuide(!showGuide);
-  };
 
   return (
     <div className="fixed bottom-6 left-5">
       <button
-        onClick={toggleGuide}
-        className="text-white transition duration-150 ease-in-out  font-semi py-2 px-4 rounded"
+        onClick={() => setShowGuide((prev) => !prev)}
+        className="text-white transition duration-150 ease-in-out font-semi py-2 px-4 rounded"
         style={{ backgroundColor: "rgb(45, 55, 72)" }}
       >
         {showGuide ? "Hide Shortcuts" : "Show Shortcuts"}

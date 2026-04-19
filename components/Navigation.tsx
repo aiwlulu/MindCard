@@ -17,7 +17,7 @@ function Nav() {
   const { user, loading, logout } = useContext(authContext);
   const { saveMindmap, exportMindMap } = useContext(MindmapContext);
   const router = useRouter();
-  const [displayName, setDisplayName] = useState(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const pathname = usePathname();
   const showSaveButton =
     pathname.startsWith("/mindmap/") && pathname.length > 9;
@@ -33,8 +33,8 @@ function Nav() {
     }
   };
 
-  const handleExport = (format) => {
-    exportMindMap(format);
+  const handleExport = (format: string) => {
+    void exportMindMap(format);
   };
 
   useEffect(() => {
@@ -48,30 +48,26 @@ function Nav() {
             where("uid", "==", user.uid)
           );
           const querySnapshot = await getDocs(q);
-          querySnapshot.forEach((doc) => {
-            setDisplayName(doc.data().name);
+          querySnapshot.forEach((d) => {
+            const data = d.data() as { name?: string };
+            if (data.name) setDisplayName(data.name);
           });
         }
       }
     };
-
-    fetchDisplayName();
+    void fetchDisplayName();
   }, [user]);
 
   useEffect(() => {
     if (showSaveButton) {
-      const handleKeyDown = (event) => {
+      const handleKeyDown = (event: KeyboardEvent) => {
         if ((event.ctrlKey || event.metaKey) && event.key === "s") {
           event.preventDefault();
-          saveMindmap();
+          void saveMindmap();
         }
       };
-
       window.addEventListener("keydown", handleKeyDown);
-
-      return () => {
-        window.removeEventListener("keydown", handleKeyDown);
-      };
+      return () => window.removeEventListener("keydown", handleKeyDown);
     }
   }, [saveMindmap, showSaveButton]);
 
@@ -99,7 +95,7 @@ function Nav() {
       <div className="flex items-center gap-4">
         {user && !loading && showSaveButton && (
           <MindmapActions
-            onSave={saveMindmap}
+            onSave={() => void saveMindmap()}
             onNavigateToMindmap={navigateToMindmap}
             onExport={handleExport}
           />

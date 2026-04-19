@@ -5,7 +5,11 @@ import Authentication from "@/components/Authentication";
 import { useRouter } from "next/navigation";
 import Loading from "@/app/loading";
 
-export default function ProtectedRoute({ children }) {
+export default function ProtectedRoute({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { user, loading } = useContext(authContext);
   const router = useRouter();
 
@@ -23,5 +27,5 @@ export default function ProtectedRoute({ children }) {
     return <Authentication />;
   }
 
-  return children;
+  return <>{children}</>;
 }
