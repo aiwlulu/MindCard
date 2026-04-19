@@ -2,7 +2,6 @@
 
 import React from "react";
 import { Menu, MenuButton, MenuItems, MenuItem } from "@headlessui/react";
-import AutoSaveToggle from "./AutoSaveToggle";
 import { DownloadIcon, FolderIcon, SaveIcon } from "./Icons";
 import debounce from "@/lib/utils/debounce";
 
@@ -17,9 +16,6 @@ export default function MindmapActions({
 
   return (
     <>
-      <div className="items-center gap-3 lg:flex hidden">
-        <AutoSaveToggle />
-      </div>
       <button onClick={debouncedSaveMindmap} className="btn btn-primary lg:mr-4">
         <SaveIcon size={20} className="block lg:hidden" />
         <span className="hidden lg:block">Save</span>
