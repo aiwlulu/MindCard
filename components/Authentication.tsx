@@ -4,15 +4,22 @@ import { toast } from "react-toastify";
 import Image from "next/image";
 import { EyeIcon, EyeOffIcon } from "./Icons";
 
+interface FormData {
+  name: string;
+  email: string;
+  password: string;
+}
+
 function Authentication() {
   const {
     googleLoginHandler,
     registerWithEmailAndPassword,
     loginWithEmailAndPassword,
   } = useContext(authContext);
+
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: "",
     email: "",
     password: "",
@@ -21,45 +28,30 @@ function Authentication() {
 
   useEffect(() => {
     if (useDemoAccount) {
-      setFormData({
-        name: "",
-        email: "demo@gmail.com",
-        password: "123456",
-      });
+      setFormData({ name: "", email: "demo@gmail.com", password: "123456" });
     } else {
-      setFormData({
-        name: "",
-        email: "",
-        password: "",
-      });
+      setFormData({ name: "", email: "", password: "" });
     }
   }, [useDemoAccount, isRegistering]);
 
-  const togglePasswordVisibility = () => {
-    setPasswordVisible((prev) => !prev);
-  };
+  const togglePasswordVisibility = () => setPasswordVisible((prev) => !prev);
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const { name, email, password } = formData;
     if (isRegistering) {
-      registerWithEmailAndPassword(email, password, name).catch((error) => {
+      registerWithEmailAndPassword(email, password, name).catch((error: { code?: string }) => {
         if (error.code === "auth/email-already-in-use") {
-          toast.error(
-            "The email address is already in use by another account."
-          );
+          toast.error("The email address is already in use by another account.");
         }
       });
     } else {
-      loginWithEmailAndPassword(email, password).catch((error) => {
+      loginWithEmailAndPassword(email, password).catch((error: { code?: string }) => {
         if (error.code === "auth/invalid-login-credentials") {
           toast.error("Incorrect username or password.");
         }
@@ -71,15 +63,10 @@ function Authentication() {
     if (isRegistering) {
       setUseDemoAccount(true);
     }
-
     setIsRegistering((prev) => {
       if (!prev) {
         setUseDemoAccount(false);
-        setFormData({
-          name: "",
-          email: "",
-          password: "",
-        });
+        setFormData({ name: "", email: "", password: "" });
       }
       return !prev;
     });
@@ -124,9 +111,7 @@ function Authentication() {
             )}
 
             <input
-              className={`p-2 ${
-                isRegistering ? "" : "mt-4"
-              } rounded-xl focus:outline-none`}
+              className={`p-2 ${isRegistering ? "" : "mt-4"} rounded-xl focus:outline-none`}
               type="email"
               name="email"
               placeholder="Email"
@@ -134,6 +119,7 @@ function Authentication() {
               onChange={handleChange}
               required
             />
+
             <div className="relative">
               <input
                 className="p-2 rounded-xl w-full focus:outline-none"
@@ -150,25 +136,23 @@ function Authentication() {
                 className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer"
                 onClick={togglePasswordVisibility}
               >
-                {passwordVisible ? (
-                  <EyeIcon size={16} />
-                ) : (
-                  <EyeOffIcon size={16} />
-                )}
+                {passwordVisible ? <EyeIcon size={16} /> : <EyeOffIcon size={16} />}
               </span>
             </div>
+
             {!isRegistering && (
               <label className="flex items-center mt-2 ml-2">
                 <input
                   type="checkbox"
                   checked={useDemoAccount}
-                  onChange={() => setUseDemoAccount(!useDemoAccount)}
+                  onChange={() => setUseDemoAccount((prev) => !prev)}
                 />
                 <span className="text-sm ml-3">
                   Click to Fill in the Demo Account
                 </span>
               </label>
             )}
+
             <button className="py-2 mt-1 w-full btn btn-primary-outline">
               {isRegistering ? "Register" : "Login"}
             </button>
