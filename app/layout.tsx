@@ -8,7 +8,11 @@ import AuthContextProvider from "@/lib/store/auth-context";
 import { MindmapProvider } from "@/lib/store/mindmap-context";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
-export default function RootLayout({ children }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
       <Head />

@@ -26,14 +26,21 @@ const DynamicMindmap = dynamic(() => import("@/components/MindMap"), {
   ssr: false,
 });
 
-export default function Page({ params }) {
-  const { loadMindmap, currentMindmapTitle } = useContext(MindmapContext);
-  const [selectedMindMap, setSelectedMindMap] = useState(null);
+interface PageProps {
+  params: { id: string };
+}
 
-  const handleMindMapSelect = useCallback((id) => {
-    loadMindmap(id);
-    setSelectedMindMap(id);
-  }, [loadMindmap]);
+export default function Page({ params }: PageProps) {
+  const { loadMindmap, currentMindmapTitle } = useContext(MindmapContext);
+  const [selectedMindMap, setSelectedMindMap] = useState<string | null>(null);
+
+  const handleMindMapSelect = useCallback(
+    (id: string) => {
+      void loadMindmap(id);
+      setSelectedMindMap(id);
+    },
+    [loadMindmap]
+  );
 
   useEffect(() => {
     if (params.id) {
@@ -50,9 +57,5 @@ export default function Page({ params }) {
     };
   }, [currentMindmapTitle]);
 
-  return (
-    <>
-      <DynamicMindmap id={selectedMindMap} />
-    </>
-  );
+  return <DynamicMindmap id={selectedMindMap} />;
 }

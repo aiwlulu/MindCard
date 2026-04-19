@@ -17,4 +17,6 @@ export default function Home() {
   if (!user) {
     return <Authentication />;
   }
+
+  return null;
 }
