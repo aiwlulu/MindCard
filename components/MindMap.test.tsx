@@ -59,9 +59,17 @@ function renderMindMap(context = createContext()) {
 
 function StatefulMindMap({ context }: { context: MindmapContextValue }) {
   const [currentData, setCurrentData] = React.useState(data);
+  const [currentSelection, setCurrentSelection] = React.useState(
+    context.selectedNode
+  );
   const value: MindmapContextValue = {
     ...context,
     mindmapData: currentData,
+    selectedNode: currentSelection,
+    setSelectedNode: (node) => {
+      context.setSelectedNode(node);
+      setCurrentSelection(node);
+    },
     updateMindmapData: (updater) => {
       context.updateMindmapData(updater);
       setCurrentData((current) =>
@@ -80,6 +88,7 @@ function StatefulMindMap({ context }: { context: MindmapContextValue }) {
 describe("MindMap editor", () => {
   beforeEach(() => {
     mockRouterPush.mockReset();
+    jest.restoreAllMocks();
   });
 
   it("selects a node when it is clicked", () => {
@@ -168,12 +177,51 @@ describe("MindMap editor", () => {
     expect(context.saveMindmap).toHaveBeenCalledWith();
   });
 
-  it("opens a linked mind map from the node link action", () => {
+  it("opens a linked mind map in a new tab", () => {
+    const open = jest.spyOn(window, "open").mockImplementation(() => null);
     renderMindMap();
 
     fireEvent.click(screen.getByRole("link", { name: "Open linked mind map" }));
 
-    expect(mockRouterPush).toHaveBeenCalledWith("/mindmap/linked-map");
+    expect(open).toHaveBeenCalledWith(
+      "/mindmap/linked-map",
+      "_blank",
+      "noopener,noreferrer"
+    );
+    expect(mockRouterPush).not.toHaveBeenCalled();
+  });
+
+  it("adds and opens an external URL without replacing the current page", () => {
+    const context = createContext();
+    context.selectedNode = data.nodeData.children?.[0] ?? null;
+    const open = jest.spyOn(window, "open").mockImplementation(() => null);
+    const { rerender } = renderMindMap(context);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add external link" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "External URL" }), {
+      target: { value: "example.com/reference" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save external link" }));
+
+    const update = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
+      current: MindmapData
+    ) => MindmapData;
+    const updated = update(data);
+    expect(updated.nodeData.children?.[0].externalLink).toBe(
+      "https://example.com/reference"
+    );
+
+    rerender(
+      <MindmapContext.Provider value={{ ...context, mindmapData: updated }}>
+        <MindMap id="map-1" />
+      </MindmapContext.Provider>
+    );
+    fireEvent.click(screen.getByRole("link", { name: "Open external link" }));
+    expect(open).toHaveBeenCalledWith(
+      "https://example.com/reference",
+      "_blank",
+      "noopener,noreferrer"
+    );
   });
 
   it("collapses the selected branch from the command bar", () => {
@@ -201,6 +249,151 @@ describe("MindMap editor", () => {
       current: MindmapData
     ) => MindmapData;
     expect(update(data).nodeData.children?.[0].collapsed).toBe(true);
+  });
+
+  it("shows the total hidden descendant count on a collapsed branch", () => {
+    const context = createContext();
+    context.mindmapData = {
+      nodeData: {
+        ...data.nodeData,
+        children: data.nodeData.children?.map((node) => ({
+          ...node,
+          collapsed: true,
+        })),
+      },
+    };
+
+    renderMindMap(context);
+
+    expect(screen.getByText("+1")).toBeInTheDocument();
+  });
+
+  it("uses a muted branch color consistently across a branch", () => {
+    renderMindMap();
+
+    const edges = document.querySelectorAll(".mindmap-edge");
+    const underline = document.querySelector(
+      '[data-node-depth="2"] .mindmap-node-underline'
+    );
+
+    expect(edges[0]).toHaveAttribute("stroke", "#c98286");
+    expect(edges[0]).toHaveAttribute("stroke-width", "3");
+    expect(edges[1]).toHaveAttribute("stroke", "#b9777c");
+    expect(edges[1]).toHaveAttribute("stroke-width", "2");
+    expect(underline).toHaveAttribute("stroke", "#b9777c");
+    expect(underline).toHaveAttribute("stroke-width", "2");
+  });
+
+  it("shows concise English actions without a duplicate guide banner", () => {
+    renderMindMap();
+
+    expect(screen.queryByText(/Double-click to edit/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Select a node to show quick actions")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Export image" })).toHaveTextContent(
+      "Export SVG"
+    );
+    expect(screen.getByRole("link", { name: "Open linked mind map" })).toHaveTextContent(
+      "Open card link"
+    );
+  });
+
+  it("returns focus to the selected node flow after committing an edit", () => {
+    const context = createContext();
+    render(<StatefulMindMap context={context} />);
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Child" }));
+    const input = screen.getByDisplayValue("Child");
+    fireEvent.change(input, { target: { value: "Updated child" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    const editor = screen.getByRole("application", { name: "Mind map editor" });
+    expect(editor).toHaveFocus();
+
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(screen.getByDisplayValue("New Topic")).toBeInTheDocument();
+  });
+
+  it("pastes a bullet outline as nested children of the selected node", () => {
+    const context = createContext();
+    context.selectedNode = data.nodeData.children?.[0] ?? null;
+    renderMindMap(context);
+
+    fireEvent.paste(screen.getByRole("application", { name: "Mind map editor" }), {
+      clipboardData: {
+        getData: () => "- Research\n  - Interviews\n  - Survey\n- Draft report",
+      },
+    });
+
+    const update = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
+      current: MindmapData
+    ) => MindmapData;
+    const children = update(data).nodeData.children?.[0].children;
+
+    expect(children?.map((node) => node.topic)).toEqual([
+      "Grandchild",
+      "Research",
+      "Draft report",
+    ]);
+    expect(children?.[1].children?.map((node) => node.topic)).toEqual([
+      "Interviews",
+      "Survey",
+    ]);
+  });
+
+  it("collapses and expands all descendant branches", () => {
+    const context = createContext();
+    renderMindMap(context);
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse all branches" }));
+    const collapseUpdate = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
+      current: MindmapData
+    ) => MindmapData;
+    expect(collapseUpdate(data).nodeData.collapsed).toBeUndefined();
+    expect(collapseUpdate(data).nodeData.children?.[0].collapsed).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand all branches" }));
+    const expandUpdate = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
+      current: MindmapData
+    ) => MindmapData;
+    expect(expandUpdate(collapseUpdate(data)).nodeData.children?.[0].collapsed).toBe(false);
+  });
+
+  it("does not pan the canvas with a left-button background drag", () => {
+    renderMindMap();
+    const svg = screen.getByRole("img", { name: "Mind map" });
+    const background = svg.querySelector("[data-canvas-background]") as SVGRectElement;
+    const content = svg.querySelector("g") as SVGGElement;
+    Object.defineProperty(svg, "setPointerCapture", { value: jest.fn() });
+
+    fireEvent.pointerDown(background, {
+      button: 0,
+      pointerId: 1,
+      pointerType: "mouse",
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(svg, {
+      pointerId: 1,
+      pointerType: "mouse",
+      clientX: 220,
+      clientY: 180,
+    });
+
+    expect(content).toHaveAttribute("transform", "translate(0 0) scale(1)");
+  });
+
+  it("supports additive node selection with Ctrl or Command click", () => {
+    const context = createContext();
+    render(<StatefulMindMap context={context} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Child" }));
+    fireEvent.click(screen.getByRole("button", { name: "Grandchild" }), {
+      ctrlKey: true,
+    });
+
+    expect(document.querySelectorAll(".mindmap-node-selection")).toHaveLength(2);
   });
 
   it("selects the New Topic placeholder so typing replaces it", () => {
@@ -257,5 +450,16 @@ describe("MindMap editor", () => {
     expect(
       screen.getByRole("button", { name: "Center map" })
     ).toBeInTheDocument();
+  });
+
+  it("allows zooming beyond 250 percent for large maps", () => {
+    renderMindMap();
+    const zoomIn = screen.getByRole("button", { name: "Zoom in" });
+
+    for (let index = 0; index < 20; index += 1) {
+      fireEvent.click(zoomIn);
+    }
+
+    expect(screen.getByText("300%")).toBeInTheDocument();
   });
 });

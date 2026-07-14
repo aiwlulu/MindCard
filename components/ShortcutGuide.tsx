@@ -10,22 +10,26 @@ const ShortcutGuide: React.FC = () => {
         className="mindmap-floating-trigger"
         aria-expanded={showGuide}
       >
-        {showGuide ? "關閉快捷鍵" : "快捷鍵"}
+        {showGuide ? "Close shortcuts" : "Shortcuts"}
       </button>
       {showGuide && (
         <div className="mindmap-shortcut-popover">
           <ul>
-            <li><kbd>Enter</kbd><span>新增同層節點</span></li>
-            <li><kbd>Tab</kbd><span>新增子節點</span></li>
-            <li><kbd>F2</kbd><span>編輯節點</span></li>
-            <li><kbd>Space</kbd><span>摺疊／展開分支</span></li>
-            <li><kbd>Delete</kbd><span>刪除節點</span></li>
-            <li><kbd>Alt ↑ / ↓</kbd><span>移動同層順序</span></li>
-            <li><kbd>⌘ / Ctrl Z</kbd><span>復原</span></li>
-            <li><kbd>⌘ / Ctrl S</kbd><span>儲存</span></li>
-            <li><kbd>⌘ / Ctrl C / V</kbd><span>複製／貼上節點</span></li>
-            <li><kbd>⌘ / Ctrl + / −</kbd><span>縮放</span></li>
-            <li><kbd>⌘ / Ctrl 0</kbd><span>回到中心</span></li>
+            <li><kbd>Enter</kbd><span>Add sibling topic</span></li>
+            <li><kbd>Tab</kbd><span>Add child topic</span></li>
+            <li><kbd>F2</kbd><span>Edit topic</span></li>
+            <li><kbd>Space</kbd><span>Collapse or expand branch</span></li>
+            <li><kbd>Delete</kbd><span>Delete topic</span></li>
+            <li><kbd>Alt ↑ / ↓</kbd><span>Reorder siblings</span></li>
+            <li><kbd>⌘ / Ctrl Z</kbd><span>Undo</span></li>
+            <li><kbd>⌘ / Ctrl S</kbd><span>Save</span></li>
+            <li><kbd>⌘ / Ctrl C / V</kbd><span>Copy or paste topics</span></li>
+            <li><kbd>⌘ / Ctrl Click</kbd><span>Select multiple topics</span></li>
+            <li><kbd>Drag topics</kbd><span>Move below target</span></li>
+            <li><kbd>Paste lines</kbd><span>Create child branches</span></li>
+            <li><kbd>Middle drag</kbd><span>Pan canvas</span></li>
+            <li><kbd>⌘ / Ctrl + / −</kbd><span>Zoom</span></li>
+            <li><kbd>⌘ / Ctrl 0</kbd><span>Center map</span></li>
           </ul>
         </div>
       )}

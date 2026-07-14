@@ -8,6 +8,7 @@ export interface NodeData {
   topic: string;
   root?: boolean;
   hyperLink?: string;
+  externalLink?: string;
   collapsed?: boolean;
   children?: NodeData[];
 }
@@ -54,7 +55,7 @@ export interface HyperlinkData {
   id: string;
 }
 
-export type MindmapExportFormat = "svg" | "markdown";
+export type MindmapExportFormat = "svg" | "png" | "markdown";
 
 export interface SaveMindmapOptions {
   silent?: boolean;

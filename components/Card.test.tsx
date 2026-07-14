@@ -46,7 +46,25 @@ describe("Card", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Cards" }));
     expect(
-      screen.getByText("目前沒有其他可連結的心智圖。")
+      screen.getByText("No other mind maps are available to link.")
+    ).toBeInTheDocument();
+  });
+
+  it("shows card instructions in English", async () => {
+    (mockContext.getAllMindmaps as jest.Mock).mockResolvedValueOnce([]);
+    await act(async () => {
+      render(
+        <MindmapContext.Provider value={mockContext as MindmapContextValue}>
+          <Card currentMindmapId="test-id" removeHyperlink={jest.fn()} />
+        </MindmapContext.Provider>
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Cards" }));
+    fireEvent.click(screen.getByRole("button", { name: "Card instructions" }));
+
+    expect(
+      screen.getByText(/Select a node, then drag a card onto the canvas/)
     ).toBeInTheDocument();
   });
 });

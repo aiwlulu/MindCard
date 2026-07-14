@@ -103,13 +103,13 @@ nextjs-portal {
   display: block;
   width: 100%;
   height: 100%;
-  cursor: grab;
+  cursor: default;
   touch-action: none;
   user-select: none;
 }
 
 .mindmap-canvas:active {
-  cursor: grabbing;
+  cursor: default;
 }
 
 .mindmap-canvas-background {
@@ -118,14 +118,25 @@ nextjs-portal {
 
 .mindmap-edge {
   fill: none;
-  stroke: #6865a9;
-  stroke-width: 2;
   vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .mindmap-node {
-  cursor: pointer;
+  cursor: grab;
   outline: none;
+}
+
+.mindmap-node:active {
+  cursor: grabbing;
+}
+
+.mindmap-node.is-drop-target .mindmap-node-selection,
+.mindmap-node.is-drop-target .mindmap-root-shape {
+  fill: rgba(101, 168, 146, 0.16);
+  stroke: #65a892;
+  stroke-width: 2;
 }
 
 .mindmap-root-shape {
@@ -165,9 +176,8 @@ nextjs-portal {
 }
 
 .mindmap-node-underline {
-  stroke: #6865a9;
-  stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
 }
 
 .mindmap-node-link {
@@ -193,24 +203,23 @@ nextjs-portal {
   outline: none;
 }
 
-.mindmap-collapse-toggle circle {
+.mindmap-collapse-toggle rect {
   fill: #292a32;
-  stroke: #7775ac;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
 
 .mindmap-collapse-toggle text {
   fill: #dedee4;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   pointer-events: none;
 }
 
-.mindmap-collapse-toggle:hover circle,
-.mindmap-collapse-toggle:focus-visible circle {
+.mindmap-collapse-toggle:hover rect,
+.mindmap-collapse-toggle:focus-visible rect {
   fill: #343543;
-  stroke: #9a98c5;
+  stroke-width: 1.5;
 }
 
 .mindmap-node-input {
@@ -227,49 +236,9 @@ nextjs-portal {
   box-shadow: 0 0 0 2px rgba(104, 101, 169, 0.18);
 }
 
-.mindmap-guide-banner {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  z-index: 35;
-  display: flex;
-  min-height: 2.4rem;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.45rem 0.8rem 0.45rem 1rem;
-  border-bottom: 1px solid rgba(143, 141, 196, 0.18);
-  color: #c9c9d4;
-  background: rgba(31, 32, 43, 0.96);
-  font-size: 0.8rem;
-}
-
-.mindmap-guide-banner span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mindmap-guide-banner button {
-  width: 1.75rem;
-  height: 1.75rem;
-  flex: 0 0 auto;
-  border-radius: 0.4rem;
-  color: #aaaab6;
-  font-size: 1.15rem;
-}
-
-.mindmap-guide-banner button:hover,
-.mindmap-guide-banner button:focus-visible {
-  color: #eeeef2;
-  background: #30313d;
-  outline: none;
-}
-
 .mindmap-commandbar {
   position: absolute;
-  top: 3rem;
+  top: 0.75rem;
   right: 1rem;
   left: 1rem;
   z-index: 30;
@@ -304,6 +273,23 @@ nextjs-portal {
   color: #f0f0f3;
   background: #343542;
   outline: none;
+}
+
+.mindmap-commandbar-input {
+  width: min(16rem, 28vw);
+  min-width: 10rem;
+  padding: 0.38rem 0.55rem;
+  border: 1px solid #555767;
+  border-radius: 0.45rem;
+  color: #e4e4e9;
+  background: #1f2028;
+  font-size: 0.74rem;
+  outline: none;
+}
+
+.mindmap-commandbar-input:focus {
+  border-color: #797fba;
+  box-shadow: 0 0 0 2px rgba(121, 127, 186, 0.16);
 }
 
 .mindmap-commandbar kbd {
@@ -361,13 +347,16 @@ nextjs-portal {
 }
 
 .mindmap-toolbar button {
+  display: inline-grid;
   min-width: 2rem;
   height: 2rem;
+  place-items: center;
   padding: 0 0.5rem;
   border-radius: 0.5rem;
   color: #d5d5dd;
   background: transparent;
   font-size: 0.875rem;
+  line-height: 1;
 }
 
 .mindmap-toolbar button:hover,
@@ -378,9 +367,13 @@ nextjs-portal {
 }
 
 .mindmap-zoom-level {
+  display: inline-grid;
   min-width: 3rem;
+  height: 2rem;
+  place-items: center;
   color: #c5c5ce;
   font-size: 0.75rem;
+  line-height: 1;
   text-align: center;
 }
 

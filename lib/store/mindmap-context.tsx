@@ -24,6 +24,7 @@ import { toast } from "react-toastify";
 import { db } from "@/lib/firebase";
 import { authContext } from "./auth-context";
 import {
+  buildMindmapPng,
   buildMindmapSvg,
   convertToMarkdown,
   sanitizeFilename,
@@ -250,6 +251,14 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
           downloadBlob(
             new Blob([convertToMarkdown(root)], { type: "text/markdown;charset=utf-8" }),
             `MindCard-${safeTitle}.md`
+          );
+          return;
+        }
+
+        if (format === "png") {
+          downloadBlob(
+            await buildMindmapPng(root),
+            `MindCard-${safeTitle}.png`
           );
           return;
         }

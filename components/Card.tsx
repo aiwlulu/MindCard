@@ -67,7 +67,7 @@ const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
             onClick={() => setIsOpen((prev) => !prev)}
             aria-expanded={isOpen}
           >
-            {isOpen ? "關閉 Cards" : "Cards"}
+            {isOpen ? "Close Cards" : "Cards"}
           </button>
         </div>
 
@@ -78,7 +78,7 @@ const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
                 className="mindmap-card-remove"
                 onClick={handleRemoveHyperlinkClick}
               >
-                移除連結
+                Remove link
               </button>
               <button
                 type="button"
@@ -93,13 +93,13 @@ const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
             {showInstruction && (
               <div className="mindmap-card-instructions">
                 <div>
-                  <p>先選取節點，再將下方 Card 拖曳到畫布即可建立連結。</p>
-                  <p>建立後可直接點節點下方的 Card link 開啟另一張心智圖。</p>
+                  <p>Select a node, then drag a card onto the canvas to create a link.</p>
+                  <p>Use the card link below the node to open the linked mind map.</p>
                   <button
                     onClick={() => setShowInstruction(false)}
                     className="mindmap-card-got-it"
                   >
-                    知道了
+                    Got it
                   </button>
                 </div>
               </div>
@@ -108,7 +108,7 @@ const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
             <div className="mindmap-card-list">
               {mindmaps.length === 0 ? (
                 <div className="mindmap-card-empty">
-                  <p>目前沒有其他可連結的心智圖。</p>
+                  <p>No other mind maps are available to link.</p>
                 </div>
               ) : (
                 mindmaps.map((map) => (

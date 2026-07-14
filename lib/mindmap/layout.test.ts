@@ -2,7 +2,7 @@ import type { NodeData } from "@/lib/types";
 import { layoutMindmap, NODE_MAX_WIDTH, NODE_MIN_HEIGHT } from "./layout";
 
 describe("mind map layout", () => {
-  it("places root branches on both sides and keeps descendants moving outward", () => {
+  it("places every branch to the right of its parent", () => {
     const root: NodeData = {
       id: "root",
       topic: "Root",
@@ -20,9 +20,18 @@ describe("mind map layout", () => {
 
     expect(rootLayout?.x).toBeLessThan(oneLayout?.x ?? 0);
     expect(oneLayout?.x).toBeLessThan(oneA?.x ?? 0);
-    expect(twoLayout?.x).toBeLessThan(rootLayout?.x ?? 0);
+    expect(rootLayout?.x).toBeLessThan(twoLayout?.x ?? 0);
     expect(oneLayout?.side).toBe("right");
-    expect(twoLayout?.side).toBe("left");
+    expect(twoLayout?.side).toBe("right");
+    expect(oneLayout?.branchIndex).toBe(0);
+    expect(oneA?.branchIndex).toBe(0);
+    expect(twoLayout?.branchIndex).toBe(1);
+    expect(layout.edges.map((edge) => edge.branchIndex)).toEqual([0, 0, 1]);
+    const rootToOne = layout.edges.find((edge) => edge.childId === "one");
+    const oneToChild = layout.edges.find((edge) => edge.childId === "one-a");
+    expect(rootToOne?.endY).toBe(oneLayout?.connectionY);
+    expect(oneToChild?.startY).toBe(oneLayout?.connectionY);
+    expect(oneToChild?.endY).toBe(oneA?.connectionY);
     expect(layout.edges).toHaveLength(3);
     expect(layout.width).toBeGreaterThan(layout.nodes[0].width);
     expect(layout.height).toBeGreaterThan(layout.nodes[0].height);

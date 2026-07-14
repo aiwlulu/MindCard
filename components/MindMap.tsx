@@ -7,7 +7,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import Card from "./Card";
 import ShortcutGuide from "./ShortcutGuide";
@@ -18,14 +17,21 @@ import {
   NODE_LINK_HEIGHT,
   type LayoutNode,
 } from "@/lib/mindmap/layout";
+import { getBranchColor, getBranchStrokeWidth } from "@/lib/mindmap/colors";
+import { formatExternalLinkLabel, normalizeExternalUrl } from "@/lib/mindmap/links";
+import { parsePastedOutline } from "@/lib/mindmap/outline";
 import {
   cloneNodeWithNewIds,
+  countDescendants,
   createNode,
   findNode,
+  formatHiddenDescendantCount,
   insertChild,
   insertSibling,
   moveNode,
+  moveNodesAsChildren,
   removeNode,
+  setAllBranchesCollapsed,
   updateNode,
 } from "@/lib/mindmap/tree";
 import type { MindmapData, NodeData } from "@/lib/types";
@@ -45,17 +51,25 @@ interface PanState {
   y: number;
 }
 
+interface NodeDragState {
+  nodeIds: string[];
+  pointerId: number;
+  startX: number;
+  startY: number;
+  moved: boolean;
+}
+
 type TreeUpdater = (root: NodeData) => NodeData;
 
 const MIN_ZOOM = 0.45;
-const MAX_ZOOM = 2.5;
+const MAX_ZOOM = 8;
 
 export default function MindMap({ id }: MindMapProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const panStartRef = useRef<{ pointerX: number; pointerY: number; pan: PanState } | null>(null);
+  const nodeDragRef = useRef<NodeDragState | null>(null);
   const clipboardRef = useRef<NodeData | null>(null);
-  const router = useRouter();
   const {
     exportMindMap,
     mindmapData,
@@ -66,13 +80,20 @@ export default function MindMap({ id }: MindMapProps) {
     updateMindmapData,
     updateNodeHyperlink,
   } = React.useContext(MindmapContext);
-  const [showBanner, setShowBanner] = useState(true);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingTopic, setEditingTopic] = useState("");
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
   const [history, setHistory] = useState<MindmapData[]>([]);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [externalLinkNodeId, setExternalLinkNodeId] = useState<string | null>(
+    null
+  );
+  const [externalLinkDraft, setExternalLinkDraft] = useState("");
 
   const root = mindmapData?.root ?? mindmapData?.nodeData ?? null;
   const layout = useMemo(() => (root ? layoutMindmap(root) : null), [root]);
@@ -93,17 +114,14 @@ export default function MindMap({ id }: MindMapProps) {
     if (id) void loadMindmap(id);
     setPan({ x: 0, y: 0 });
     setHistory([]);
+    setSelectedNodeIds(new Set());
   }, [id, loadMindmap]);
 
   useEffect(() => {
-    editorRef.current?.focus({ preventScroll: true });
-  }, [id]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setShowBanner(window.localStorage.getItem("hideGuideBanner") !== "true");
+    if (!editingNodeId) {
+      editorRef.current?.focus({ preventScroll: true });
     }
-  }, []);
+  }, [editingNodeId, id]);
 
   useEffect(() => {
     const closeContextMenu = () => setContextMenu(null);
@@ -132,7 +150,15 @@ export default function MindMap({ id }: MindMapProps) {
   );
 
   const selectNode = useCallback(
-    (node: NodeData) => {
+    (node: NodeData, additive = false) => {
+      setSelectedNodeIds((current) => {
+        if (!additive) return new Set([node.id]);
+
+        const next = new Set(current);
+        if (next.has(node.id)) next.delete(node.id);
+        else next.add(node.id);
+        return next;
+      });
       setSelectedNode(node);
       editorRef.current?.focus();
     },
@@ -155,10 +181,14 @@ export default function MindMap({ id }: MindMapProps) {
     const node = root ? findNode(root, editingNodeId) : null;
 
     if (node && nextTopic && nextTopic !== node.topic) {
+      const externalLink = normalizeExternalUrl(nextTopic);
       commitData((tree) =>
         updateNode(tree, editingNodeId, (current) => ({
           ...current,
-          topic: nextTopic,
+          topic: externalLink
+            ? formatExternalLinkLabel(externalLink)
+            : nextTopic,
+          ...(externalLink ? { externalLink } : {}),
         }))
       );
     }
@@ -183,6 +213,7 @@ export default function MindMap({ id }: MindMapProps) {
           : insertSibling(expandedTree, nodeId, newNode);
       });
       setSelectedNode(newNode);
+      setSelectedNodeIds(new Set([newNode.id]));
       setEditingNodeId(newNode.id);
       setEditingTopic(newNode.topic);
       setContextMenu(null);
@@ -200,6 +231,7 @@ export default function MindMap({ id }: MindMapProps) {
 
       commitData((tree) => removeNode(tree, nodeId).root);
       setSelectedNode(null);
+      setSelectedNodeIds(new Set());
       setContextMenu(null);
     },
     [commitData, root, setSelectedNode]
@@ -221,32 +253,84 @@ export default function MindMap({ id }: MindMapProps) {
     [commitData, root]
   );
 
+  const setAllBranches = useCallback(
+    (collapsed: boolean) => {
+      commitData((tree) => setAllBranchesCollapsed(tree, collapsed));
+      setContextMenu(null);
+    },
+    [commitData]
+  );
+
+  const startExternalLinkEditing = useCallback((node: NodeData) => {
+    setExternalLinkNodeId(node.id);
+    setExternalLinkDraft(node.externalLink ?? "");
+  }, []);
+
+  const saveExternalLink = useCallback(() => {
+    if (!externalLinkNodeId) return;
+    const externalLink = normalizeExternalUrl(externalLinkDraft);
+    if (!externalLink) {
+      toast.error("Enter a valid http or https URL.", { autoClose: 1500 });
+      return;
+    }
+
+    commitData((tree) =>
+      updateNode(tree, externalLinkNodeId, (node) => ({
+        ...node,
+        externalLink,
+      }))
+    );
+    setExternalLinkNodeId(null);
+    setExternalLinkDraft("");
+  }, [commitData, externalLinkDraft, externalLinkNodeId]);
+
   const undo = useCallback(() => {
     const previous = history.at(-1);
     if (!previous) return;
     setHistory((items) => items.slice(0, -1));
     updateMindmapData(previous);
     setSelectedNode(null);
+    setSelectedNodeIds(new Set());
   }, [history, setSelectedNode, updateMindmapData]);
 
-  const pasteNode = useCallback(async () => {
-    if (!currentSelectedNode) return;
+  const pasteContent = useCallback((text: string): boolean => {
+    if (!currentSelectedNode) return false;
 
-    let source = clipboardRef.current;
-    if (!source && typeof navigator !== "undefined" && navigator.clipboard) {
-      try {
-        const text = await navigator.clipboard.readText();
-        source = JSON.parse(text) as NodeData;
-      } catch {
-        return;
+    const clipboardNode = parseClipboardNode(text);
+    if (clipboardNode) {
+      const pasted = cloneNodeWithNewIds(clipboardNode);
+      commitData((tree) => insertSibling(tree, currentSelectedNode.id, pasted));
+      setSelectedNode(pasted);
+      return true;
+    }
+
+    const outline = parsePastedOutline(text);
+    if (!outline.length) return false;
+
+    commitData((tree) =>
+      updateNode(tree, currentSelectedNode.id, (node) => ({
+        ...node,
+        collapsed: false,
+        children: [...(node.children ?? []), ...outline],
+      }))
+    );
+    return true;
+  }, [commitData, currentSelectedNode, setSelectedNode]);
+
+  const pasteNode = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard) return;
+
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!pasteContent(text) && clipboardRef.current) {
+        pasteContent(JSON.stringify(clipboardRef.current));
+      }
+    } catch {
+      if (clipboardRef.current) {
+        pasteContent(JSON.stringify(clipboardRef.current));
       }
     }
-    if (!source) return;
-
-    const pasted = cloneNodeWithNewIds(source);
-    commitData((tree) => insertSibling(tree, currentSelectedNode.id, pasted));
-    setSelectedNode(pasted);
-  }, [commitData, currentSelectedNode, setSelectedNode]);
+  }, [pasteContent]);
 
   const centerMap = useCallback(() => {
     setPan({ x: 0, y: 0 });
@@ -352,22 +436,14 @@ export default function MindMap({ id }: MindMapProps) {
               ? layout?.nodes.find(
                   (item) => item.depth === 1 && item.side === "right"
                 )?.node ?? null
-              : currentLayout?.side === "left"
-              ? findParentNode(root, selectedId)
               : currentSelectedNode?.collapsed
                 ? null
                 : currentSelectedNode?.children?.[0] ?? null;
         } else if (event.key === "ArrowLeft") {
           targetNode =
             currentLayout?.side === "center"
-              ? layout?.nodes.find(
-                  (item) => item.depth === 1 && item.side === "left"
-                )?.node ?? null
-              : currentLayout?.side === "right"
-              ? findParentNode(root, selectedId)
-              : currentSelectedNode?.collapsed
-                ? null
-                : currentSelectedNode?.children?.[0] ?? null;
+              ? null
+              : findParentNode(root, selectedId);
         } else if (layout?.nodes.length) {
           const orderedNodes = [...layout.nodes].sort(
             (first, second) => first.y - second.y || first.x - second.x
@@ -445,11 +521,78 @@ export default function MindMap({ id }: MindMapProps) {
     [selectedNode, setSelectedNode, updateNodeHyperlink]
   );
 
+  const handleNodePointerDown = useCallback(
+    (event: React.PointerEvent<SVGGElement>, node: NodeData) => {
+      if (event.button !== 0 || node.root) return;
+      const nodeIds = selectedNodeIds.has(node.id)
+        ? [...selectedNodeIds]
+        : [node.id];
+      nodeDragRef.current = {
+        nodeIds,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        moved: false,
+      };
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    },
+    [selectedNodeIds]
+  );
+
+  const handleNodePointerMove = useCallback(
+    (event: React.PointerEvent<SVGGElement>) => {
+      const drag = nodeDragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+
+      const distance = Math.hypot(
+        event.clientX - drag.startX,
+        event.clientY - drag.startY
+      );
+      if (!drag.moved && distance < 6) return;
+      drag.moved = true;
+
+      const target = document
+        .elementFromPoint?.(event.clientX, event.clientY)
+        ?.closest("[data-node-id]") as SVGGElement | null | undefined;
+      const targetId = target?.dataset.nodeId ?? null;
+      setDropTargetId(
+        targetId && !drag.nodeIds.includes(targetId) ? targetId : null
+      );
+    },
+    []
+  );
+
+  const handleNodePointerUp = useCallback(
+    (event: React.PointerEvent<SVGGElement>) => {
+      const drag = nodeDragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+
+      if (drag.moved && dropTargetId) {
+        commitData((tree) =>
+          moveNodesAsChildren(tree, drag.nodeIds, dropTargetId)
+        );
+        setSelectedNodeIds(new Set(drag.nodeIds));
+      }
+
+      nodeDragRef.current = null;
+      setDropTargetId(null);
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    },
+    [commitData, dropTargetId]
+  );
+
   const handlePointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
     const target = event.target as SVGElement;
     if (
       event.target !== event.currentTarget &&
       target.dataset.canvasBackground !== "true"
+    ) {
+      return;
+    }
+    if (
+      event.pointerType !== "touch" &&
+      event.pointerType !== "pen" &&
+      event.button !== 1
     ) {
       return;
     }
@@ -459,7 +602,7 @@ export default function MindMap({ id }: MindMapProps) {
       pointerY: event.clientY,
       pan,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
   };
 
   const handlePointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
@@ -477,7 +620,7 @@ export default function MindMap({ id }: MindMapProps) {
   const handlePointerUp = (event: React.PointerEvent<SVGSVGElement>) => {
     if (panStartRef.current) {
       panStartRef.current = null;
-      event.currentTarget.releasePointerCapture(event.pointerId);
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
     }
   };
 
@@ -490,11 +633,6 @@ export default function MindMap({ id }: MindMapProps) {
     }
   }, []);
 
-  const handleCloseBanner = () => {
-    setShowBanner(false);
-    window.localStorage.setItem("hideGuideBanner", "true");
-  };
-
   const removeHyperlink = () => {
     if (currentSelectedNode) {
       void updateNodeHyperlink(currentSelectedNode.id, "");
@@ -503,12 +641,13 @@ export default function MindMap({ id }: MindMapProps) {
     }
   };
 
-  const openLinkedMindMap = useCallback(
-    (mindmapId: string) => {
-      router.push(`/mindmap/${mindmapId}`);
-    },
-    [router]
-  );
+  const openLinkedMindMap = useCallback((mindmapId: string) => {
+    openInNewTab(`/mindmap/${mindmapId}`);
+  }, []);
+
+  const openExternalLink = useCallback((url: string) => {
+    openInNewTab(url);
+  }, []);
 
   return (
     <div
@@ -518,12 +657,16 @@ export default function MindMap({ id }: MindMapProps) {
       role="application"
       aria-label="Mind map editor"
       onKeyDown={handleKeyDown}
+      onPaste={(event) => {
+        if (editingNodeId) return;
+        const text = event.clipboardData.getData("text/plain");
+        if (pasteContent(text)) event.preventDefault();
+      }}
       onDrop={handleDrop}
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes("card/json")) event.preventDefault();
       }}
     >
-      {showBanner && <GuideBanner onClose={handleCloseBanner} />}
       <div className="mindmap-commandbar" aria-label="Mind map actions">
         {currentSelectedNode ? (
           <>
@@ -532,43 +675,91 @@ export default function MindMap({ id }: MindMapProps) {
             </span>
             <span className="mindmap-commandbar-divider" aria-hidden="true" />
             <button type="button" onClick={() => addNode("child", currentSelectedNode.id)}>
-              ＋ 子節點 <kbd>Tab</kbd>
+              + Child <kbd>Tab</kbd>
             </button>
             {!currentSelectedNode.root && (
               <button type="button" onClick={() => addNode("sibling", currentSelectedNode.id)}>
-                ＋ 同層 <kbd>Enter</kbd>
+                + Sibling <kbd>Enter</kbd>
               </button>
             )}
             <button type="button" onClick={() => startEditing(currentSelectedNode)}>
-              編輯 <kbd>F2</kbd>
+              Edit <kbd>F2</kbd>
             </button>
+            <button
+              type="button"
+              aria-label={
+                currentSelectedNode.externalLink
+                  ? "Edit external link"
+                  : "Add external link"
+              }
+              onClick={() => startExternalLinkEditing(currentSelectedNode)}
+            >
+              External link
+            </button>
+            {externalLinkNodeId === currentSelectedNode.id ? (
+              <>
+                <input
+                  type="url"
+                  aria-label="External URL"
+                  className="mindmap-commandbar-input"
+                  placeholder="https://example.com"
+                  value={externalLinkDraft}
+                  onChange={(event) => setExternalLinkDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") saveExternalLink();
+                    if (event.key === "Escape") setExternalLinkNodeId(null);
+                  }}
+                />
+                <button
+                  type="button"
+                  aria-label="Save external link"
+                  onClick={saveExternalLink}
+                >
+                  Apply
+                </button>
+              </>
+            ) : null}
             {currentSelectedNode.children?.length ? (
               <button
                 type="button"
                 aria-label={currentSelectedNode.collapsed ? "Expand branch" : "Collapse branch"}
                 onClick={() => toggleBranch(currentSelectedNode.id)}
               >
-                {currentSelectedNode.collapsed ? "展開分支" : "摺疊分支"} <kbd>Space</kbd>
+                {currentSelectedNode.collapsed ? "Expand branch" : "Collapse branch"} <kbd>Space</kbd>
               </button>
             ) : null}
           </>
         ) : (
-          <span className="mindmap-commandbar-hint">選取節點以顯示快速操作</span>
+          <span className="mindmap-commandbar-hint">Select a node to show quick actions</span>
         )}
+        <button
+          type="button"
+          aria-label="Expand all branches"
+          onClick={() => setAllBranches(false)}
+        >
+          Expand all
+        </button>
+        <button
+          type="button"
+          aria-label="Collapse all branches"
+          onClick={() => setAllBranches(true)}
+        >
+          Collapse all
+        </button>
         <span className="mindmap-commandbar-spacer" />
         <button
           type="button"
           aria-label="Export image"
           onClick={() => void exportMindMap("svg")}
         >
-          匯出 SVG
+          Export SVG
         </button>
         <button
           type="button"
           aria-label="Export Markdown"
           onClick={() => void exportMindMap("markdown")}
         >
-          匯出 MD
+          Export MD
         </button>
       </div>
       <div className="showcase">
@@ -605,6 +796,9 @@ export default function MindMap({ id }: MindMapProps) {
                     key={`${edge.parentId}-${edge.childId}`}
                     d={connectorPath(edge.startX, edge.startY, edge.endX, edge.endY)}
                     fill="none"
+                    stroke={getBranchColor(edge.branchIndex, edge.depth)}
+                    strokeWidth={getBranchStrokeWidth(edge.depth)}
+                    data-branch-index={edge.branchIndex}
                     className={`mindmap-edge mindmap-edge-${edge.side}`}
                   />
                 ))}
@@ -612,7 +806,12 @@ export default function MindMap({ id }: MindMapProps) {
                   <MindMapNode
                     key={item.node.id}
                     item={item}
-                    selected={currentSelectedNode?.id === item.node.id}
+                    selected={
+                      selectedNodeIds.size
+                        ? selectedNodeIds.has(item.node.id)
+                        : currentSelectedNode?.id === item.node.id
+                    }
+                    dropTarget={dropTargetId === item.node.id}
                     editing={editingNodeId === item.node.id}
                     editingTopic={editingTopic}
                     onSelect={selectNode}
@@ -620,7 +819,11 @@ export default function MindMap({ id }: MindMapProps) {
                     onEditTopic={setEditingTopic}
                     onCommitEdit={finishEditing}
                     onOpenLink={openLinkedMindMap}
+                    onOpenExternalLink={openExternalLink}
                     onToggleBranch={toggleBranch}
+                    onPointerDown={handleNodePointerDown}
+                    onPointerMove={handleNodePointerMove}
+                    onPointerUp={handleNodePointerUp}
                     onContextMenu={(event, node) => {
                       event.preventDefault();
                       selectNode(node);
@@ -693,20 +896,26 @@ export default function MindMap({ id }: MindMapProps) {
 interface MindMapNodeProps {
   item: LayoutNode;
   selected: boolean;
+  dropTarget: boolean;
   editing: boolean;
   editingTopic: string;
-  onSelect: (node: NodeData) => void;
+  onSelect: (node: NodeData, additive?: boolean) => void;
   onEdit: (node: NodeData) => void;
   onEditTopic: (topic: string) => void;
   onCommitEdit: () => void;
   onOpenLink: (mindmapId: string) => void;
+  onOpenExternalLink: (url: string) => void;
   onToggleBranch: (nodeId: string) => void;
+  onPointerDown: (event: React.PointerEvent<SVGGElement>, node: NodeData) => void;
+  onPointerMove: (event: React.PointerEvent<SVGGElement>) => void;
+  onPointerUp: (event: React.PointerEvent<SVGGElement>) => void;
   onContextMenu: (event: React.MouseEvent<SVGGElement>, node: NodeData) => void;
 }
 
 function MindMapNode({
   item,
   selected,
+  dropTarget,
   editing,
   editingTopic,
   onSelect,
@@ -714,21 +923,34 @@ function MindMapNode({
   onEditTopic,
   onCommitEdit,
   onOpenLink,
+  onOpenExternalLink,
   onToggleBranch,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
   onContextMenu,
 }: MindMapNodeProps) {
   const [isComposing, setIsComposing] = useState(false);
-  const { node, x, y, width, height, depth, lines, side } = item;
+  const { node, x, y, width, height, depth, lines, branchIndex } = item;
   const isRoot = depth === 0;
   const isFirstLevel = depth === 1;
   const topicBlockHeight = lines.length * NODE_LINE_HEIGHT;
-  const linkHeight = node.hyperLink ? NODE_LINK_HEIGHT : 0;
+  const linkCount = Number(Boolean(node.hyperLink)) + Number(Boolean(node.externalLink));
+  const linkHeight = linkCount * NODE_LINK_HEIGHT;
   const contentTop = Math.max(0, (height - topicBlockHeight - linkHeight) / 2);
   const firstBaseline = contentTop + 16;
-  const textX = isRoot ? width / 2 : side === "left" ? width - 8 : 8;
-  const textAnchor = isRoot ? "middle" : side === "left" ? "end" : "start";
+  const textX = isRoot ? width / 2 : 8;
+  const textAnchor = isRoot ? "middle" : "start";
   const underlineY = contentTop + topicBlockHeight + 1;
-  const collapseX = side === "left" ? -12 : width + 12;
+  const collapseX = width + 12;
+  const branchColor = getBranchColor(branchIndex, depth);
+  const hiddenDescendantCount = node.children?.length
+    ? countDescendants(node)
+    : 0;
+  const collapseLabel = node.collapsed
+    ? formatHiddenDescendantCount(hiddenDescendantCount)
+    : "−";
+  const collapseWidth = Math.max(18, collapseLabel.length * 7 + 8);
 
   return (
     <g
@@ -736,17 +958,22 @@ function MindMapNode({
       tabIndex={0}
       aria-label={node.topic}
       data-node-id={node.id}
+      data-node-depth={depth}
       transform={`translate(${x} ${y})`}
-      className="mindmap-node"
+      className={`mindmap-node${dropTarget ? " is-drop-target" : ""}`}
       onClick={(event) => {
         event.stopPropagation();
-        onSelect(node);
+        onSelect(node, event.ctrlKey || event.metaKey);
       }}
       onDoubleClick={(event) => {
         event.stopPropagation();
         onEdit(node);
       }}
       onContextMenu={(event) => onContextMenu(event, node)}
+      onPointerDown={(event) => onPointerDown(event, node)}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
     >
       {isRoot ? (
         <rect
@@ -755,7 +982,7 @@ function MindMapNode({
           rx={Math.min(22, height / 2)}
           className={`mindmap-root-shape${selected ? " is-selected" : ""}`}
         />
-      ) : selected ? (
+      ) : selected || dropTarget ? (
         <rect
           x="-5"
           y="-3"
@@ -812,18 +1039,22 @@ function MindMapNode({
               </tspan>
             ))}
           </text>
-          {!isRoot && !isFirstLevel ? (
+          {!isRoot ? (
             <line
               x1="0"
               x2={width}
               y1={underlineY}
               y2={underlineY}
+              stroke={branchColor}
+              strokeWidth={getBranchStrokeWidth(depth)}
               className="mindmap-node-underline"
             />
           ) : null}
           {node.hyperLink && (
             <a
               href={`/mindmap/${node.hyperLink}`}
+              target="_blank"
+              rel="noopener noreferrer"
               aria-label="Open linked mind map"
               className="mindmap-node-link"
               onClick={(event) => {
@@ -837,7 +1068,34 @@ function MindMapNode({
                 y={contentTop + topicBlockHeight + 14}
                 textAnchor={textAnchor}
               >
-                ↗ 開啟 Card link
+                ↗ Open card link
+              </text>
+            </a>
+          )}
+          {node.externalLink && (
+            <a
+              href={node.externalLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open external link"
+              className="mindmap-node-link"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onOpenExternalLink(node.externalLink as string);
+              }}
+            >
+              <text
+                x={textX}
+                y={
+                  contentTop +
+                  topicBlockHeight +
+                  14 +
+                  (node.hyperLink ? NODE_LINK_HEIGHT : 0)
+                }
+                textAnchor={textAnchor}
+              >
+                ↗ Open external link
               </text>
             </a>
           )}
@@ -845,9 +1103,14 @@ function MindMapNode({
             <g
               role="button"
               tabIndex={0}
-              aria-label={`${node.collapsed ? "Expand" : "Collapse"} ${node.topic} branch`}
+              aria-label={
+                node.collapsed
+                  ? `Expand ${node.topic} branch, ${hiddenDescendantCount} hidden nodes`
+                  : `Collapse ${node.topic} branch`
+              }
               className="mindmap-collapse-toggle"
-              transform={`translate(${collapseX} ${height / 2})`}
+              data-branch-index={branchIndex ?? undefined}
+              transform={`translate(${collapseX} ${underlineY})`}
               onClick={(event) => {
                 event.stopPropagation();
                 onToggleBranch(node.id);
@@ -860,26 +1123,22 @@ function MindMapNode({
                 }
               }}
             >
-              <circle r="8" />
+              <rect
+                x={-collapseWidth / 2}
+                y="-9"
+                width={collapseWidth}
+                height="18"
+                rx="9"
+                stroke={branchColor}
+              />
               <text textAnchor="middle" dominantBaseline="central">
-                {node.collapsed ? "+" : "−"}
+                {collapseLabel}
               </text>
             </g>
           ) : null}
         </>
       )}
     </g>
-  );
-}
-
-function GuideBanner({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="mindmap-guide-banner">
-      <span>
-        雙擊編輯，Tab 新增子節點，Enter 新增同層，Space 摺疊分支，右鍵查看更多操作。
-      </span>
-      <button type="button" onClick={onClose} aria-label="Close guide">×</button>
-    </div>
   );
 }
 
@@ -906,4 +1165,19 @@ function connectorPath(startX: number, startY: number, endX: number, endY: numbe
 
 function clampZoom(value: number): number {
   return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(value.toFixed(2))));
+}
+
+function openInNewTab(url: string) {
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function parseClipboardNode(text: string): NodeData | null {
+  try {
+    const value = JSON.parse(text) as Partial<NodeData>;
+    return typeof value.id === "string" && typeof value.topic === "string"
+      ? (value as NodeData)
+      : null;
+  } catch {
+    return null;
+  }
 }

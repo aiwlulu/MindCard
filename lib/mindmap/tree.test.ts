@@ -1,13 +1,17 @@
 import type { MindmapData, NodeData } from "@/lib/types";
 import {
+  countDescendants,
   cloneNodeWithNewIds,
   createNode,
   findNode,
+  formatHiddenDescendantCount,
   insertChild,
   insertSibling,
   moveNode,
+  moveNodesAsChildren,
   normalizeMindmapData,
   removeNode,
+  setAllBranchesCollapsed,
   updateNode,
 } from "./tree";
 
@@ -48,6 +52,36 @@ describe("mind map tree operations", () => {
     expect(data.nodeData.children?.[0].collapsed).toBe(true);
   });
 
+  it("preserves external links while normalizing stored data", () => {
+    const data = normalizeMindmapData({
+      nodeData: {
+        id: "root",
+        topic: "Root",
+        externalLink: "https://example.com/reference",
+      },
+    });
+
+    expect(data.nodeData.externalLink).toBe("https://example.com/reference");
+  });
+
+  it("normalizes safe external links and drops unsafe protocols", () => {
+    const data = normalizeMindmapData({
+      nodeData: {
+        id: "root",
+        topic: "Root",
+        children: [
+          { id: "safe", topic: "Safe", externalLink: "example.com/guide" },
+          { id: "unsafe", topic: "Unsafe", externalLink: "javascript:alert(1)" },
+        ],
+      },
+    });
+
+    expect(data.nodeData.children?.[0].externalLink).toBe(
+      "https://example.com/guide"
+    );
+    expect(data.nodeData.children?.[1].externalLink).toBeUndefined();
+  });
+
   it("creates a node with a generated id and empty children omitted", () => {
     const node = createNode("New Topic");
 
@@ -61,6 +95,16 @@ describe("mind map tree operations", () => {
       id: "one-a",
       topic: "One A",
     });
+  });
+
+  it("counts every hidden descendant in a collapsed subtree", () => {
+    expect(countDescendants(baseTree().children?.[0] as NodeData)).toBe(1);
+    expect(countDescendants(baseTree())).toBe(3);
+  });
+
+  it("caps large collapsed-branch labels", () => {
+    expect(formatHiddenDescendantCount(3)).toBe("+3");
+    expect(formatHiddenDescendantCount(120)).toBe("99+");
   });
 
   it("updates one node without mutating the original tree", () => {
@@ -119,6 +163,31 @@ describe("mind map tree operations", () => {
       "two",
       "one",
     ]);
+  });
+
+  it("moves selected nodes below a new parent without creating cycles", () => {
+    const tree: NodeData = {
+      ...baseTree(),
+      children: [...(baseTree().children ?? []), { id: "three", topic: "Three" }],
+    };
+    const moved = moveNodesAsChildren(tree, ["two", "three"], "one");
+
+    expect(moved.children?.map((node) => node.id)).toEqual(["one"]);
+    expect(findNode(moved, "one")?.children?.map((node) => node.id)).toEqual([
+      "one-a",
+      "two",
+      "three",
+    ]);
+    expect(moveNodesAsChildren(tree, ["one"], "one-a")).toEqual(tree);
+  });
+
+  it("collapses every non-root branch and expands the complete tree", () => {
+    const collapsed = setAllBranchesCollapsed(baseTree(), true);
+    const expanded = setAllBranchesCollapsed(collapsed, false);
+
+    expect(collapsed.collapsed).toBeUndefined();
+    expect(findNode(collapsed, "one")?.collapsed).toBe(true);
+    expect(findNode(expanded, "one")?.collapsed).toBe(false);
   });
 
   it("clones a subtree with unique ids for paste", () => {

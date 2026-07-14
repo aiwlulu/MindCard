@@ -13,7 +13,7 @@ export const LEVEL_GAP = 100;
 export const SIBLING_GAP = 20;
 export const CANVAS_PADDING = 80;
 
-export type LayoutSide = "left" | "right" | "center";
+export type LayoutSide = "right" | "center";
 
 export interface LayoutNode {
   node: NodeData;
@@ -24,6 +24,8 @@ export interface LayoutNode {
   depth: number;
   lines: string[];
   side: LayoutSide;
+  branchIndex: number | null;
+  connectionY: number;
 }
 
 export interface LayoutEdge {
@@ -33,7 +35,9 @@ export interface LayoutEdge {
   startY: number;
   endX: number;
   endY: number;
-  side: Exclude<LayoutSide, "center">;
+  side: "right";
+  branchIndex: number;
+  depth: number;
 }
 
 export interface MindmapLayout {
@@ -73,24 +77,20 @@ export function layoutMindmap(
   const edges: LayoutEdge[] = [];
   const rootMetrics = measureSubtree(root, nodeMaxWidth, siblingGap, levelGap);
   const rootChildren = visibleChildren(root);
-  const rightChildren = rootChildren.filter((_, index) => index % 2 === 0);
-  const leftChildren = rootChildren.filter((_, index) => index % 2 === 1);
-  const rightWidth = maxSubtreeWidth(rightChildren, nodeMaxWidth, siblingGap, levelGap);
-  const leftWidth = maxSubtreeWidth(leftChildren, nodeMaxWidth, siblingGap, levelGap);
-  const rightHeight = stackHeight(rightChildren, nodeMaxWidth, siblingGap, levelGap);
-  const leftHeight = stackHeight(leftChildren, nodeMaxWidth, siblingGap, levelGap);
-  const contentHeight = Math.max(rootMetrics.height, rightHeight, leftHeight);
+  const childrenHeight = stackHeight(
+    rootChildren,
+    nodeMaxWidth,
+    siblingGap,
+    levelGap
+  );
+  const contentHeight = Math.max(rootMetrics.height, childrenHeight);
   const canvasHeight = Math.max(contentHeight + padding * 2, 360);
-  const sideExtent = rootChildren.length
-    ? Math.max(leftWidth, rightWidth) + levelGap
-    : 0;
-  const canvasWidth = padding * 2 + sideExtent * 2 + rootMetrics.width;
-  const rootX = padding + sideExtent;
+  const canvasWidth = padding * 2 + rootMetrics.subtreeWidth;
+  const rootX = padding;
   const rootY = padding + (canvasHeight - padding * 2 - rootMetrics.height) / 2;
-  const rootLayout = assignNode(root, rootX, rootY, 0, "center");
+  const rootLayout = assignNode(root, rootX, rootY, 0, "center", null);
 
-  assignChildren(rootLayout, rightChildren, "right", rightHeight);
-  assignChildren(rootLayout, leftChildren, "left", leftHeight);
+  assignChildren(rootLayout, rootChildren, childrenHeight);
 
   return {
     nodes,
@@ -105,37 +105,44 @@ export function layoutMindmap(
     subtreeTop: number,
     depth: number,
     side: LayoutSide,
+    branchIndex: number | null,
     parent?: LayoutNode
   ): LayoutNode {
     const metrics = measureNode(node, nodeMaxWidth);
+    const nodeY =
+      depth === 0
+        ? subtreeTop
+        : subtreeTop +
+          (measureSubtree(node, nodeMaxWidth, siblingGap, levelGap)
+            .subtreeHeight -
+            metrics.height) /
+            2;
+    const connectionY = getConnectionY(node, nodeY, metrics, depth);
     const layoutNode: LayoutNode = {
       node,
       x,
-      y:
-        depth === 0
-          ? subtreeTop
-          : subtreeTop +
-            (measureSubtree(node, nodeMaxWidth, siblingGap, levelGap)
-              .subtreeHeight -
-              metrics.height) /
-              2,
+      y: nodeY,
       width: metrics.width,
       height: metrics.height,
       depth,
       lines: metrics.lines,
       side,
+      branchIndex,
+      connectionY,
     };
     nodes.push(layoutNode);
 
-    if (parent && side !== "center") {
+    if (parent && branchIndex !== null) {
       edges.push({
         parentId: parent.node.id,
         childId: node.id,
-        startX: side === "right" ? parent.x + parent.width : parent.x,
-        startY: parent.y + parent.height / 2,
-        endX: side === "right" ? layoutNode.x : layoutNode.x + layoutNode.width,
-        endY: layoutNode.y + layoutNode.height / 2,
-        side,
+        startX: parent.x + parent.width,
+        startY: parent.connectionY,
+        endX: layoutNode.x,
+        endY: layoutNode.connectionY,
+        side: "right",
+        branchIndex,
+        depth,
       });
     }
 
@@ -145,26 +152,29 @@ export function layoutMindmap(
   function assignChildren(
     parent: LayoutNode,
     children: NodeData[],
-    side: Exclude<LayoutSide, "center">,
     groupHeight: number
   ) {
     if (!children.length) return;
 
-    let childTop =
-      parent.y + parent.height / 2 - groupHeight / 2;
-    for (const child of children) {
+    let childTop = parent.y + parent.height / 2 - groupHeight / 2;
+    for (const [branchIndex, child] of children.entries()) {
       const metrics = measureSubtree(child, nodeMaxWidth, siblingGap, levelGap);
-      const childX =
-        side === "right"
-          ? parent.x + parent.width + levelGap
-          : parent.x - levelGap - metrics.width;
-      const childLayout = assignNode(child, childX, childTop, 1, side, parent);
-      assignDescendants(childLayout, side);
+      const childX = parent.x + parent.width + levelGap;
+      const childLayout = assignNode(
+        child,
+        childX,
+        childTop,
+        1,
+        "right",
+        branchIndex,
+        parent
+      );
+      assignDescendants(childLayout, branchIndex);
       childTop += metrics.subtreeHeight + siblingGap;
     }
   }
 
-  function assignDescendants(parent: LayoutNode, side: Exclude<LayoutSide, "center">) {
+  function assignDescendants(parent: LayoutNode, branchIndex: number) {
     const children = visibleChildren(parent.node);
     if (!children.length) return;
 
@@ -172,19 +182,17 @@ export function layoutMindmap(
     let childTop = parent.y + parent.height / 2 - groupHeight / 2;
     for (const child of children) {
       const metrics = measureSubtree(child, nodeMaxWidth, siblingGap, levelGap);
-      const childX =
-        side === "right"
-          ? parent.x + parent.width + levelGap
-          : parent.x - levelGap - metrics.width;
+      const childX = parent.x + parent.width + levelGap;
       const childLayout = assignNode(
         child,
         childX,
         childTop,
         parent.depth + 1,
-        side,
+        "right",
+        branchIndex,
         parent
       );
-      assignDescendants(childLayout, side);
+      assignDescendants(childLayout, branchIndex);
       childTop += metrics.subtreeHeight + siblingGap;
     }
   }
@@ -264,21 +272,6 @@ function stackHeight(
   );
 }
 
-function maxSubtreeWidth(
-  nodes: NodeData[],
-  nodeMaxWidth: number,
-  siblingGap: number,
-  levelGap: number
-): number {
-  return nodes.length
-    ? Math.max(
-        ...nodes.map(
-          (node) => measureSubtree(node, nodeMaxWidth, siblingGap, levelGap).subtreeWidth
-        )
-      )
-    : 0;
-}
-
 function measureNode(node: NodeData, nodeMaxWidth: number): NodeMetrics {
   const lines = wrapTopic(node.topic, nodeMaxWidth);
   const longestLineWidth = Math.max(...lines.map(estimateTextWidth));
@@ -290,7 +283,7 @@ function measureNode(node: NodeData, nodeMaxWidth: number): NodeMetrics {
     NODE_MIN_HEIGHT,
     NODE_VERTICAL_PADDING * 2 +
       lines.length * NODE_LINE_HEIGHT +
-      (node.hyperLink ? NODE_LINK_HEIGHT : 0)
+      getNodeLinkCount(node) * NODE_LINK_HEIGHT
   );
 
   return { width, height, lines };
@@ -298,6 +291,27 @@ function measureNode(node: NodeData, nodeMaxWidth: number): NodeMetrics {
 
 function visibleChildren(node: NodeData): NodeData[] {
   return node.collapsed ? [] : node.children ?? [];
+}
+
+function getConnectionY(
+  node: NodeData,
+  y: number,
+  metrics: NodeMetrics,
+  depth: number
+): number {
+  if (depth === 0) return y + metrics.height / 2;
+
+  const topicHeight = metrics.lines.length * NODE_LINE_HEIGHT;
+  const linkHeight = getNodeLinkCount(node) * NODE_LINK_HEIGHT;
+  const contentTop = Math.max(
+    0,
+    (metrics.height - topicHeight - linkHeight) / 2
+  );
+  return y + contentTop + topicHeight + 1;
+}
+
+function getNodeLinkCount(node: NodeData): number {
+  return Number(Boolean(node.hyperLink)) + Number(Boolean(node.externalLink));
 }
 
 function estimateTextWidth(text: string): number {

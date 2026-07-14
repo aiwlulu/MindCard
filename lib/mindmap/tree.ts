@@ -1,4 +1,5 @@
 import type { MindmapData, NodeData } from "@/lib/types";
+import { normalizeExternalUrl } from "./links";
 
 const DEFAULT_ROOT_ID = "root";
 
@@ -34,6 +35,17 @@ export function findNode(root: NodeData, nodeId: string): NodeData | null {
   }
 
   return null;
+}
+
+export function countDescendants(node: NodeData): number {
+  return (node.children ?? []).reduce(
+    (total, child) => total + 1 + countDescendants(child),
+    0
+  );
+}
+
+export function formatHiddenDescendantCount(count: number): string {
+  return count > 99 ? "99+" : `+${count}`;
 }
 
 export function updateNode(
@@ -149,6 +161,70 @@ export function moveNode(
   return changed ? { ...root, children } : root;
 }
 
+export function moveNodesAsChildren(
+  root: NodeData,
+  nodeIds: string[],
+  parentId: string
+): NodeData {
+  const selectedIds = new Set(nodeIds);
+  if (!selectedIds.size || selectedIds.has(root.id) || selectedIds.has(parentId)) {
+    return root;
+  }
+
+  const parent = findNode(root, parentId);
+  if (!parent) return root;
+
+  const sources: NodeData[] = [];
+  collectSelectedRoots(root, false);
+  if (!sources.length || sources.some((source) => findNode(source, parentId))) {
+    return root;
+  }
+
+  let nextRoot = root;
+  for (const source of sources) {
+    const result = removeNode(nextRoot, source.id);
+    if (!result.removed) return root;
+    nextRoot = result.root;
+  }
+
+  return updateNode(nextRoot, parentId, (node) => ({
+    ...node,
+    collapsed: false,
+    children: [...(node.children ?? []), ...sources.map(cloneNode)],
+  }));
+
+  function collectSelectedRoots(node: NodeData, ancestorSelected: boolean) {
+    const selected = selectedIds.has(node.id);
+    if (selected && !ancestorSelected) {
+      sources.push(node);
+      return;
+    }
+
+    for (const child of node.children ?? []) {
+      collectSelectedRoots(child, ancestorSelected || selected);
+    }
+  }
+}
+
+export function setAllBranchesCollapsed(
+  root: NodeData,
+  collapsed: boolean,
+  isRoot = true
+): NodeData {
+  const children = root.children?.map((child) =>
+    setAllBranchesCollapsed(child, collapsed, false)
+  );
+  const next: NodeData = children?.length ? { ...root, children } : { ...root };
+
+  if (isRoot) {
+    delete next.collapsed;
+  } else if (children?.length || root.collapsed !== undefined) {
+    next.collapsed = collapsed;
+  }
+
+  return next;
+}
+
 export function cloneNodeWithNewIds(node: NodeData): NodeData {
   const clone: NodeData = {
     ...node,
@@ -187,6 +263,10 @@ function normalizeNode(raw: Record<string, unknown>, isRoot: boolean): NodeData 
   if (isRoot) node.root = true;
   if (typeof raw.hyperLink === "string" && raw.hyperLink) {
     node.hyperLink = raw.hyperLink;
+  }
+  if (typeof raw.externalLink === "string" && raw.externalLink) {
+    const externalLink = normalizeExternalUrl(raw.externalLink);
+    if (externalLink) node.externalLink = externalLink;
   }
   if (raw.collapsed === true) node.collapsed = true;
   if (children.length) node.children = children;
