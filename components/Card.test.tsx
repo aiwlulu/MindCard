@@ -1,9 +1,8 @@
-import React from "react";
+import React, { act } from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import Card from "./Card";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import { toast } from "react-toastify";
-import { act } from "react-dom/test-utils";
 import type { MindmapContextValue } from "@/lib/types";
 
 jest.mock("firebase/auth", () => ({
@@ -21,8 +20,8 @@ const mockContext: Pick<
   getAllMindmaps: jest.fn(),
   selectedNode: null,
   setSelectedNode: jest.fn(),
-  mindmapInstance: null,
-  setMindmapInstance: jest.fn(),
+  mindmapData: null,
+  updateMindmapData: jest.fn(),
   saveMindmap: jest.fn(),
   loadMindmap: jest.fn(),
   currentMindmapId: null,

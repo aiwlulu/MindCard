@@ -1,7 +1,7 @@
 import type { User } from "firebase/auth";
 import type { Timestamp } from "firebase/firestore/lite";
 
-// ─── Mind-Elixir node / data shapes ───────────────────────────────────────
+// ─── Mind map node / data shapes ──────────────────────────────────────────
 
 export interface NodeData {
   id: string;
@@ -13,20 +13,8 @@ export interface NodeData {
 
 export interface MindmapData {
   nodeData: NodeData;
-  /** Some versions expose root at the top level */
+  /** Legacy documents can also expose the root at the top level. */
   root?: NodeData;
-}
-
-// Minimal surface of a MindElixir instance that we actually use
-export interface MindElixirInstance {
-  getData(): MindmapData;
-  init(data: MindmapData): void;
-  refresh(): void;
-  exportSvg(): Promise<Blob>;
-  nodeData: NodeData;
-  bus: {
-    addListener(event: string, handler: (node: NodeData) => void): void;
-  };
 }
 
 // ─── Firestore document shapes ─────────────────────────────────────────────
@@ -65,13 +53,19 @@ export interface HyperlinkData {
   id: string;
 }
 
+export type MindmapExportFormat = "svg" | "markdown";
+
+export interface SaveMindmapOptions {
+  silent?: boolean;
+}
+
 export interface MindmapContextValue {
-  mindmapInstance: MindElixirInstance | null;
-  setMindmapInstance: React.Dispatch<
-    React.SetStateAction<MindElixirInstance | null>
-  >;
-  saveMindmap: () => Promise<void>;
-  loadMindmap: (id: string, element?: HTMLElement | null) => Promise<void>;
+  mindmapData: MindmapData | null;
+  updateMindmapData: (
+    updater: MindmapData | ((current: MindmapData | null) => MindmapData | null)
+  ) => void;
+  saveMindmap: (options?: SaveMindmapOptions) => Promise<void>;
+  loadMindmap: (id: string) => Promise<MindmapData | null>;
   currentMindmapId: string | null;
   setCurrentMindmapId: React.Dispatch<React.SetStateAction<string | null>>;
   currentMindmapTitle: string | null;
@@ -82,7 +76,7 @@ export interface MindmapContextValue {
     nodeId: string,
     hyperlinkData: HyperlinkData | ""
   ) => Promise<void>;
-  exportMindMap: (format?: string) => Promise<void>;
+  exportMindMap: (format?: MindmapExportFormat) => Promise<void>;
 }
 
 // ─── SweetAlert ────────────────────────────────────────────────────────────

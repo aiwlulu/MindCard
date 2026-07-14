@@ -29,7 +29,7 @@ const formatDate = (date: Date): string => {
 export default function MindmapPage() {
   const router = useRouter();
   const { user } = useContext(authContext);
-  const { loadMindmap, getAllMindmaps } = useContext(MindmapContext);
+  const { getAllMindmaps } = useContext(MindmapContext);
   const [mindMaps, setMindMaps] = useState<MindmapListItem[]>([]);
 
   useEffect(() => {
@@ -57,10 +57,6 @@ export default function MindmapPage() {
     } else {
       alert("You must be logged in to create a new mind map.");
     }
-  };
-
-  const handleMindMapSelect = (id: string) => {
-    void loadMindmap(id);
   };
 
   const deleteMindMap = async (id: string) => {
