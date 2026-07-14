@@ -29,11 +29,20 @@ jest.mock("firebase/firestore/lite", () => ({
 }));
 
 jest.mock("@/lib/firebase", () => ({ db: {} }));
-jest.mock("react-toastify", () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
+jest.mock("react-toastify", () => {
+  const toast = Object.assign(jest.fn(), {
+    error: jest.fn(),
+    success: jest.fn(),
+  });
+  return { toast };
+});
 
 const mockAddDoc = (jest.requireMock("firebase/firestore/lite") as {
   addDoc: jest.Mock;
 }).addDoc;
+const mockToast = (jest.requireMock("react-toastify") as {
+  toast: jest.Mock & { error: jest.Mock };
+}).toast;
 
 function Harness() {
   const { mindmapData, updateMindmapData, saveMindmap } = useContext(MindmapContext);
@@ -56,7 +65,9 @@ function Harness() {
 
 describe("MindmapProvider", () => {
   beforeEach(() => {
-    mockAddDoc.mockClear();
+    mockAddDoc.mockReset().mockResolvedValue({ id: "created-map" });
+    mockToast.mockClear();
+    mockToast.error.mockClear();
   });
 
   it("stores typed data and saves a new map for the authenticated user", async () => {
@@ -77,8 +88,54 @@ describe("MindmapProvider", () => {
 
     await waitFor(() => expect(mockAddDoc).toHaveBeenCalled());
     expect(mockAddDoc.mock.calls[0][1]).toMatchObject({
-      data: { nodeData: { id: "root", topic: "Typed map" } },
+      data: {
+        schemaVersion: 2,
+        rootId: "root",
+        nodes: [
+          {
+            id: "root",
+            topic: "Typed map",
+            parentId: null,
+            order: 0,
+          },
+        ],
+      },
       userId: "user-1",
     });
+  });
+
+  it("shows an actionable message when Firebase rejects document limits", async () => {
+    mockAddDoc.mockRejectedValueOnce({
+      code: "invalid-argument",
+      message: "maximum depth exceeded",
+    });
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    try {
+      await act(async () => {
+        render(
+          <authContext.Provider value={{ user: { uid: "user-1" } as never, loading: false } as never}>
+            <MindmapProvider>
+              <Harness />
+            </MindmapProvider>
+          </authContext.Provider>
+        );
+      });
+
+      await waitFor(() => expect(screen.getByText("Typed map")).toBeInTheDocument());
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      });
+
+      await waitFor(() =>
+        expect(mockToast.error).toHaveBeenCalledWith(
+          "This mind map exceeds Firebase document limits."
+        )
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });

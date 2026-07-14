@@ -108,10 +108,22 @@ describe("MindMap editor", () => {
 
     fireEvent.doubleClick(screen.getByRole("button", { name: "Child" }));
     const input = screen.getByDisplayValue("Child");
+    expect(input.tagName).toBe("TEXTAREA");
+    expect(input).toHaveAttribute("wrap", "soft");
     fireEvent.change(input, { target: { value: "Renamed child" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
     expect(context.updateMindmapData).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it("keeps the multiline editor open when Shift+Enter is pressed", () => {
+    renderMindMap();
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Child" }));
+    const editor = screen.getByDisplayValue("Child");
+    fireEvent.keyDown(editor, { key: "Enter", shiftKey: true });
+
+    expect(screen.getByDisplayValue("Child")).toBeInTheDocument();
   });
 
   it("adds a child from the node context menu", () => {
@@ -162,6 +174,60 @@ describe("MindMap editor", () => {
 
     expect(context.setSelectedNode).toHaveBeenCalledWith(
       expect.objectContaining({ id: "child" })
+    );
+  });
+
+  it("uses ArrowUp and ArrowDown only between sibling topics", () => {
+    const navigationData: MindmapData = {
+      nodeData: {
+        id: "root",
+        root: true,
+        topic: "Root",
+        children: [
+          {
+            id: "branch-a",
+            topic: "Branch A",
+            children: [
+              { id: "a-1", topic: "A 1" },
+              { id: "a-2", topic: "A 2" },
+            ],
+          },
+          { id: "branch-b", topic: "Branch B" },
+        ],
+      },
+    };
+    const context = createContext();
+    context.mindmapData = navigationData;
+    context.selectedNode = navigationData.nodeData.children?.[0] ?? null;
+    renderMindMap(context);
+    const editor = screen.getByRole("application", { name: "Mind map editor" });
+
+    fireEvent.keyDown(editor, { key: "ArrowDown" });
+    expect(context.setSelectedNode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: "branch-b" })
+    );
+  });
+
+  it("uses ArrowLeft for the parent and ArrowRight for the first child", () => {
+    const context = createContext();
+    context.selectedNode = data.nodeData.children?.[0]?.children?.[0] ?? null;
+    const { rerender } = renderMindMap(context);
+    const editor = screen.getByRole("application", { name: "Mind map editor" });
+
+    fireEvent.keyDown(editor, { key: "ArrowLeft" });
+    expect(context.setSelectedNode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: "child" })
+    );
+
+    context.selectedNode = data.nodeData.children?.[0] ?? null;
+    rerender(
+      <MindmapContext.Provider value={context}>
+        <MindMap id="map-1" />
+      </MindmapContext.Provider>
+    );
+    fireEvent.keyDown(editor, { key: "ArrowRight" });
+    expect(context.setSelectedNode).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: "grandchild" })
     );
   });
 
@@ -224,6 +290,81 @@ describe("MindMap editor", () => {
     );
   });
 
+  it("does not start node dragging when an external link is pressed", () => {
+    const context = createContext();
+    context.mindmapData = {
+      nodeData: {
+        ...data.nodeData,
+        children: data.nodeData.children?.map((node) => ({
+          ...node,
+          externalLink: "https://example.com/reference",
+        })),
+      },
+    };
+    const setPointerCapture = jest.fn();
+    const originalDescriptor = Object.getOwnPropertyDescriptor(
+      SVGElement.prototype,
+      "setPointerCapture"
+    );
+    Object.defineProperty(SVGElement.prototype, "setPointerCapture", {
+      configurable: true,
+      value: setPointerCapture,
+    });
+
+    try {
+      renderMindMap(context);
+      fireEvent.pointerDown(
+        screen.getByRole("link", { name: "Open external link" }),
+        { button: 0, pointerId: 8 }
+      );
+
+      expect(
+        screen.getByRole("link", { name: "Open external link" })
+      ).toHaveAttribute("data-node-control", "true");
+      expect(setPointerCapture).not.toHaveBeenCalled();
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(
+          SVGElement.prototype,
+          "setPointerCapture",
+          originalDescriptor
+        );
+      } else {
+        Reflect.deleteProperty(SVGElement.prototype, "setPointerCapture");
+      }
+    }
+  });
+
+  it("removes an external link without deleting the topic", () => {
+    const linkedChild = {
+      ...(data.nodeData.children?.[0] as NonNullable<
+        typeof data.nodeData.children
+      >[number]),
+      externalLink: "https://example.com/reference",
+    };
+    const linkedData: MindmapData = {
+      nodeData: {
+        ...data.nodeData,
+        children: [linkedChild],
+      },
+    };
+    const context = createContext();
+    context.mindmapData = linkedData;
+    context.selectedNode = linkedChild;
+    renderMindMap(context);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove external link" })
+    );
+
+    const update = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
+      current: MindmapData
+    ) => MindmapData;
+    const updatedChild = update(linkedData).nodeData.children?.[0];
+    expect(updatedChild).toMatchObject({ id: "child", topic: "Child" });
+    expect(updatedChild?.externalLink).toBeUndefined();
+  });
+
   it("collapses the selected branch from the command bar", () => {
     const context = createContext();
     context.selectedNode = data.nodeData.children?.[0] ?? null;
@@ -251,6 +392,41 @@ describe("MindMap editor", () => {
     expect(update(data).nodeData.children?.[0].collapsed).toBe(true);
   });
 
+  it("does not start node dragging when the collapse control is pressed", () => {
+    const context = createContext();
+    const setPointerCapture = jest.fn();
+    const originalDescriptor = Object.getOwnPropertyDescriptor(
+      SVGElement.prototype,
+      "setPointerCapture"
+    );
+    Object.defineProperty(SVGElement.prototype, "setPointerCapture", {
+      configurable: true,
+      value: setPointerCapture,
+    });
+
+    try {
+      renderMindMap(context);
+      const collapseControl = screen.getByRole("button", {
+        name: "Collapse Child branch",
+      });
+
+      fireEvent.pointerDown(collapseControl, { button: 0, pointerId: 7 });
+
+      expect(collapseControl).toHaveAttribute("data-node-control", "true");
+      expect(setPointerCapture).not.toHaveBeenCalled();
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(
+          SVGElement.prototype,
+          "setPointerCapture",
+          originalDescriptor
+        );
+      } else {
+        Reflect.deleteProperty(SVGElement.prototype, "setPointerCapture");
+      }
+    }
+  });
+
   it("shows the total hidden descendant count on a collapsed branch", () => {
     const context = createContext();
     context.mindmapData = {
@@ -265,7 +441,9 @@ describe("MindMap editor", () => {
 
     renderMindMap(context);
 
-    expect(screen.getByText("+1")).toBeInTheDocument();
+    const count = screen.getByText("+1");
+    expect(count).toHaveClass("mindmap-collapse-count");
+    expect(count.previousElementSibling).toHaveAttribute("height", "16");
   });
 
   it("uses a muted branch color consistently across a branch", () => {
@@ -291,9 +469,9 @@ describe("MindMap editor", () => {
     expect(
       screen.getByText("Select a node to show quick actions")
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Export image" })).toHaveTextContent(
-      "Export SVG"
-    );
+    expect(
+      screen.queryByRole("button", { name: "Export image" })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open linked mind map" })).toHaveTextContent(
       "Open card link"
     );
@@ -433,15 +611,17 @@ describe("MindMap editor", () => {
     );
   });
 
-  it("offers image and Markdown export directly on the canvas", () => {
+  it("does not duplicate navigation export actions on the canvas", () => {
     const context = createContext();
     renderMindMap(context);
 
-    fireEvent.click(screen.getByRole("button", { name: "Export image" }));
-    fireEvent.click(screen.getByRole("button", { name: "Export Markdown" }));
-
-    expect(context.exportMindMap).toHaveBeenNthCalledWith(1, "svg");
-    expect(context.exportMindMap).toHaveBeenNthCalledWith(2, "markdown");
+    expect(
+      screen.queryByRole("button", { name: "Export image" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Export Markdown" })
+    ).not.toBeInTheDocument();
+    expect(context.exportMindMap).not.toHaveBeenCalled();
   });
 
   it("provides a dedicated control to center the map", () => {

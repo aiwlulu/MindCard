@@ -68,10 +68,10 @@ export function buildMindmapSvg(root: NodeData): string {
       let collapsedMarkup = "";
       if (node.collapsed && node.children?.length) {
         const label = formatHiddenDescendantCount(countDescendants(node));
-        const badgeWidth = Math.max(18, label.length * 7 + 8);
+        const badgeWidth = Math.max(16, label.length * 5.5 + 7);
         const centerX = x + width + 12;
         const centerY = lineY;
-        collapsedMarkup = `<rect x="${centerX - badgeWidth / 2}" y="${centerY - 9}" width="${badgeWidth}" height="18" rx="9" fill="#292a32" stroke="${branchColor}"/><text x="${centerX}" y="${centerY + 3.5}" text-anchor="middle" fill="#d6d6df" font-size="10">${label}</text>`;
+        collapsedMarkup = `<rect x="${centerX - badgeWidth / 2}" y="${centerY - 8}" width="${badgeWidth}" height="16" rx="8" fill="#292a32" stroke="${branchColor}"/><text x="${centerX}" y="${centerY + 3}" text-anchor="middle" fill="#d6d6df" font-size="8">${label}</text>`;
       }
       return `<g data-node-id="${escapeXml(node.id)}">${rootMarkup}<text x="${textX}" y="${firstBaseline}" text-anchor="${textAnchor}" fill="#dedee4" font-size="15" font-weight="${depth <= 1 ? 600 : 400}" font-family="system-ui, sans-serif">${textMarkup}</text>${underlineMarkup}${linkMarkup}${externalLinkMarkup}${collapsedMarkup}</g>`;
     })

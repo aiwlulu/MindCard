@@ -32,6 +32,7 @@ import {
 import {
   findNode,
   normalizeMindmapData,
+  serializeMindmapData,
   updateNode,
 } from "@/lib/mindmap/tree";
 import type {
@@ -98,9 +99,10 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
+        const storedData = serializeMindmapData(mindmapData);
         if (currentMindmapId) {
           await updateDoc(doc(db, "mindmaps", currentMindmapId), {
-            data: mindmapData,
+            data: storedData,
             updatedAt: serverTimestamp(),
           });
           if (!silent) {
@@ -111,7 +113,7 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           const docRef = await addDoc(collection(db, "mindmaps"), {
-            data: mindmapData,
+            data: storedData,
             userId: user.uid,
             createdAt: serverTimestamp(),
           });
@@ -123,8 +125,9 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
           }
         }
         setIsDirty(false);
-      } catch {
-        if (!silent) toast.error("Error saving mind map.");
+      } catch (error) {
+        console.error("Failed to save mind map", error);
+        if (!silent) toast.error(getMindmapSaveErrorMessage(error));
       }
     },
     [currentMindmapId, mindmapData, user]
@@ -315,4 +318,22 @@ function downloadBlob(blob: Blob, filename: string): void {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+function getMindmapSaveErrorMessage(error: unknown): string {
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? String(error.code).replace(/^firestore\//, "")
+      : "";
+
+  if (code === "invalid-argument" || code === "resource-exhausted") {
+    return "This mind map exceeds Firebase document limits.";
+  }
+  if (code === "permission-denied" || code === "unauthenticated") {
+    return "You do not have permission to save this mind map.";
+  }
+  if (code === "unavailable") {
+    return "Firebase is temporarily unavailable. Please try again.";
+  }
+  return "Error saving mind map.";
 }

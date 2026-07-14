@@ -12,6 +12,7 @@ import {
   normalizeMindmapData,
   removeNode,
   setAllBranchesCollapsed,
+  serializeMindmapData,
   updateNode,
 } from "./tree";
 
@@ -80,6 +81,34 @@ describe("mind map tree operations", () => {
       "https://example.com/guide"
     );
     expect(data.nodeData.children?.[1].externalLink).toBeUndefined();
+  });
+
+  it("serializes deep trees as a flat Firestore-safe node list", () => {
+    let branch: NodeData = { id: "level-12", topic: "Level 12" };
+    for (let level = 11; level >= 1; level -= 1) {
+      branch = {
+        id: `level-${level}`,
+        topic: `Level ${level}`,
+        children: [branch],
+      };
+    }
+    const data: MindmapData = {
+      nodeData: {
+        id: "root",
+        root: true,
+        topic: "Deep map",
+        children: [branch],
+      },
+    };
+
+    const stored = serializeMindmapData(data);
+
+    expect(stored).toMatchObject({ schemaVersion: 2, rootId: "root" });
+    expect(stored.nodes).toHaveLength(13);
+    expect(stored.nodes.every((node) => !("children" in node))).toBe(true);
+    expect(findNode(normalizeMindmapData(stored).nodeData, "level-12")).toMatchObject({
+      topic: "Level 12",
+    });
   });
 
   it("creates a node with a generated id and empty children omitted", () => {

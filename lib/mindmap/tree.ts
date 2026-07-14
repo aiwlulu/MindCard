@@ -3,6 +3,22 @@ import { normalizeExternalUrl } from "./links";
 
 const DEFAULT_ROOT_ID = "root";
 
+export interface SerializedMindmapNode {
+  id: string;
+  topic: string;
+  parentId: string | null;
+  order: number;
+  hyperLink?: string;
+  externalLink?: string;
+  collapsed?: boolean;
+}
+
+export interface SerializedMindmapData {
+  schemaVersion: 2;
+  rootId: string;
+  nodes: SerializedMindmapNode[];
+}
+
 export function createNode(topic = "New Topic", id = createNodeId()): NodeData {
   return { id, topic };
 }
@@ -17,6 +33,9 @@ export function createNodeId(): string {
 
 export function normalizeMindmapData(input: unknown): MindmapData {
   const record = asRecord(input);
+  const flatRoot = record ? normalizeFlatMindmapData(record) : null;
+  if (flatRoot) return { nodeData: flatRoot };
+
   const rawRoot = asRecord(record?.nodeData) ?? asRecord(record?.root);
 
   if (!rawRoot) {
@@ -24,6 +43,33 @@ export function normalizeMindmapData(input: unknown): MindmapData {
   }
 
   return { nodeData: normalizeNode(rawRoot, true) };
+}
+
+export function serializeMindmapData(
+  data: MindmapData
+): SerializedMindmapData {
+  const root = data.root ?? data.nodeData;
+  const nodes: SerializedMindmapNode[] = [];
+
+  const visit = (node: NodeData, parentId: string | null, order: number) => {
+    const storedNode: SerializedMindmapNode = {
+      id: node.id,
+      topic: node.topic,
+      parentId,
+      order,
+    };
+    if (node.hyperLink) storedNode.hyperLink = node.hyperLink;
+    if (node.externalLink) storedNode.externalLink = node.externalLink;
+    if (node.collapsed) storedNode.collapsed = true;
+    nodes.push(storedNode);
+
+    node.children?.forEach((child, childIndex) => {
+      visit(child, node.id, childIndex);
+    });
+  };
+
+  visit(root, null, 0);
+  return { schemaVersion: 2, rootId: root.id, nodes };
 }
 
 export function findNode(root: NodeData, nodeId: string): NodeData | null {
@@ -246,6 +292,76 @@ function cloneNode(node: NodeData): NodeData {
     ...node,
     children: node.children?.map(cloneNode),
   };
+}
+
+function normalizeFlatMindmapData(
+  record: Record<string, unknown>
+): NodeData | null {
+  if (record.schemaVersion !== 2 || !Array.isArray(record.nodes)) return null;
+
+  const entries = record.nodes
+    .map((value, index) => {
+      const raw = asRecord(value);
+      if (
+        !raw ||
+        typeof raw.id !== "string" ||
+        !raw.id ||
+        typeof raw.topic !== "string"
+      ) {
+        return null;
+      }
+
+      return {
+        raw,
+        id: raw.id,
+        parentId: typeof raw.parentId === "string" ? raw.parentId : null,
+        order:
+          typeof raw.order === "number" && Number.isFinite(raw.order)
+            ? raw.order
+            : index,
+        index,
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+
+  if (!entries.length) return null;
+
+  const entryById = new Map(entries.map((entry) => [entry.id, entry]));
+  const requestedRootId =
+    typeof record.rootId === "string" ? record.rootId : null;
+  const rootEntry =
+    (requestedRootId ? entryById.get(requestedRootId) : null) ??
+    entries.find((entry) => entry.parentId === null);
+  if (!rootEntry) return null;
+
+  const childrenByParent = new Map<string, typeof entries>();
+  for (const entry of entries) {
+    if (!entry.parentId || entry.id === rootEntry.id) continue;
+    const children = childrenByParent.get(entry.parentId) ?? [];
+    children.push(entry);
+    childrenByParent.set(entry.parentId, children);
+  }
+  for (const children of childrenByParent.values()) {
+    children.sort(
+      (first, second) => first.order - second.order || first.index - second.index
+    );
+  }
+
+  const buildNode = (nodeId: string, ancestors: Set<string>): NodeData | null => {
+    const entry = entryById.get(nodeId);
+    if (!entry || ancestors.has(nodeId)) return null;
+
+    const nextAncestors = new Set(ancestors).add(nodeId);
+    const node = normalizeNode(entry.raw, nodeId === rootEntry.id);
+    const children = (childrenByParent.get(nodeId) ?? [])
+      .map((child) => buildNode(child.id, nextAncestors))
+      .filter((child): child is NodeData => child !== null);
+    if (children.length) node.children = children;
+    else delete node.children;
+    return node;
+  };
+
+  return buildNode(rootEntry.id, new Set());
 }
 
 function normalizeNode(raw: Record<string, unknown>, isRoot: boolean): NodeData {

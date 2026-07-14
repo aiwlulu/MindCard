@@ -216,6 +216,12 @@ nextjs-portal {
   pointer-events: none;
 }
 
+.mindmap-collapse-toggle text.mindmap-collapse-count {
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
 .mindmap-collapse-toggle:hover rect,
 .mindmap-collapse-toggle:focus-visible rect {
   fill: #343543;
@@ -232,7 +238,12 @@ nextjs-portal {
   color: #eeeef2;
   background: #25262f;
   font: inherit;
+  line-height: 1.45;
   outline: none;
+  overflow: auto;
+  resize: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   box-shadow: 0 0 0 2px rgba(104, 101, 169, 0.18);
 }
 

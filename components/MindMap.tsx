@@ -71,7 +71,6 @@ export default function MindMap({ id }: MindMapProps) {
   const nodeDragRef = useRef<NodeDragState | null>(null);
   const clipboardRef = useRef<NodeData | null>(null);
   const {
-    exportMindMap,
     mindmapData,
     loadMindmap,
     saveMindmap,
@@ -284,6 +283,21 @@ export default function MindMap({ id }: MindMapProps) {
     setExternalLinkDraft("");
   }, [commitData, externalLinkDraft, externalLinkNodeId]);
 
+  const removeExternalLink = useCallback(
+    (nodeId: string) => {
+      commitData((tree) =>
+        updateNode(tree, nodeId, (node) => {
+          const nextNode = { ...node };
+          delete nextNode.externalLink;
+          return nextNode;
+        })
+      );
+      setExternalLinkNodeId(null);
+      setExternalLinkDraft("");
+    },
+    [commitData]
+  );
+
   const undo = useCallback(() => {
     const previous = history.at(-1);
     if (!previous) return;
@@ -427,36 +441,24 @@ export default function MindMap({ id }: MindMapProps) {
           event.key === "ArrowUp" ||
           event.key === "ArrowDown")
       ) {
-        const currentLayout = findLayoutNode(layout?.nodes, selectedId);
         let targetNode: NodeData | null = null;
+        event.preventDefault();
 
         if (event.key === "ArrowRight") {
-          targetNode =
-            currentLayout?.side === "center"
-              ? layout?.nodes.find(
-                  (item) => item.depth === 1 && item.side === "right"
-                )?.node ?? null
-              : currentSelectedNode?.collapsed
-                ? null
-                : currentSelectedNode?.children?.[0] ?? null;
+          targetNode = currentSelectedNode?.collapsed
+            ? null
+            : currentSelectedNode?.children?.[0] ?? null;
         } else if (event.key === "ArrowLeft") {
-          targetNode =
-            currentLayout?.side === "center"
-              ? null
-              : findParentNode(root, selectedId);
-        } else if (layout?.nodes.length) {
-          const orderedNodes = [...layout.nodes].sort(
-            (first, second) => first.y - second.y || first.x - second.x
+          targetNode = findParentNode(root, selectedId);
+        } else {
+          targetNode = findSiblingNode(
+            root,
+            selectedId,
+            event.key === "ArrowUp" ? -1 : 1
           );
-          const currentIndex = orderedNodes.findIndex(
-            (item) => item.node.id === selectedId
-          );
-          const offset = event.key === "ArrowUp" ? -1 : 1;
-          targetNode = orderedNodes[currentIndex + offset]?.node ?? null;
         }
 
         if (targetNode) {
-          event.preventDefault();
           selectNode(targetNode);
           return;
         }
@@ -489,7 +491,6 @@ export default function MindMap({ id }: MindMapProps) {
       deleteNode,
       editingNodeId,
       pasteNode,
-      layout,
       root,
       saveMindmap,
       selectNode,
@@ -523,7 +524,14 @@ export default function MindMap({ id }: MindMapProps) {
 
   const handleNodePointerDown = useCallback(
     (event: React.PointerEvent<SVGGElement>, node: NodeData) => {
-      if (event.button !== 0 || node.root) return;
+      const target = event.target as Element;
+      if (
+        event.button !== 0 ||
+        node.root ||
+        target.closest('[data-node-control="true"]')
+      ) {
+        return;
+      }
       const nodeIds = selectedNodeIds.has(node.id)
         ? [...selectedNodeIds]
         : [node.id];
@@ -696,6 +704,15 @@ export default function MindMap({ id }: MindMapProps) {
             >
               External link
             </button>
+            {currentSelectedNode.externalLink ? (
+              <button
+                type="button"
+                aria-label="Remove external link"
+                onClick={() => removeExternalLink(currentSelectedNode.id)}
+              >
+                Remove link
+              </button>
+            ) : null}
             {externalLinkNodeId === currentSelectedNode.id ? (
               <>
                 <input
@@ -745,21 +762,6 @@ export default function MindMap({ id }: MindMapProps) {
           onClick={() => setAllBranches(true)}
         >
           Collapse all
-        </button>
-        <span className="mindmap-commandbar-spacer" />
-        <button
-          type="button"
-          aria-label="Export image"
-          onClick={() => void exportMindMap("svg")}
-        >
-          Export SVG
-        </button>
-        <button
-          type="button"
-          aria-label="Export Markdown"
-          onClick={() => void exportMindMap("markdown")}
-        >
-          Export MD
         </button>
       </div>
       <div className="showcase">
@@ -950,7 +952,10 @@ function MindMapNode({
   const collapseLabel = node.collapsed
     ? formatHiddenDescendantCount(hiddenDescendantCount)
     : "−";
-  const collapseWidth = Math.max(18, collapseLabel.length * 7 + 8);
+  const collapseHeight = node.collapsed ? 16 : 18;
+  const collapseWidth = node.collapsed
+    ? Math.max(16, collapseLabel.length * 5.5 + 7)
+    : 18;
 
   return (
     <g
@@ -994,8 +999,9 @@ function MindMapNode({
       ) : null}
       {editing ? (
         <foreignObject x="0" y="0" width={width} height={height}>
-          <input
+          <textarea
             autoFocus
+            wrap="soft"
             value={editingTopic}
             aria-label={`Edit ${node.topic}`}
             className="mindmap-node-input"
@@ -1013,7 +1019,7 @@ function MindMapNode({
               ) {
                 return;
               }
-              if (event.key === "Enter") {
+              if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 onCommitEdit();
               }
@@ -1052,6 +1058,7 @@ function MindMapNode({
           ) : null}
           {node.hyperLink && (
             <a
+              data-node-control="true"
               href={`/mindmap/${node.hyperLink}`}
               target="_blank"
               rel="noopener noreferrer"
@@ -1074,6 +1081,7 @@ function MindMapNode({
           )}
           {node.externalLink && (
             <a
+              data-node-control="true"
               href={node.externalLink}
               target="_blank"
               rel="noopener noreferrer"
@@ -1101,6 +1109,7 @@ function MindMapNode({
           )}
           {!isRoot && node.children?.length ? (
             <g
+              data-node-control="true"
               role="button"
               tabIndex={0}
               aria-label={
@@ -1125,13 +1134,17 @@ function MindMapNode({
             >
               <rect
                 x={-collapseWidth / 2}
-                y="-9"
+                y={-collapseHeight / 2}
                 width={collapseWidth}
-                height="18"
-                rx="9"
+                height={collapseHeight}
+                rx={collapseHeight / 2}
                 stroke={branchColor}
               />
-              <text textAnchor="middle" dominantBaseline="central">
+              <text
+                className={node.collapsed ? "mindmap-collapse-count" : undefined}
+                textAnchor="middle"
+                dominantBaseline="central"
+              >
                 {collapseLabel}
               </text>
             </g>
@@ -1140,10 +1153,6 @@ function MindMapNode({
       )}
     </g>
   );
-}
-
-function findLayoutNode(nodes: LayoutNode[] | undefined, nodeId: string): LayoutNode | null {
-  return nodes?.find((item) => item.node.id === nodeId) ?? null;
 }
 
 function findParentNode(root: NodeData | null, nodeId: string): NodeData | null {
@@ -1156,6 +1165,17 @@ function findParentNode(root: NodeData | null, nodeId: string): NodeData | null 
   }
 
   return null;
+}
+
+function findSiblingNode(
+  root: NodeData | null,
+  nodeId: string,
+  offset: -1 | 1
+): NodeData | null {
+  const parent = findParentNode(root, nodeId);
+  const siblings = parent?.children ?? [];
+  const currentIndex = siblings.findIndex((node) => node.id === nodeId);
+  return currentIndex >= 0 ? siblings[currentIndex + offset] ?? null : null;
 }
 
 function connectorPath(startX: number, startY: number, endX: number, endY: number): string {

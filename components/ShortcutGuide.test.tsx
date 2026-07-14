@@ -15,5 +15,7 @@ describe("ShortcutGuide", () => {
     expect(screen.getByText("Move below target")).toBeInTheDocument();
     expect(screen.getByText("Create child branches")).toBeInTheDocument();
     expect(screen.getByText("Pan canvas")).toBeInTheDocument();
+    expect(screen.getByText("Move between siblings")).toBeInTheDocument();
+    expect(screen.getByText("Move to parent or first child")).toBeInTheDocument();
   });
 });

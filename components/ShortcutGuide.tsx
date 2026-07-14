@@ -21,6 +21,8 @@ const ShortcutGuide: React.FC = () => {
             <li><kbd>Space</kbd><span>Collapse or expand branch</span></li>
             <li><kbd>Delete</kbd><span>Delete topic</span></li>
             <li><kbd>Alt ↑ / ↓</kbd><span>Reorder siblings</span></li>
+            <li><kbd>↑ / ↓</kbd><span>Move between siblings</span></li>
+            <li><kbd>← / →</kbd><span>Move to parent or first child</span></li>
             <li><kbd>⌘ / Ctrl Z</kbd><span>Undo</span></li>
             <li><kbd>⌘ / Ctrl S</kbd><span>Save</span></li>
             <li><kbd>⌘ / Ctrl C / V</kbd><span>Copy or paste topics</span></li>
