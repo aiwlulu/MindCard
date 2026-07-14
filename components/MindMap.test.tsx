@@ -287,6 +287,28 @@ describe("MindMap editor", () => {
     expect(mockRouterPush).not.toHaveBeenCalled();
   });
 
+  it("keeps the linked topic selected after a card is dropped", () => {
+    const context = createContext();
+    context.selectedNode = data.nodeData.children?.[0] ?? null;
+    render(<StatefulMindMap context={context} />);
+
+    fireEvent.drop(
+      screen.getByRole("application", { name: "Mind map editor" }),
+      {
+        dataTransfer: {
+          types: ["card/json"],
+          getData: () => JSON.stringify({ id: "target-map" }),
+        },
+      }
+    );
+
+    expect(context.updateNodeHyperlink).toHaveBeenCalledWith("child", {
+      id: "target-map",
+    });
+    expect(context.setSelectedNode).not.toHaveBeenCalledWith(null);
+    expect(document.querySelectorAll(".mindmap-node-selection")).toHaveLength(1);
+  });
+
   it("adds and opens an external URL without replacing the current page", () => {
     const context = createContext();
     context.selectedNode = data.nodeData.children?.[0] ?? null;
@@ -512,7 +534,7 @@ describe("MindMap editor", () => {
 
     expect(screen.queryByText(/Double-click to edit/)).not.toBeInTheDocument();
     expect(
-      screen.getByText("Select a node to show quick actions")
+      screen.getByText(/Press H for pan/)
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Export image" })
@@ -623,6 +645,27 @@ describe("MindMap editor", () => {
     expect(expandUpdate(collapseUpdate(data)).nodeData.children?.[0].collapsed).toBe(false);
   });
 
+  it("offers visible Undo and Redo controls without losing history", () => {
+    const context = createContext();
+    render(<StatefulMindMap context={context} />);
+    const undoButton = screen.getByRole("button", { name: "Undo last change" });
+    const redoButton = screen.getByRole("button", { name: "Redo last change" });
+
+    expect(undoButton).toBeDisabled();
+    expect(redoButton).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse Child branch" }));
+    expect(screen.queryByRole("button", { name: "Grandchild" })).not.toBeInTheDocument();
+    expect(undoButton).toBeEnabled();
+
+    fireEvent.click(undoButton);
+    expect(screen.getByRole("button", { name: "Grandchild" })).toBeInTheDocument();
+    expect(redoButton).toBeEnabled();
+
+    fireEvent.click(redoButton);
+    expect(screen.queryByRole("button", { name: "Grandchild" })).not.toBeInTheDocument();
+  });
+
   it("does not pan the canvas with a left-button background drag", () => {
     renderMindMap();
     const svg = screen.getByRole("img", { name: "Mind map" });
@@ -682,6 +725,55 @@ describe("MindMap editor", () => {
       clientY: 140,
     });
     expect(svg).not.toHaveClass("is-panning");
+  });
+
+  it("suppresses the browser context menu anywhere on the canvas", () => {
+    renderMindMap();
+    const svg = screen.getByRole("img", { name: "Mind map" });
+    const background = svg.querySelector("[data-canvas-background]") as SVGRectElement;
+
+    const event = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+    });
+    background.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("offers a temporary pan mode that returns to selection with Escape", () => {
+    renderMindMap();
+    const svg = screen.getByRole("img", { name: "Mind map" });
+    const topic = screen.getByRole("button", { name: "Child" });
+    const panMode = screen.getByRole("button", { name: "Enable pan mode" });
+    Object.defineProperty(svg, "setPointerCapture", { value: jest.fn() });
+    Object.defineProperty(svg, "releasePointerCapture", { value: jest.fn() });
+
+    fireEvent.click(panMode);
+    expect(panMode).toHaveAttribute("aria-pressed", "true");
+    expect(svg).toHaveClass("is-pan-mode");
+
+    fireEvent.pointerDown(topic, {
+      button: 0,
+      pointerId: 12,
+      pointerType: "mouse",
+      clientX: 100,
+      clientY: 100,
+    });
+    expect(svg).toHaveClass("is-panning");
+    fireEvent.pointerUp(svg, {
+      button: 0,
+      pointerId: 12,
+      pointerType: "mouse",
+      clientX: 100,
+      clientY: 100,
+    });
+
+    fireEvent.keyDown(screen.getByRole("application", { name: "Mind map editor" }), {
+      key: "Escape",
+    });
+    expect(panMode).toHaveAttribute("aria-pressed", "false");
+    expect(svg).not.toHaveClass("is-pan-mode");
   });
 
   it("starts right-button canvas panning from a topic without opening its menu", () => {
@@ -916,6 +1008,28 @@ describe("MindMap editor", () => {
     expect(screen.getByRole("button", { name: "Nested topic" })).toBeInTheDocument();
   });
 
+  it("edits Markdown beside a live mind map in split view", () => {
+    const context = createContext();
+    render(<StatefulMindMap context={context} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Split view mode" }));
+
+    const editor = screen.getByRole("textbox", { name: "Mind map Markdown" });
+    expect(editor).toHaveValue("# Root\n## Child\n### Grandchild\n");
+    expect(screen.getByRole("img", { name: "Mind map" })).toBeInTheDocument();
+
+    fireEvent.change(editor, {
+      target: {
+        value: "# Product plan\n## Research\n### Interview users\n## Build\n",
+      },
+    });
+
+    expect(screen.getByRole("button", { name: "Product plan" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Research" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Interview users" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Build" })).toBeInTheDocument();
+  });
+
   it("keeps the last valid map when Markdown is temporarily incomplete", () => {
     const context = createContext();
     render(<StatefulMindMap context={context} />);
@@ -924,7 +1038,17 @@ describe("MindMap editor", () => {
     const editor = screen.getByRole("textbox", { name: "Mind map Markdown" });
     fireEvent.change(editor, { target: { value: "## Missing root" } });
 
-    expect(screen.getByRole("status")).toHaveTextContent(/root/i);
+    expect(screen.getByText(/Start with a level-one/)).toHaveTextContent(/root/i);
     expect(context.updateMindmapData).not.toHaveBeenCalled();
+  });
+
+  it("does not flash the previous mind map while a new route is loading", () => {
+    const context = createContext();
+    context.currentMindmapId = "previous-map";
+
+    renderMindMap(context);
+
+    expect(screen.queryByRole("button", { name: "Root" })).not.toBeInTheDocument();
+    expect(screen.getByText("Loading mind map…")).toBeInTheDocument();
   });
 });

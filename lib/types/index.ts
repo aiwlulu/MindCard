@@ -25,6 +25,8 @@ export interface FirestoreMindmapDoc {
   id: string;
   title: string;
   createdAt: Timestamp | null;
+  updatedAt?: Timestamp | null;
+  isPublic?: boolean;
 }
 
 export interface MindmapListItem extends FirestoreMindmapDoc {
@@ -61,12 +63,20 @@ export interface SaveMindmapOptions {
   silent?: boolean;
 }
 
+export type MindmapSaveStatus =
+  | "idle"
+  | "unsaved"
+  | "saving"
+  | "saved"
+  | "error";
+
 export interface MindmapContextValue {
   mindmapData: MindmapData | null;
   updateMindmapData: (
     updater: MindmapData | ((current: MindmapData | null) => MindmapData | null)
   ) => void;
   saveMindmap: (options?: SaveMindmapOptions) => Promise<void>;
+  saveStatus?: MindmapSaveStatus;
   loadMindmap: (id: string) => Promise<MindmapData | null>;
   currentMindmapId: string | null;
   setCurrentMindmapId: React.Dispatch<React.SetStateAction<string | null>>;

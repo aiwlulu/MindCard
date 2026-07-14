@@ -3,6 +3,10 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { authContext } from "./auth-context";
 import { MindmapContext, MindmapProvider } from "./mindmap-context";
 
+const mockBatchUpdate = jest.fn();
+const mockBatchSet = jest.fn();
+const mockBatchCommit = jest.fn().mockResolvedValue(undefined);
+
 jest.mock("firebase/auth", () => ({
   GoogleAuthProvider: jest.fn(),
   createUserWithEmailAndPassword: jest.fn(),
@@ -18,7 +22,7 @@ jest.mock("react-firebase-hooks/auth", () => ({
 jest.mock("firebase/firestore/lite", () => ({
   addDoc: jest.fn().mockResolvedValue({ id: "created-map" }),
   collection: jest.fn(),
-  doc: jest.fn(),
+  doc: jest.fn((_database, collectionName, id) => ({ collectionName, id })),
   getDoc: jest.fn(),
   getDocs: jest.fn(),
   orderBy: jest.fn(),
@@ -26,6 +30,11 @@ jest.mock("firebase/firestore/lite", () => ({
   serverTimestamp: jest.fn(() => "SERVER_TIMESTAMP"),
   updateDoc: jest.fn(),
   where: jest.fn(),
+  writeBatch: jest.fn(() => ({
+    update: mockBatchUpdate,
+    set: mockBatchSet,
+    commit: mockBatchCommit,
+  })),
 }));
 
 jest.mock("@/lib/firebase", () => ({ db: {} }));
@@ -40,12 +49,15 @@ jest.mock("react-toastify", () => {
 const mockAddDoc = (jest.requireMock("firebase/firestore/lite") as {
   addDoc: jest.Mock;
 }).addDoc;
+const mockGetDoc = (jest.requireMock("firebase/firestore/lite") as {
+  getDoc: jest.Mock;
+}).getDoc;
 const mockToast = (jest.requireMock("react-toastify") as {
   toast: jest.Mock & { error: jest.Mock };
 }).toast;
 
 function Harness() {
-  const { mindmapData, updateMindmapData, saveMindmap } = useContext(MindmapContext);
+  const { mindmapData, saveStatus, updateMindmapData, saveMindmap } = useContext(MindmapContext);
 
   useEffect(() => {
     updateMindmapData((current) =>
@@ -58,7 +70,39 @@ function Harness() {
   return (
     <>
       <output>{mindmapData?.nodeData.topic ?? "empty"}</output>
+      <output aria-label="Save status">{saveStatus}</output>
       <button onClick={() => void saveMindmap()}>Save</button>
+    </>
+  );
+}
+
+function ExistingMapHarness() {
+  const {
+    mindmapData,
+    loadMindmap,
+    updateMindmapData,
+    saveMindmap,
+  } = useContext(MindmapContext);
+
+  return (
+    <>
+      <output>{mindmapData?.nodeData.topic ?? "empty"}</output>
+      <button onClick={() => void loadMindmap("public-map")}>Load</button>
+      <button
+        onClick={() =>
+          updateMindmapData((current) =>
+            current
+              ? {
+                  ...current,
+                  nodeData: { ...current.nodeData, topic: "Updated public map" },
+                }
+              : current
+          )
+        }
+      >
+        Edit
+      </button>
+      <button onClick={() => void saveMindmap()}>Save existing</button>
     </>
   );
 }
@@ -66,6 +110,10 @@ function Harness() {
 describe("MindmapProvider", () => {
   beforeEach(() => {
     mockAddDoc.mockReset().mockResolvedValue({ id: "created-map" });
+    mockGetDoc.mockReset();
+    mockBatchUpdate.mockClear();
+    mockBatchSet.mockClear();
+    mockBatchCommit.mockClear().mockResolvedValue(undefined);
     mockToast.mockClear();
     mockToast.error.mockClear();
   });
@@ -87,6 +135,7 @@ describe("MindmapProvider", () => {
     });
 
     await waitFor(() => expect(mockAddDoc).toHaveBeenCalled());
+    expect(screen.getByLabelText("Save status")).toHaveTextContent("saved");
     expect(mockAddDoc.mock.calls[0][1]).toMatchObject({
       data: {
         schemaVersion: 2,
@@ -137,5 +186,59 @@ describe("MindmapProvider", () => {
     } finally {
       consoleError.mockRestore();
     }
+  });
+
+  it("updates the sanitized public snapshot when a public map is saved", async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({
+        isPublic: true,
+        data: {
+          nodeData: {
+            id: "root",
+            root: true,
+            topic: "Public map",
+            children: [
+              {
+                id: "child",
+                topic: "Reference",
+                hyperLink: "private-card-id",
+                externalLink: "https://example.com",
+              },
+            ],
+          },
+        },
+      }),
+    });
+
+    render(
+      <authContext.Provider
+        value={{ user: { uid: "user-1" } as never, loading: false } as never}
+      >
+        <MindmapProvider>
+          <ExistingMapHarness />
+        </MindmapProvider>
+      </authContext.Provider>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Load" }));
+    await screen.findByText("Public map");
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    await screen.findByText("Updated public map");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save existing" }));
+    });
+
+    await waitFor(() => expect(mockBatchCommit).toHaveBeenCalledTimes(1));
+    expect(mockBatchSet).toHaveBeenCalledWith(
+      { collectionName: "publicMindmaps", id: "public-map" },
+      expect.objectContaining({
+        isPublic: true,
+        data: expect.objectContaining({ schemaVersion: 2, rootId: "root" }),
+      })
+    );
+    const publicSnapshot = mockBatchSet.mock.calls[0][1];
+    expect(JSON.stringify(publicSnapshot)).not.toContain("private-card-id");
+    expect(JSON.stringify(publicSnapshot)).toContain("https://example.com");
   });
 });

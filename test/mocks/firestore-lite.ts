@@ -9,3 +9,4 @@ export const query = jest.fn();
 export const serverTimestamp = jest.fn(() => "SERVER_TIMESTAMP");
 export const updateDoc = jest.fn();
 export const where = jest.fn();
+export const writeBatch = jest.fn();

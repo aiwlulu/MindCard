@@ -19,6 +19,7 @@ import {
   serverTimestamp,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore/lite";
 import { toast } from "react-toastify";
 import { db } from "@/lib/firebase";
@@ -35,12 +36,14 @@ import {
   serializeMindmapData,
   updateNode,
 } from "@/lib/mindmap/tree";
+import { toPublicMindmapData } from "@/lib/mindmap/public";
 import type {
   FirestoreMindmapDoc,
   HyperlinkData,
   MindmapContextValue,
   MindmapData,
   MindmapExportFormat,
+  MindmapSaveStatus,
   NodeData,
   SaveMindmapOptions,
 } from "@/lib/types";
@@ -49,6 +52,7 @@ export const MindmapContext = createContext<MindmapContextValue>({
   mindmapData: null,
   updateMindmapData: () => {},
   saveMindmap: async () => {},
+  saveStatus: "idle",
   loadMindmap: async () => null,
   currentMindmapId: null,
   setCurrentMindmapId: () => {},
@@ -69,6 +73,8 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
   );
   const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<MindmapSaveStatus>("idle");
+  const [isCurrentMindmapPublic, setIsCurrentMindmapPublic] = useState(false);
 
   const updateMindmapData = useCallback(
     (
@@ -80,6 +86,7 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
         typeof updater === "function" ? updater(current) : updater
       );
       setIsDirty(true);
+      setSaveStatus("unsaved");
     },
     []
   );
@@ -87,24 +94,42 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
   const saveMindmap = useCallback(
     async ({ silent = false }: SaveMindmapOptions = {}) => {
       if (!user) {
+        setSaveStatus("error");
         if (!silent) toast.error("You must be logged in to save the mind map.");
         return;
       }
 
       if (!mindmapData) {
+        setSaveStatus("error");
         if (!silent) {
           toast.error("Unable to save the mind map as no data was retrieved.");
         }
         return;
       }
 
+      setSaveStatus("saving");
       try {
         const storedData = serializeMindmapData(mindmapData);
         if (currentMindmapId) {
-          await updateDoc(doc(db, "mindmaps", currentMindmapId), {
-            data: storedData,
-            updatedAt: serverTimestamp(),
-          });
+          const updatedAt = serverTimestamp();
+          if (isCurrentMindmapPublic) {
+            const batch = writeBatch(db);
+            batch.update(doc(db, "mindmaps", currentMindmapId), {
+              data: storedData,
+              updatedAt,
+            });
+            batch.set(doc(db, "publicMindmaps", currentMindmapId), {
+              data: toPublicMindmapData(mindmapData),
+              isPublic: true,
+              updatedAt,
+            });
+            await batch.commit();
+          } else {
+            await updateDoc(doc(db, "mindmaps", currentMindmapId), {
+              data: storedData,
+              updatedAt,
+            });
+          }
           if (!silent) {
             toast("Saved successfully!", {
               autoClose: 1000,
@@ -115,6 +140,7 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
           const docRef = await addDoc(collection(db, "mindmaps"), {
             data: storedData,
             userId: user.uid,
+            isPublic: false,
             createdAt: serverTimestamp(),
           });
           setCurrentMindmapId(docRef.id);
@@ -125,12 +151,14 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
           }
         }
         setIsDirty(false);
+        setSaveStatus("saved");
       } catch (error) {
+        setSaveStatus("error");
         console.error("Failed to save mind map", error);
         if (!silent) toast.error(getMindmapSaveErrorMessage(error));
       }
     },
-    [currentMindmapId, mindmapData, user]
+    [currentMindmapId, isCurrentMindmapPublic, mindmapData, user]
   );
 
   useEffect(() => {
@@ -144,25 +172,34 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
   }, [currentMindmapId, isDirty, mindmapData, saveMindmap]);
 
   const loadMindmap = useCallback(async (id: string): Promise<MindmapData | null> => {
+    setSaveStatus("idle");
     try {
       const snapshot = await getDoc(doc(db, "mindmaps", id));
       if (!snapshot.exists()) {
         setMindmapData(null);
         setCurrentMindmapId(null);
         setCurrentMindmapTitle(null);
+        setIsCurrentMindmapPublic(false);
         toast.error("Mind map not found.");
         return null;
       }
 
-      const storedData = snapshot.data() as { data?: unknown };
+      const storedData = snapshot.data() as {
+        data?: unknown;
+        isPublic?: boolean;
+      };
       const normalized = normalizeMindmapData(storedData.data);
       setMindmapData(normalized);
       setCurrentMindmapId(id);
       setCurrentMindmapTitle(normalized.nodeData.topic);
+      setIsCurrentMindmapPublic(storedData.isPublic === true);
       setSelectedNode(null);
       setIsDirty(false);
+      setSaveStatus("saved");
       return normalized;
     } catch {
+      setSaveStatus("error");
+      setIsCurrentMindmapPublic(false);
       toast.error("Error loading mind map.");
       return null;
     }
@@ -185,12 +222,16 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
             const data = mindmapDoc.data() as {
               data?: unknown;
               createdAt?: FirestoreMindmapDoc["createdAt"];
+              updatedAt?: FirestoreMindmapDoc["updatedAt"];
+              isPublic?: boolean;
             };
             const normalized = normalizeMindmapData(data.data);
             return {
               id: mindmapDoc.id,
               title: normalized.nodeData.topic,
               createdAt: data.createdAt ?? null,
+              updatedAt: data.updatedAt ?? null,
+              isPublic: data.isPublic === true,
             };
           })
           .filter((mindmap) => mindmap.id !== excludeId);
@@ -282,6 +323,7 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
       mindmapData,
       updateMindmapData,
       saveMindmap,
+      saveStatus,
       loadMindmap,
       currentMindmapId,
       setCurrentMindmapId,
@@ -300,6 +342,7 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
       loadMindmap,
       mindmapData,
       saveMindmap,
+      saveStatus,
       selectedNode,
       updateMindmapData,
       updateNodeHyperlink,

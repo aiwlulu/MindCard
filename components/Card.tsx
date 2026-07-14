@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import SweetAlert from "./SweetAlert";
 import { toast } from "react-toastify";
@@ -8,14 +8,27 @@ import type { FirestoreMindmapDoc } from "@/lib/types";
 interface CardProps {
   currentMindmapId: string | null;
   removeHyperlink: () => void;
+  linkCompletedVersion?: number;
 }
 
-const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
+const Card: React.FC<CardProps> = ({
+  currentMindmapId,
+  removeHyperlink,
+  linkCompletedVersion = 0,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [mindmaps, setMindmaps] = useState<FirestoreMindmapDoc[]>([]);
-  const { getAllMindmaps, selectedNode, setSelectedNode } =
-    useContext(MindmapContext);
+  const { getAllMindmaps, selectedNode } = useContext(MindmapContext);
   const [showInstruction, setShowInstruction] = useState(false);
+  const previousLinkCompletedVersion = useRef(linkCompletedVersion);
+
+  useEffect(() => {
+    if (linkCompletedVersion !== previousLinkCompletedVersion.current) {
+      setIsOpen(false);
+      setShowInstruction(false);
+      previousLinkCompletedVersion.current = linkCompletedVersion;
+    }
+  }, [linkCompletedVersion]);
 
   useEffect(() => {
     const fetchMindmaps = async () => {
@@ -39,7 +52,8 @@ const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
       icon: "warning",
       onConfirm: () => {
         removeHyperlink();
-        setSelectedNode(null);
+        setIsOpen(false);
+        setShowInstruction(false);
       },
     });
   };

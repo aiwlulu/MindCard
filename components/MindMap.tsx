@@ -89,6 +89,8 @@ interface NodeDragState {
 }
 
 type TreeUpdater = (root: NodeData) => NodeData;
+type EditorMode = "map" | "markdown" | "split";
+type InteractionMode = "select" | "pan";
 
 const MIN_ZOOM = 0.45;
 const MAX_ZOOM = 8;
@@ -107,8 +109,10 @@ export default function MindMap({ id }: MindMapProps) {
   const markdownHistoryCapturedRef = useRef(false);
   const {
     mindmapData,
+    currentMindmapId,
     loadMindmap,
     saveMindmap,
+    saveStatus = "idle",
     selectedNode,
     setSelectedNode,
     updateMindmapData,
@@ -120,10 +124,14 @@ export default function MindMap({ id }: MindMapProps) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>(
+    "select"
+  );
   const [selectionBox, setSelectionBox] = useState<SelectionBoxState | null>(
     null
   );
   const [history, setHistory] = useState<MindmapData[]>([]);
+  const [redoHistory, setRedoHistory] = useState<MindmapData[]>([]);
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -132,20 +140,24 @@ export default function MindMap({ id }: MindMapProps) {
     null
   );
   const [externalLinkDraft, setExternalLinkDraft] = useState("");
-  const [editorMode, setEditorMode] = useState<"map" | "markdown">("map");
+  const [editorMode, setEditorMode] = useState<EditorMode>("map");
   const [markdownDraft, setMarkdownDraft] = useState("");
   const [markdownError, setMarkdownError] = useState<string | null>(null);
+  const [cardLinkCompletedVersion, setCardLinkCompletedVersion] = useState(0);
 
-  const root = mindmapData?.root ?? mindmapData?.nodeData ?? null;
+  const routeMatchesLoadedMap = !id || currentMindmapId === id;
+  const root = routeMatchesLoadedMap
+    ? mindmapData?.root ?? mindmapData?.nodeData ?? null
+    : null;
   const layout = useMemo(
-    () => (root && editorMode === "map" ? layoutMindmap(root) : null),
+    () => (root && editorMode !== "markdown" ? layoutMindmap(root) : null),
     [editorMode, root]
   );
   const currentSelectedNode = useMemo(
     () =>
       selectedNode && root
         ? findNode(root, selectedNode.id) ?? selectedNode
-        : selectedNode,
+        : null,
     [root, selectedNode]
   );
   const contextMenuNode = useMemo(
@@ -157,7 +169,10 @@ export default function MindMap({ id }: MindMapProps) {
   useEffect(() => {
     if (id) void loadMindmap(id);
     setPan({ x: 0, y: 0 });
+    setInteractionMode("select");
+    setIsPanning(false);
     setHistory([]);
+    setRedoHistory([]);
     setSelectedNodeIds(new Set());
     setEditorMode("map");
     setMarkdownDraft("");
@@ -197,6 +212,7 @@ export default function MindMap({ id }: MindMapProps) {
       if (nextRoot === mindmapData.nodeData) return;
 
       setHistory((previous) => [...previous.slice(-39), mindmapData]);
+      setRedoHistory([]);
       updateMindmapData((current) => {
         if (!current) return current;
         return {
@@ -241,8 +257,8 @@ export default function MindMap({ id }: MindMapProps) {
   );
 
   const switchEditorMode = useCallback(
-    (mode: "map" | "markdown") => {
-      if (mode === "markdown") {
+    (mode: EditorMode) => {
+      if (mode !== "map" && editorMode === "map") {
         if (!root) return;
         setMarkdownDraft(convertToMarkdown(root));
         setMarkdownError(null);
@@ -252,7 +268,7 @@ export default function MindMap({ id }: MindMapProps) {
       }
       setEditorMode(mode);
     },
-    [root, setSelectedNode]
+    [editorMode, root, setSelectedNode]
   );
 
   const updateMarkdownDraft = useCallback(
@@ -267,6 +283,7 @@ export default function MindMap({ id }: MindMapProps) {
       setMarkdownError(null);
       if (!markdownHistoryCapturedRef.current && mindmapData) {
         setHistory((previous) => [...previous.slice(-39), mindmapData]);
+        setRedoHistory([]);
         markdownHistoryCapturedRef.current = true;
       }
       updateMindmapData((current) => {
@@ -421,10 +438,31 @@ export default function MindMap({ id }: MindMapProps) {
     const previous = history.at(-1);
     if (!previous) return;
     setHistory((items) => items.slice(0, -1));
+    if (mindmapData) {
+      setRedoHistory((items) => [...items.slice(-39), mindmapData]);
+    }
     updateMindmapData(previous);
+    setMarkdownDraft(convertToMarkdown(previous.root ?? previous.nodeData));
+    setMarkdownError(null);
+    markdownHistoryCapturedRef.current = false;
     setSelectedNode(null);
     setSelectedNodeIds(new Set());
-  }, [history, setSelectedNode, updateMindmapData]);
+  }, [history, mindmapData, setSelectedNode, updateMindmapData]);
+
+  const redo = useCallback(() => {
+    const next = redoHistory.at(-1);
+    if (!next) return;
+    setRedoHistory((items) => items.slice(0, -1));
+    if (mindmapData) {
+      setHistory((items) => [...items.slice(-39), mindmapData]);
+    }
+    updateMindmapData(next);
+    setMarkdownDraft(convertToMarkdown(next.root ?? next.nodeData));
+    setMarkdownError(null);
+    markdownHistoryCapturedRef.current = false;
+    setSelectedNode(null);
+    setSelectedNodeIds(new Set());
+  }, [mindmapData, redoHistory, setSelectedNode, updateMindmapData]);
 
   const pasteContent = useCallback((text: string): boolean => {
     if (!currentSelectedNode) return false;
@@ -463,6 +501,12 @@ export default function MindMap({ id }: MindMapProps) {
   const centerMap = useCallback(() => {
     setPan({ x: 0, y: 0 });
     setZoom(1);
+  }, []);
+
+  const toggleInteractionMode = useCallback(() => {
+    panStartRef.current = null;
+    setIsPanning(false);
+    setInteractionMode((current) => (current === "select" ? "pan" : "select"));
   }, []);
 
   const zoomBy = useCallback(
@@ -509,10 +553,33 @@ export default function MindMap({ id }: MindMapProps) {
       const target = event.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
 
+      if (key === "escape" && interactionMode === "pan") {
+        event.preventDefault();
+        panStartRef.current = null;
+        setIsPanning(false);
+        setInteractionMode("select");
+        return;
+      }
+      if (key === "h") {
+        event.preventDefault();
+        toggleInteractionMode();
+        return;
+      }
+
       const selectedId = currentSelectedNode?.id;
+      if (commandKey && key === "z" && event.shiftKey) {
+        event.preventDefault();
+        redo();
+        return;
+      }
       if (commandKey && key === "z") {
         event.preventDefault();
         undo();
+        return;
+      }
+      if (commandKey && key === "y") {
+        event.preventDefault();
+        redo();
         return;
       }
       if (commandKey && key === "c" && currentSelectedNode && !currentSelectedNode.root) {
@@ -609,8 +676,10 @@ export default function MindMap({ id }: MindMapProps) {
       commitData,
       deleteNode,
       editingNodeId,
+      interactionMode,
       pasteNode,
       root,
+      redo,
       saveMindmap,
       selectNode,
       editorMode,
@@ -618,6 +687,7 @@ export default function MindMap({ id }: MindMapProps) {
       currentSelectedNode,
       startEditing,
       toggleBranch,
+      toggleInteractionMode,
       undo,
       zoomBy,
     ]
@@ -634,19 +704,22 @@ export default function MindMap({ id }: MindMapProps) {
         };
         if (selectedNode && card.id) {
           void updateNodeHyperlink(selectedNode.id, { id: card.id });
-          setSelectedNode(null);
+          setSelectedNodeIds(new Set([selectedNode.id]));
+          setCardLinkCompletedVersion((version) => version + 1);
+          editorRef.current?.focus({ preventScroll: true });
         }
       } catch {
         toast.error("Invalid card data.", { autoClose: 1500 });
       }
     },
-    [selectedNode, setSelectedNode, updateNodeHyperlink]
+    [selectedNode, updateNodeHyperlink]
   );
 
   const handleNodePointerDown = useCallback(
     (event: React.PointerEvent<SVGGElement>, node: NodeData) => {
       const target = event.target as Element;
       if (
+        interactionMode === "pan" ||
         event.button !== 0 ||
         node.root ||
         target.closest('[data-node-control="true"]')
@@ -665,7 +738,7 @@ export default function MindMap({ id }: MindMapProps) {
       };
       event.currentTarget.setPointerCapture?.(event.pointerId);
     },
-    [selectedNodeIds]
+    [interactionMode, selectedNodeIds]
   );
 
   const handleNodePointerMove = useCallback(
@@ -730,8 +803,16 @@ export default function MindMap({ id }: MindMapProps) {
       event.pointerType === "touch" || event.pointerType === "pen";
     const isRightMouseButton = !isTouchPointer && event.button === 2;
     const isMiddleMouseButton = !isTouchPointer && event.button === 1;
+    const isPanModeLeftButton =
+      !isTouchPointer && interactionMode === "pan" && event.button === 0;
 
-    if (!isTouchPointer && event.button === 0 && startedOnBackground && layout) {
+    if (
+      interactionMode === "select" &&
+      !isTouchPointer &&
+      event.button === 0 &&
+      startedOnBackground &&
+      layout
+    ) {
       const point = clientPointToMap(
         event.currentTarget,
         event.clientX,
@@ -758,10 +839,15 @@ export default function MindMap({ id }: MindMapProps) {
       return;
     }
 
-    if (!isRightMouseButton && !startedOnBackground) {
+    if (!isRightMouseButton && !isPanModeLeftButton && !startedOnBackground) {
       return;
     }
-    if (!isTouchPointer && !isRightMouseButton && !isMiddleMouseButton) {
+    if (
+      !isTouchPointer &&
+      !isRightMouseButton &&
+      !isMiddleMouseButton &&
+      !isPanModeLeftButton
+    ) {
       return;
     }
 
@@ -883,8 +969,8 @@ export default function MindMap({ id }: MindMapProps) {
   const handleCanvasContextMenu = (
     event: React.MouseEvent<SVGSVGElement>
   ) => {
-    if (suppressContextMenuRef.current) {
-      event.preventDefault();
+    event.preventDefault();
+    if (suppressContextMenuRef.current || panStartRef.current) {
       event.stopPropagation();
       suppressContextMenuRef.current = false;
       if (contextMenuResetTimerRef.current) {
@@ -958,7 +1044,34 @@ export default function MindMap({ id }: MindMapProps) {
           >
             Markdown
           </button>
+          <button
+            type="button"
+            aria-label="Split view mode"
+            aria-pressed={editorMode === "split"}
+            className={editorMode === "split" ? "is-active" : undefined}
+            disabled={!root}
+            onClick={() => switchEditorMode("split")}
+          >
+            Split
+          </button>
         </div>
+        <span className="mindmap-commandbar-divider" aria-hidden="true" />
+        <button
+          type="button"
+          aria-label="Undo last change"
+          disabled={!history.length}
+          onClick={undo}
+        >
+          Undo <kbd>⌘Z</kbd>
+        </button>
+        <button
+          type="button"
+          aria-label="Redo last change"
+          disabled={!redoHistory.length}
+          onClick={redo}
+        >
+          Redo <kbd>⇧⌘Z</kbd>
+        </button>
         <span className="mindmap-commandbar-divider" aria-hidden="true" />
         {editorMode === "map" ? (currentSelectedNode ? (
           <>
@@ -1031,7 +1144,9 @@ export default function MindMap({ id }: MindMapProps) {
             ) : null}
           </>
         ) : (
-          <span className="mindmap-commandbar-hint">Select a node to show quick actions</span>
+          <span className="mindmap-commandbar-hint">
+            Select a node · Press H for pan · Right-drag to browse
+          </span>
         )) : (
           <span
             className={`mindmap-markdown-status${markdownError ? " is-error" : ""}`}
@@ -1040,7 +1155,7 @@ export default function MindMap({ id }: MindMapProps) {
             {markdownError ?? "Changes sync automatically"}
           </span>
         )}
-        {editorMode === "map" ? (
+        {editorMode !== "markdown" ? (
           <>
             <button
               type="button"
@@ -1058,10 +1173,26 @@ export default function MindMap({ id }: MindMapProps) {
             </button>
           </>
         ) : null}
+        <span className="mindmap-commandbar-spacer" aria-hidden="true" />
+        <span
+          className={`mindmap-save-status is-${saveStatus}`}
+          role="status"
+          aria-live="polite"
+        >
+          {saveStatus === "saving"
+            ? "Saving…"
+            : saveStatus === "saved"
+              ? "Saved"
+              : saveStatus === "unsaved"
+                ? "Unsaved changes"
+                : saveStatus === "error"
+                  ? "Save failed"
+                  : "Auto-save ready"}
+        </span>
       </div>
       <div className="showcase">
-        <div className="block">
-          {editorMode === "markdown" ? (
+        <div className={`block${editorMode === "split" ? " mindmap-split-view" : ""}`}>
+          {editorMode !== "map" ? (
             <div className="mindmap-markdown-editor">
               <textarea
                 autoFocus
@@ -1087,10 +1218,13 @@ export default function MindMap({ id }: MindMapProps) {
                 Use headings or indented bullets. Tab inserts two spaces.
               </p>
             </div>
-          ) : layout ? (
-            <svg
+          ) : null}
+          {editorMode !== "markdown" ? (
+            <div className="mindmap-map-pane">
+              {layout ? (
+                <svg
               ref={svgRef}
-              className={`mindmap-canvas${isPanning ? " is-panning" : ""}${
+              className={`mindmap-canvas${interactionMode === "pan" ? " is-pan-mode" : ""}${isPanning ? " is-panning" : ""}${
                 selectionBox ? " is-selecting" : ""
               }`}
               viewBox={`0 0 ${layout.width} ${layout.height}`}
@@ -1108,6 +1242,10 @@ export default function MindMap({ id }: MindMapProps) {
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
+              onLostPointerCapture={() => {
+                panStartRef.current = null;
+                setIsPanning(false);
+              }}
               onContextMenuCapture={handleCanvasContextMenu}
             >
               <rect
@@ -1164,12 +1302,15 @@ export default function MindMap({ id }: MindMapProps) {
                   />
                 ) : null}
               </g>
-            </svg>
-          ) : (
-            <div className="flex h-[90vh] items-center justify-center text-slate-400">
-              Loading mind map…
+                </svg>
+              ) : (
+                <div className="mindmap-loading" role="status">
+                  <span aria-hidden="true" />
+                  Loading mind map…
+                </div>
+              )}
             </div>
-          )}
+          ) : null}
         </div>
         {editorMode === "map" ? (
           <>
@@ -1177,14 +1318,28 @@ export default function MindMap({ id }: MindMapProps) {
               <ShortcutGuide />
             </div>
             <div className="hidden lg:block">
-              <Card currentMindmapId={id} removeHyperlink={removeHyperlink} />
+              <Card
+                currentMindmapId={id}
+                removeHyperlink={removeHyperlink}
+                linkCompletedVersion={cardLinkCompletedVersion}
+              />
             </div>
           </>
         ) : null}
       </div>
 
-      {editorMode === "map" ? (
+      {editorMode !== "markdown" ? (
         <div className="mindmap-toolbar" aria-label="Map controls">
+          <button
+            type="button"
+            aria-label={interactionMode === "pan" ? "Disable pan mode" : "Enable pan mode"}
+            aria-pressed={interactionMode === "pan"}
+            className={interactionMode === "pan" ? "is-active" : undefined}
+            title="Pan mode — left-drag the canvas (H). Right-drag always pans."
+            onClick={toggleInteractionMode}
+          >
+            {interactionMode === "pan" ? "⌖" : "✋"}
+          </button>
           <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => zoomBy(-0.1)}>−</button>
           <span className="mindmap-zoom-level" aria-live="polite">{Math.round(zoom * 100)}%</span>
           <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => zoomBy(0.1)}>+</button>
