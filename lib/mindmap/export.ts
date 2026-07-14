@@ -6,23 +6,9 @@ import {
   formatHiddenDescendantCount,
 } from "./tree";
 
+export { convertToMarkdown } from "./markdown";
+
 const MAX_PNG_DIMENSION = 16_384;
-
-export function convertToMarkdown(node: NodeData, depth = 0): string {
-  const prefix = depth <= 2
-    ? `${"#".repeat(depth + 1)} `
-    : `${"  ".repeat(depth - 2)}- `;
-  const topic = node.externalLink
-    ? `[${node.topic}](${node.externalLink})`
-    : node.topic;
-  let markdown = `${prefix}${topic}\n`;
-
-  for (const child of node.children ?? []) {
-    markdown += convertToMarkdown(child, depth + 1);
-  }
-
-  return markdown;
-}
 
 export function buildMindmapSvg(root: NodeData): string {
   const layout = layoutMindmap(root);

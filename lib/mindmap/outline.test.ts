@@ -23,8 +23,10 @@ describe("pasted outline parsing", () => {
     ]);
   });
 
-  it("ignores a single unstructured line", () => {
-    expect(parsePastedOutline("Just one line")).toEqual([]);
+  it("turns a single plain-text line into one topic", () => {
+    expect(parsePastedOutline("Just one line")).toMatchObject([
+      { topic: "Just one line" },
+    ]);
   });
 
   it("turns a pasted URL into a compact external-link node", () => {

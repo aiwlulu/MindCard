@@ -5,6 +5,21 @@ import { MindmapContext } from "@/lib/store/mindmap-context";
 import type { MindmapContextValue, MindmapData } from "@/lib/types";
 
 const mockRouterPush = jest.fn();
+const pointerEventDescriptor = Object.getOwnPropertyDescriptor(
+  window,
+  "PointerEvent"
+);
+
+class TestPointerEvent extends MouseEvent {
+  pointerId: number;
+  pointerType: string;
+
+  constructor(type: string, init: PointerEventInit = {}) {
+    super(type, init);
+    this.pointerId = init.pointerId ?? 0;
+    this.pointerType = init.pointerType ?? "mouse";
+  }
+}
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockRouterPush }),
@@ -86,6 +101,21 @@ function StatefulMindMap({ context }: { context: MindmapContextValue }) {
 }
 
 describe("MindMap editor", () => {
+  beforeAll(() => {
+    Object.defineProperty(window, "PointerEvent", {
+      configurable: true,
+      value: TestPointerEvent,
+    });
+  });
+
+  afterAll(() => {
+    if (pointerEventDescriptor) {
+      Object.defineProperty(window, "PointerEvent", pointerEventDescriptor);
+    } else {
+      Reflect.deleteProperty(window, "PointerEvent");
+    }
+  });
+
   beforeEach(() => {
     mockRouterPush.mockReset();
     jest.restoreAllMocks();
@@ -288,6 +318,21 @@ describe("MindMap editor", () => {
       "_blank",
       "noopener,noreferrer"
     );
+  });
+
+  it("lets the external URL input handle paste without creating a child", () => {
+    const context = createContext();
+    context.selectedNode = data.nodeData.children?.[0] ?? null;
+    renderMindMap(context);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add external link" }));
+    fireEvent.paste(screen.getByRole("textbox", { name: "External URL" }), {
+      clipboardData: {
+        getData: () => "https://example.com/reference",
+      },
+    });
+
+    expect(context.updateMindmapData).not.toHaveBeenCalled();
   });
 
   it("does not start node dragging when an external link is pressed", () => {
@@ -520,6 +565,46 @@ describe("MindMap editor", () => {
     ]);
   });
 
+  it("pastes a single line as a child of the selected topic", () => {
+    const context = createContext();
+    context.selectedNode = data.nodeData.children?.[0] ?? null;
+    renderMindMap(context);
+
+    fireEvent.paste(screen.getByRole("application", { name: "Mind map editor" }), {
+      clipboardData: {
+        getData: () => "Pasted reference",
+      },
+    });
+
+    const update = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
+      current: MindmapData
+    ) => MindmapData;
+    expect(
+      update(data).nodeData.children?.[0].children?.map((node) => node.topic)
+    ).toEqual(["Grandchild", "Pasted reference"]);
+  });
+
+  it("pastes a copied MindCard topic as a child instead of a sibling", () => {
+    const context = createContext();
+    context.selectedNode = data.nodeData.children?.[0] ?? null;
+    renderMindMap(context);
+
+    fireEvent.paste(screen.getByRole("application", { name: "Mind map editor" }), {
+      clipboardData: {
+        getData: () => JSON.stringify({ id: "copied", topic: "Copied topic" }),
+      },
+    });
+
+    const update = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
+      current: MindmapData
+    ) => MindmapData;
+    const updated = update(data);
+    expect(updated.nodeData.children).toHaveLength(1);
+    expect(
+      updated.nodeData.children?.[0].children?.map((node) => node.topic)
+    ).toEqual(["Grandchild", "Copied topic"]);
+  });
+
   it("collapses and expands all descendant branches", () => {
     const context = createContext();
     renderMindMap(context);
@@ -562,6 +647,133 @@ describe("MindMap editor", () => {
     expect(content).toHaveAttribute("transform", "translate(0 0) scale(1)");
   });
 
+  it("pans the canvas with a right-button drag", () => {
+    renderMindMap();
+    const svg = screen.getByRole("img", { name: "Mind map" });
+    const background = svg.querySelector("[data-canvas-background]") as SVGRectElement;
+    const content = svg.querySelector("g") as SVGGElement;
+    Object.defineProperty(svg, "setPointerCapture", { value: jest.fn() });
+    Object.defineProperty(svg, "releasePointerCapture", { value: jest.fn() });
+
+    fireEvent.pointerDown(background, {
+      button: 2,
+      pointerId: 2,
+      pointerType: "mouse",
+      clientX: 100,
+      clientY: 100,
+    });
+    expect(svg).toHaveClass("is-panning");
+
+    fireEvent.pointerMove(svg, {
+      button: 2,
+      pointerId: 2,
+      pointerType: "mouse",
+      clientX: 160,
+      clientY: 140,
+    });
+
+    expect(content).not.toHaveAttribute("transform", "translate(0 0) scale(1)");
+
+    fireEvent.pointerUp(svg, {
+      button: 2,
+      pointerId: 2,
+      pointerType: "mouse",
+      clientX: 160,
+      clientY: 140,
+    });
+    expect(svg).not.toHaveClass("is-panning");
+  });
+
+  it("starts right-button canvas panning from a topic without opening its menu", () => {
+    renderMindMap();
+    const svg = screen.getByRole("img", { name: "Mind map" });
+    const topic = screen.getByRole("button", { name: "Child" });
+    const content = svg.querySelector("g") as SVGGElement;
+    Object.defineProperty(svg, "setPointerCapture", { value: jest.fn() });
+    Object.defineProperty(svg, "releasePointerCapture", { value: jest.fn() });
+
+    fireEvent.pointerDown(topic, {
+      button: 2,
+      pointerId: 3,
+      pointerType: "mouse",
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(svg, {
+      button: 2,
+      pointerId: 3,
+      pointerType: "mouse",
+      clientX: 150,
+      clientY: 125,
+    });
+    fireEvent.pointerUp(svg, {
+      button: 2,
+      pointerId: 3,
+      pointerType: "mouse",
+      clientX: 150,
+      clientY: 125,
+    });
+    fireEvent.contextMenu(topic, { clientX: 150, clientY: 125 });
+
+    expect(content).not.toHaveAttribute("transform", "translate(0 0) scale(1)");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("selects multiple topics with a left-button marquee drag", () => {
+    renderMindMap();
+    const svg = screen.getByRole("img", { name: "Mind map" });
+    const background = svg.querySelector("[data-canvas-background]") as SVGRectElement;
+    const [, , viewBoxWidth, viewBoxHeight] = (svg.getAttribute("viewBox") ?? "")
+      .split(" ")
+      .map(Number);
+    Object.defineProperty(svg, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        left: 0,
+        top: 0,
+        right: viewBoxWidth,
+        bottom: viewBoxHeight,
+        width: viewBoxWidth,
+        height: viewBoxHeight,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }),
+    });
+    Object.defineProperty(svg, "setPointerCapture", { value: jest.fn() });
+    Object.defineProperty(svg, "releasePointerCapture", { value: jest.fn() });
+
+    fireEvent.pointerDown(background, {
+      button: 0,
+      pointerId: 4,
+      pointerType: "mouse",
+      clientX: 1,
+      clientY: 1,
+    });
+    fireEvent.pointerMove(svg, {
+      button: 0,
+      pointerId: 4,
+      pointerType: "mouse",
+      clientX: viewBoxWidth - 1,
+      clientY: viewBoxHeight - 1,
+    });
+
+    expect(svg).toHaveClass("is-selecting");
+    expect(document.querySelectorAll(".mindmap-node-selection")).toHaveLength(2);
+    expect(document.querySelector(".mindmap-root-shape")).toHaveClass(
+      "is-selected"
+    );
+
+    fireEvent.pointerUp(svg, {
+      button: 0,
+      pointerId: 4,
+      pointerType: "mouse",
+      clientX: viewBoxWidth - 1,
+      clientY: viewBoxHeight - 1,
+    });
+    expect(svg).not.toHaveClass("is-selecting");
+  });
+
   it("supports additive node selection with Ctrl or Command click", () => {
     const context = createContext();
     render(<StatefulMindMap context={context} />);
@@ -570,6 +782,44 @@ describe("MindMap editor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Grandchild" }), {
       ctrlKey: true,
     });
+
+    expect(document.querySelectorAll(".mindmap-node-selection")).toHaveLength(2);
+  });
+
+  it("keeps a multi-selection after dragging the selected topics", () => {
+    const context = createContext();
+    render(<StatefulMindMap context={context} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Child" }));
+    fireEvent.click(screen.getByRole("button", { name: "Grandchild" }), {
+      ctrlKey: true,
+    });
+    const child = screen.getByRole("button", { name: "Child" });
+    Object.defineProperty(child, "setPointerCapture", { value: jest.fn() });
+    Object.defineProperty(child, "releasePointerCapture", { value: jest.fn() });
+
+    fireEvent.pointerDown(child, {
+      button: 0,
+      pointerId: 5,
+      pointerType: "mouse",
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(child, {
+      button: 0,
+      pointerId: 5,
+      pointerType: "mouse",
+      clientX: 130,
+      clientY: 125,
+    });
+    fireEvent.pointerUp(child, {
+      button: 0,
+      pointerId: 5,
+      pointerType: "mouse",
+      clientX: 130,
+      clientY: 125,
+    });
+    fireEvent.click(child);
 
     expect(document.querySelectorAll(".mindmap-node-selection")).toHaveLength(2);
   });
@@ -641,5 +891,40 @@ describe("MindMap editor", () => {
     }
 
     expect(screen.getByText("300%")).toBeInTheDocument();
+  });
+
+  it("switches to Markdown editing and syncs valid changes to the mind map", () => {
+    const context = createContext();
+    render(<StatefulMindMap context={context} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Markdown mode" }));
+    const editor = screen.getByRole("textbox", { name: "Mind map Markdown" });
+    expect(editor).toHaveValue(
+      "# Root\n## Child\n### Grandchild\n"
+    );
+
+    fireEvent.change(editor, {
+      target: {
+        value: "# Updated root\n## First branch\n### Nested topic\n",
+      },
+    });
+    expect(context.updateMindmapData).toHaveBeenCalledWith(expect.any(Function));
+
+    fireEvent.click(screen.getByRole("button", { name: "Mind map mode" }));
+    expect(screen.getByRole("button", { name: "Updated root" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "First branch" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nested topic" })).toBeInTheDocument();
+  });
+
+  it("keeps the last valid map when Markdown is temporarily incomplete", () => {
+    const context = createContext();
+    render(<StatefulMindMap context={context} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Markdown mode" }));
+    const editor = screen.getByRole("textbox", { name: "Mind map Markdown" });
+    fireEvent.change(editor, { target: { value: "## Missing root" } });
+
+    expect(screen.getByRole("status")).toHaveTextContent(/root/i);
+    expect(context.updateMindmapData).not.toHaveBeenCalled();
   });
 });

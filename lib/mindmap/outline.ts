@@ -7,7 +7,6 @@ const BULLET_PREFIX = /^(?:[-*+•◦▪▫‣⁃]|\d+[.)])\s+(?:\[[ xX]\]\s*)?/
 interface OutlineLine {
   indent: number;
   topic: string;
-  hasBullet: boolean;
   externalLink: string | null;
 }
 
@@ -17,13 +16,6 @@ export function parsePastedOutline(text: string): NodeData[] {
     .split("\n")
     .map(parseLine)
     .filter((line): line is OutlineLine => line !== null);
-
-  if (
-    lines.length < 2 &&
-    !lines.some((line) => line.hasBullet || line.externalLink)
-  ) {
-    return [];
-  }
 
   const roots: NodeData[] = [];
   const stack: Array<{ indent: number; node: NodeData }> = [];
@@ -62,9 +54,8 @@ function parseLine(rawLine: string): OutlineLine | null {
     0
   );
   const content = rawLine.slice(leadingWhitespace.length).trimEnd();
-  const hasBullet = BULLET_PREFIX.test(content);
   const topic = content.replace(BULLET_PREFIX, "").trim();
   const externalLink = normalizeExternalUrl(topic);
 
-  return topic ? { indent, topic, hasBullet, externalLink } : null;
+  return topic ? { indent, topic, externalLink } : null;
 }

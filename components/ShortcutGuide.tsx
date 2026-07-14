@@ -25,11 +25,13 @@ const ShortcutGuide: React.FC = () => {
             <li><kbd>← / →</kbd><span>Move to parent or first child</span></li>
             <li><kbd>⌘ / Ctrl Z</kbd><span>Undo</span></li>
             <li><kbd>⌘ / Ctrl S</kbd><span>Save</span></li>
+            <li><kbd>⌘ / Ctrl E</kbd><span>Toggle Markdown mode</span></li>
             <li><kbd>⌘ / Ctrl C / V</kbd><span>Copy or paste topics</span></li>
             <li><kbd>⌘ / Ctrl Click</kbd><span>Select multiple topics</span></li>
+            <li><kbd>Left drag</kbd><span>Marquee select topics</span></li>
             <li><kbd>Drag topics</kbd><span>Move below target</span></li>
             <li><kbd>Paste lines</kbd><span>Create child branches</span></li>
-            <li><kbd>Middle drag</kbd><span>Pan canvas</span></li>
+            <li><kbd>Right / middle drag</kbd><span>Pan canvas</span></li>
             <li><kbd>⌘ / Ctrl + / −</kbd><span>Zoom</span></li>
             <li><kbd>⌘ / Ctrl 0</kbd><span>Center map</span></li>
           </ul>

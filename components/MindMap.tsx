@@ -21,6 +21,11 @@ import { getBranchColor, getBranchStrokeWidth } from "@/lib/mindmap/colors";
 import { formatExternalLinkLabel, normalizeExternalUrl } from "@/lib/mindmap/links";
 import { parsePastedOutline } from "@/lib/mindmap/outline";
 import {
+  convertToMarkdown,
+  parseMindmapMarkdown,
+  reconcileMarkdownTree,
+} from "@/lib/mindmap/markdown";
+import {
   cloneNodeWithNewIds,
   countDescendants,
   createNode,
@@ -51,6 +56,30 @@ interface PanState {
   y: number;
 }
 
+interface CanvasPanGesture {
+  pointerId: number;
+  pointerX: number;
+  pointerY: number;
+  button: number;
+  moved: boolean;
+  pan: PanState;
+}
+
+interface SelectionBoxState {
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
+}
+
+interface CanvasSelectionGesture extends SelectionBoxState {
+  pointerId: number;
+  additive: boolean;
+  moved: boolean;
+  initialNodeIds: string[];
+  selectedNodeIds: string[];
+}
+
 interface NodeDragState {
   nodeIds: string[];
   pointerId: number;
@@ -67,9 +96,15 @@ const MAX_ZOOM = 8;
 export default function MindMap({ id }: MindMapProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const panStartRef = useRef<{ pointerX: number; pointerY: number; pan: PanState } | null>(null);
+  const panStartRef = useRef<CanvasPanGesture | null>(null);
+  const selectionStartRef = useRef<CanvasSelectionGesture | null>(null);
+  const suppressContextMenuRef = useRef(false);
+  const contextMenuResetTimerRef = useRef<number | null>(null);
   const nodeDragRef = useRef<NodeDragState | null>(null);
+  const suppressNodeClickRef = useRef(false);
+  const nodeClickResetTimerRef = useRef<number | null>(null);
   const clipboardRef = useRef<NodeData | null>(null);
+  const markdownHistoryCapturedRef = useRef(false);
   const {
     mindmapData,
     loadMindmap,
@@ -84,6 +119,10 @@ export default function MindMap({ id }: MindMapProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<PanState>({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [selectionBox, setSelectionBox] = useState<SelectionBoxState | null>(
+    null
+  );
   const [history, setHistory] = useState<MindmapData[]>([]);
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(
     () => new Set()
@@ -93,9 +132,15 @@ export default function MindMap({ id }: MindMapProps) {
     null
   );
   const [externalLinkDraft, setExternalLinkDraft] = useState("");
+  const [editorMode, setEditorMode] = useState<"map" | "markdown">("map");
+  const [markdownDraft, setMarkdownDraft] = useState("");
+  const [markdownError, setMarkdownError] = useState<string | null>(null);
 
   const root = mindmapData?.root ?? mindmapData?.nodeData ?? null;
-  const layout = useMemo(() => (root ? layoutMindmap(root) : null), [root]);
+  const layout = useMemo(
+    () => (root && editorMode === "map" ? layoutMindmap(root) : null),
+    [editorMode, root]
+  );
   const currentSelectedNode = useMemo(
     () =>
       selectedNode && root
@@ -114,19 +159,35 @@ export default function MindMap({ id }: MindMapProps) {
     setPan({ x: 0, y: 0 });
     setHistory([]);
     setSelectedNodeIds(new Set());
+    setEditorMode("map");
+    setMarkdownDraft("");
+    setMarkdownError(null);
+    markdownHistoryCapturedRef.current = false;
   }, [id, loadMindmap]);
 
   useEffect(() => {
-    if (!editingNodeId) {
+    if (!editingNodeId && editorMode === "map") {
       editorRef.current?.focus({ preventScroll: true });
     }
-  }, [editingNodeId, id]);
+  }, [editingNodeId, editorMode, id]);
 
   useEffect(() => {
     const closeContextMenu = () => setContextMenu(null);
     window.addEventListener("mousedown", closeContextMenu);
     return () => window.removeEventListener("mousedown", closeContextMenu);
   }, []);
+
+  useEffect(
+    () => () => {
+      if (contextMenuResetTimerRef.current) {
+        window.clearTimeout(contextMenuResetTimerRef.current);
+      }
+      if (nodeClickResetTimerRef.current) {
+        window.clearTimeout(nodeClickResetTimerRef.current);
+      }
+    },
+    []
+  );
 
   const commitData = useCallback(
     (updater: TreeUpdater) => {
@@ -162,6 +223,64 @@ export default function MindMap({ id }: MindMapProps) {
       editorRef.current?.focus();
     },
     [setSelectedNode]
+  );
+
+  const selectNodeFromPointer = useCallback(
+    (node: NodeData, additive = false) => {
+      if (suppressNodeClickRef.current) {
+        suppressNodeClickRef.current = false;
+        if (nodeClickResetTimerRef.current) {
+          window.clearTimeout(nodeClickResetTimerRef.current);
+          nodeClickResetTimerRef.current = null;
+        }
+        return;
+      }
+      selectNode(node, additive);
+    },
+    [selectNode]
+  );
+
+  const switchEditorMode = useCallback(
+    (mode: "map" | "markdown") => {
+      if (mode === "markdown") {
+        if (!root) return;
+        setMarkdownDraft(convertToMarkdown(root));
+        setMarkdownError(null);
+        setSelectedNode(null);
+        setSelectedNodeIds(new Set());
+        markdownHistoryCapturedRef.current = false;
+      }
+      setEditorMode(mode);
+    },
+    [root, setSelectedNode]
+  );
+
+  const updateMarkdownDraft = useCallback(
+    (nextDraft: string) => {
+      setMarkdownDraft(nextDraft);
+      const parsed = parseMindmapMarkdown(nextDraft);
+      if (!parsed.root) {
+        setMarkdownError(parsed.error);
+        return;
+      }
+
+      setMarkdownError(null);
+      if (!markdownHistoryCapturedRef.current && mindmapData) {
+        setHistory((previous) => [...previous.slice(-39), mindmapData]);
+        markdownHistoryCapturedRef.current = true;
+      }
+      updateMindmapData((current) => {
+        if (!current || !parsed.root) return current;
+        const existingRoot = current.root ?? current.nodeData;
+        const nextRoot = reconcileMarkdownTree(parsed.root, existingRoot);
+        return {
+          ...current,
+          nodeData: nextRoot,
+          ...(current.root ? { root: nextRoot } : {}),
+        };
+      });
+    },
+    [mindmapData, updateMindmapData]
   );
 
   const startEditing = useCallback(
@@ -311,25 +430,20 @@ export default function MindMap({ id }: MindMapProps) {
     if (!currentSelectedNode) return false;
 
     const clipboardNode = parseClipboardNode(text);
-    if (clipboardNode) {
-      const pasted = cloneNodeWithNewIds(clipboardNode);
-      commitData((tree) => insertSibling(tree, currentSelectedNode.id, pasted));
-      setSelectedNode(pasted);
-      return true;
-    }
-
-    const outline = parsePastedOutline(text);
-    if (!outline.length) return false;
+    const children = clipboardNode
+      ? [cloneNodeWithNewIds(clipboardNode)]
+      : parsePastedOutline(text);
+    if (!children.length) return false;
 
     commitData((tree) =>
       updateNode(tree, currentSelectedNode.id, (node) => ({
         ...node,
         collapsed: false,
-        children: [...(node.children ?? []), ...outline],
+        children: [...(node.children ?? []), ...children],
       }))
     );
     return true;
-  }, [commitData, currentSelectedNode, setSelectedNode]);
+  }, [commitData, currentSelectedNode]);
 
   const pasteNode = useCallback(async () => {
     if (typeof navigator === "undefined" || !navigator.clipboard) return;
@@ -378,19 +492,24 @@ export default function MindMap({ id }: MindMapProps) {
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (editingNodeId) return;
-      const target = event.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
-
-      const selectedId = currentSelectedNode?.id;
       const commandKey = event.ctrlKey || event.metaKey;
       const key = event.key.toLowerCase();
 
+      if (commandKey && key === "e") {
+        event.preventDefault();
+        switchEditorMode(editorMode === "map" ? "markdown" : "map");
+        return;
+      }
       if (commandKey && key === "s") {
         event.preventDefault();
         void saveMindmap();
         return;
       }
+      if (editingNodeId) return;
+      const target = event.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+
+      const selectedId = currentSelectedNode?.id;
       if (commandKey && key === "z") {
         event.preventDefault();
         undo();
@@ -494,6 +613,8 @@ export default function MindMap({ id }: MindMapProps) {
       root,
       saveMindmap,
       selectNode,
+      editorMode,
+      switchEditorMode,
       currentSelectedNode,
       startEditing,
       toggleBranch,
@@ -582,6 +703,17 @@ export default function MindMap({ id }: MindMapProps) {
         setSelectedNodeIds(new Set(drag.nodeIds));
       }
 
+      if (drag.moved) {
+        suppressNodeClickRef.current = true;
+        if (nodeClickResetTimerRef.current) {
+          window.clearTimeout(nodeClickResetTimerRef.current);
+        }
+        nodeClickResetTimerRef.current = window.setTimeout(() => {
+          suppressNodeClickRef.current = false;
+          nodeClickResetTimerRef.current = null;
+        }, 250);
+      }
+
       nodeDragRef.current = null;
       setDropTargetId(null);
       event.currentTarget.releasePointerCapture?.(event.pointerId);
@@ -591,31 +723,117 @@ export default function MindMap({ id }: MindMapProps) {
 
   const handlePointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
     const target = event.target as SVGElement;
-    if (
-      event.target !== event.currentTarget &&
-      target.dataset.canvasBackground !== "true"
-    ) {
+    const startedOnBackground =
+      event.target === event.currentTarget ||
+      target.dataset.canvasBackground === "true";
+    const isTouchPointer =
+      event.pointerType === "touch" || event.pointerType === "pen";
+    const isRightMouseButton = !isTouchPointer && event.button === 2;
+    const isMiddleMouseButton = !isTouchPointer && event.button === 1;
+
+    if (!isTouchPointer && event.button === 0 && startedOnBackground && layout) {
+      const point = clientPointToMap(
+        event.currentTarget,
+        event.clientX,
+        event.clientY,
+        layout.width,
+        layout.height,
+        pan,
+        zoom
+      );
+      selectionStartRef.current = {
+        pointerId: event.pointerId,
+        startX: point.x,
+        startY: point.y,
+        currentX: point.x,
+        currentY: point.y,
+        additive: event.ctrlKey || event.metaKey,
+        moved: false,
+        initialNodeIds: [...selectedNodeIds],
+        selectedNodeIds: [],
+      };
+      setContextMenu(null);
+      editorRef.current?.focus({ preventScroll: true });
+      event.currentTarget.setPointerCapture?.(event.pointerId);
       return;
     }
-    if (
-      event.pointerType !== "touch" &&
-      event.pointerType !== "pen" &&
-      event.button !== 1
-    ) {
+
+    if (!isRightMouseButton && !startedOnBackground) {
       return;
     }
+    if (!isTouchPointer && !isRightMouseButton && !isMiddleMouseButton) {
+      return;
+    }
+
     editorRef.current?.focus({ preventScroll: true });
     panStartRef.current = {
+      pointerId: event.pointerId,
       pointerX: event.clientX,
       pointerY: event.clientY,
+      button: event.button,
+      moved: false,
       pan,
     };
+    setIsPanning(true);
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
 
   const handlePointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
-    if (!panStartRef.current) return;
+    const selection = selectionStartRef.current;
+    if (selection?.pointerId === event.pointerId && layout) {
+      const point = clientPointToMap(
+        event.currentTarget,
+        event.clientX,
+        event.clientY,
+        layout.width,
+        layout.height,
+        pan,
+        zoom
+      );
+      if (
+        !selection.moved &&
+        Math.hypot(point.x - selection.startX, point.y - selection.startY) < 4
+      ) {
+        return;
+      }
+
+      selection.moved = true;
+      selection.currentX = point.x;
+      selection.currentY = point.y;
+      const bounds = normalizeSelectionBounds(selection);
+      const matchingNodeIds = layout.nodes
+        .filter((item) => nodeIntersectsSelection(item, bounds))
+        .map((item) => item.node.id);
+      const nextNodeIds = selection.additive
+        ? [...new Set([...selection.initialNodeIds, ...matchingNodeIds])]
+        : matchingNodeIds;
+      selection.selectedNodeIds = nextNodeIds;
+      setSelectedNodeIds(new Set(nextNodeIds));
+      setSelectionBox({
+        startX: selection.startX,
+        startY: selection.startY,
+        currentX: point.x,
+        currentY: point.y,
+      });
+      return;
+    }
+
+    if (
+      !panStartRef.current ||
+      panStartRef.current.pointerId !== event.pointerId
+    ) {
+      return;
+    }
     const start = panStartRef.current;
+    if (
+      !start.moved &&
+      Math.hypot(
+        event.clientX - start.pointerX,
+        event.clientY - start.pointerY
+      ) >= 4
+    ) {
+      start.moved = true;
+    }
     const bounds = event.currentTarget.getBoundingClientRect();
     const scaleX = layout && bounds.width ? layout.width / bounds.width : 1;
     const scaleY = layout && bounds.height ? layout.height / bounds.height : 1;
@@ -626,9 +844,53 @@ export default function MindMap({ id }: MindMapProps) {
   };
 
   const handlePointerUp = (event: React.PointerEvent<SVGSVGElement>) => {
-    if (panStartRef.current) {
-      panStartRef.current = null;
+    const selection = selectionStartRef.current;
+    if (selection?.pointerId === event.pointerId) {
+      if (!selection.moved && !selection.additive) {
+        setSelectedNodeIds(new Set());
+        setSelectedNode(null);
+      } else if (selection.moved) {
+        const primaryNode = layout?.nodes.find((item) =>
+          selection.selectedNodeIds.includes(item.node.id)
+        )?.node;
+        setSelectedNode(primaryNode ?? null);
+      }
+      selectionStartRef.current = null;
+      setSelectionBox(null);
       event.currentTarget.releasePointerCapture?.(event.pointerId);
+      return;
+    }
+
+    const gesture = panStartRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+
+    if (gesture.button === 2 && gesture.moved) {
+      suppressContextMenuRef.current = true;
+      if (contextMenuResetTimerRef.current) {
+        window.clearTimeout(contextMenuResetTimerRef.current);
+      }
+      contextMenuResetTimerRef.current = window.setTimeout(() => {
+        suppressContextMenuRef.current = false;
+        contextMenuResetTimerRef.current = null;
+      }, 250);
+    }
+
+    panStartRef.current = null;
+    setIsPanning(false);
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  };
+
+  const handleCanvasContextMenu = (
+    event: React.MouseEvent<SVGSVGElement>
+  ) => {
+    if (suppressContextMenuRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      suppressContextMenuRef.current = false;
+      if (contextMenuResetTimerRef.current) {
+        window.clearTimeout(contextMenuResetTimerRef.current);
+        contextMenuResetTimerRef.current = null;
+      }
     }
   };
 
@@ -666,7 +928,7 @@ export default function MindMap({ id }: MindMapProps) {
       aria-label="Mind map editor"
       onKeyDown={handleKeyDown}
       onPaste={(event) => {
-        if (editingNodeId) return;
+        if (editingNodeId || isTextEntryTarget(event.target)) return;
         const text = event.clipboardData.getData("text/plain");
         if (pasteContent(text)) event.preventDefault();
       }}
@@ -676,7 +938,29 @@ export default function MindMap({ id }: MindMapProps) {
       }}
     >
       <div className="mindmap-commandbar" aria-label="Mind map actions">
-        {currentSelectedNode ? (
+        <div className="mindmap-mode-switch" role="group" aria-label="Editor mode">
+          <button
+            type="button"
+            aria-label="Mind map mode"
+            aria-pressed={editorMode === "map"}
+            className={editorMode === "map" ? "is-active" : undefined}
+            onClick={() => switchEditorMode("map")}
+          >
+            Mind map
+          </button>
+          <button
+            type="button"
+            aria-label="Markdown mode"
+            aria-pressed={editorMode === "markdown"}
+            className={editorMode === "markdown" ? "is-active" : undefined}
+            disabled={!root}
+            onClick={() => switchEditorMode("markdown")}
+          >
+            Markdown
+          </button>
+        </div>
+        <span className="mindmap-commandbar-divider" aria-hidden="true" />
+        {editorMode === "map" ? (currentSelectedNode ? (
           <>
             <span className="mindmap-commandbar-topic" title={currentSelectedNode.topic}>
               {currentSelectedNode.topic}
@@ -748,28 +1032,67 @@ export default function MindMap({ id }: MindMapProps) {
           </>
         ) : (
           <span className="mindmap-commandbar-hint">Select a node to show quick actions</span>
+        )) : (
+          <span
+            className={`mindmap-markdown-status${markdownError ? " is-error" : ""}`}
+            role="status"
+          >
+            {markdownError ?? "Changes sync automatically"}
+          </span>
         )}
-        <button
-          type="button"
-          aria-label="Expand all branches"
-          onClick={() => setAllBranches(false)}
-        >
-          Expand all
-        </button>
-        <button
-          type="button"
-          aria-label="Collapse all branches"
-          onClick={() => setAllBranches(true)}
-        >
-          Collapse all
-        </button>
+        {editorMode === "map" ? (
+          <>
+            <button
+              type="button"
+              aria-label="Expand all branches"
+              onClick={() => setAllBranches(false)}
+            >
+              Expand all
+            </button>
+            <button
+              type="button"
+              aria-label="Collapse all branches"
+              onClick={() => setAllBranches(true)}
+            >
+              Collapse all
+            </button>
+          </>
+        ) : null}
       </div>
       <div className="showcase">
         <div className="block">
-          {layout ? (
+          {editorMode === "markdown" ? (
+            <div className="mindmap-markdown-editor">
+              <textarea
+                autoFocus
+                aria-label="Mind map Markdown"
+                aria-describedby="mindmap-markdown-help"
+                value={markdownDraft}
+                spellCheck={false}
+                onChange={(event) => updateMarkdownDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Tab") return;
+                  event.preventDefault();
+                  const textarea = event.currentTarget;
+                  const start = textarea.selectionStart;
+                  const end = textarea.selectionEnd;
+                  const nextDraft = `${markdownDraft.slice(0, start)}  ${markdownDraft.slice(end)}`;
+                  updateMarkdownDraft(nextDraft);
+                  window.requestAnimationFrame(() => {
+                    textarea.setSelectionRange(start + 2, start + 2);
+                  });
+                }}
+              />
+              <p id="mindmap-markdown-help">
+                Use headings or indented bullets. Tab inserts two spaces.
+              </p>
+            </div>
+          ) : layout ? (
             <svg
               ref={svgRef}
-              className="mindmap-canvas"
+              className={`mindmap-canvas${isPanning ? " is-panning" : ""}${
+                selectionBox ? " is-selecting" : ""
+              }`}
               viewBox={`0 0 ${layout.width} ${layout.height}`}
               preserveAspectRatio="xMidYMid meet"
               role="img"
@@ -785,6 +1108,7 @@ export default function MindMap({ id }: MindMapProps) {
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
+              onContextMenuCapture={handleCanvasContextMenu}
             >
               <rect
                 width="100%"
@@ -816,7 +1140,7 @@ export default function MindMap({ id }: MindMapProps) {
                     dropTarget={dropTargetId === item.node.id}
                     editing={editingNodeId === item.node.id}
                     editingTopic={editingTopic}
-                    onSelect={selectNode}
+                    onSelect={selectNodeFromPointer}
                     onEdit={startEditing}
                     onEditTopic={setEditingTopic}
                     onCommitEdit={finishEditing}
@@ -833,6 +1157,12 @@ export default function MindMap({ id }: MindMapProps) {
                     }}
                   />
                 ))}
+                {selectionBox ? (
+                  <rect
+                    {...selectionRectAttributes(selectionBox)}
+                    className="mindmap-selection-box"
+                  />
+                ) : null}
               </g>
             </svg>
           ) : (
@@ -841,21 +1171,27 @@ export default function MindMap({ id }: MindMapProps) {
             </div>
           )}
         </div>
-        <div className="hidden lg:block">
-          <ShortcutGuide />
-        </div>
-        <div className="hidden lg:block">
-          <Card currentMindmapId={id} removeHyperlink={removeHyperlink} />
-        </div>
+        {editorMode === "map" ? (
+          <>
+            <div className="hidden lg:block">
+              <ShortcutGuide />
+            </div>
+            <div className="hidden lg:block">
+              <Card currentMindmapId={id} removeHyperlink={removeHyperlink} />
+            </div>
+          </>
+        ) : null}
       </div>
 
-      <div className="mindmap-toolbar" aria-label="Map controls">
-        <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => zoomBy(-0.1)}>−</button>
-        <span className="mindmap-zoom-level" aria-live="polite">{Math.round(zoom * 100)}%</span>
-        <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => zoomBy(0.1)}>+</button>
-        <button type="button" title="Center map" aria-label="Center map" onClick={centerMap}>⌾</button>
-        <button type="button" title="Fullscreen" aria-label="Fullscreen" onClick={toggleFullscreen}>⛶</button>
-      </div>
+      {editorMode === "map" ? (
+        <div className="mindmap-toolbar" aria-label="Map controls">
+          <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => zoomBy(-0.1)}>−</button>
+          <span className="mindmap-zoom-level" aria-live="polite">{Math.round(zoom * 100)}%</span>
+          <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => zoomBy(0.1)}>+</button>
+          <button type="button" title="Center map" aria-label="Center map" onClick={centerMap}>⌾</button>
+          <button type="button" title="Fullscreen" aria-label="Fullscreen" onClick={toggleFullscreen}>⛶</button>
+        </div>
+      ) : null}
 
       {contextMenu && (
         <div
@@ -1183,12 +1519,82 @@ function connectorPath(startX: number, startY: number, endX: number, endY: numbe
   return `M ${startX} ${startY} C ${midpoint} ${startY}, ${midpoint} ${endY}, ${endX} ${endY}`;
 }
 
+function clientPointToMap(
+  svg: SVGSVGElement,
+  clientX: number,
+  clientY: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  pan: PanState,
+  zoom: number
+): { x: number; y: number } {
+  const bounds = svg.getBoundingClientRect();
+  if (!bounds.width || !bounds.height) {
+    return {
+      x: (clientX - pan.x) / zoom,
+      y: (clientY - pan.y) / zoom,
+    };
+  }
+
+  const viewScale = Math.min(
+    bounds.width / canvasWidth,
+    bounds.height / canvasHeight
+  );
+  const offsetX = (bounds.width - canvasWidth * viewScale) / 2;
+  const offsetY = (bounds.height - canvasHeight * viewScale) / 2;
+  const canvasX = (clientX - bounds.left - offsetX) / viewScale;
+  const canvasY = (clientY - bounds.top - offsetY) / viewScale;
+
+  return {
+    x: (canvasX - pan.x) / zoom,
+    y: (canvasY - pan.y) / zoom,
+  };
+}
+
+function normalizeSelectionBounds(selection: SelectionBoxState) {
+  return {
+    left: Math.min(selection.startX, selection.currentX),
+    top: Math.min(selection.startY, selection.currentY),
+    right: Math.max(selection.startX, selection.currentX),
+    bottom: Math.max(selection.startY, selection.currentY),
+  };
+}
+
+function nodeIntersectsSelection(
+  item: LayoutNode,
+  bounds: ReturnType<typeof normalizeSelectionBounds>
+): boolean {
+  return (
+    item.x <= bounds.right &&
+    item.x + item.width >= bounds.left &&
+    item.y <= bounds.bottom &&
+    item.y + item.height >= bounds.top
+  );
+}
+
+function selectionRectAttributes(selection: SelectionBoxState) {
+  const bounds = normalizeSelectionBounds(selection);
+  return {
+    x: bounds.left,
+    y: bounds.top,
+    width: bounds.right - bounds.left,
+    height: bounds.bottom - bounds.top,
+  };
+}
+
 function clampZoom(value: number): number {
   return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(value.toFixed(2))));
 }
 
 function openInNewTab(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    Boolean(target.closest('input, textarea, [contenteditable="true"]'))
+  );
 }
 
 function parseClipboardNode(text: string): NodeData | null {
