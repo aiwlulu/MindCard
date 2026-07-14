@@ -75,14 +75,10 @@ export function layoutMindmap(
   const padding = options.padding ?? CANVAS_PADDING;
   const nodes: LayoutNode[] = [];
   const edges: LayoutEdge[] = [];
-  const rootMetrics = measureSubtree(root, nodeMaxWidth, siblingGap, levelGap);
+  const subtreeCache = new Map<NodeData, SubtreeMetrics>();
+  const rootMetrics = cachedMeasureSubtree(root);
   const rootChildren = visibleChildren(root);
-  const childrenHeight = stackHeight(
-    rootChildren,
-    nodeMaxWidth,
-    siblingGap,
-    levelGap
-  );
+  const childrenHeight = stackHeight(rootChildren);
   const contentHeight = Math.max(rootMetrics.height, childrenHeight);
   const canvasHeight = Math.max(contentHeight + padding * 2, 360);
   const canvasWidth = padding * 2 + rootMetrics.subtreeWidth;
@@ -99,6 +95,15 @@ export function layoutMindmap(
     height: canvasHeight,
   };
 
+  function cachedMeasureSubtree(node: NodeData): SubtreeMetrics {
+    let cached = subtreeCache.get(node);
+    if (!cached) {
+      cached = measureSubtree(node, nodeMaxWidth, siblingGap, levelGap, subtreeCache);
+      subtreeCache.set(node, cached);
+    }
+    return cached;
+  }
+
   function assignNode(
     node: NodeData,
     x: number,
@@ -113,10 +118,7 @@ export function layoutMindmap(
       depth === 0
         ? subtreeTop
         : subtreeTop +
-          (measureSubtree(node, nodeMaxWidth, siblingGap, levelGap)
-            .subtreeHeight -
-            metrics.height) /
-            2;
+          (cachedMeasureSubtree(node).subtreeHeight - metrics.height) / 2;
     const connectionY = getConnectionY(node, nodeY, metrics, depth);
     const layoutNode: LayoutNode = {
       node,
@@ -158,7 +160,7 @@ export function layoutMindmap(
 
     let childTop = parent.y + parent.height / 2 - groupHeight / 2;
     for (const [branchIndex, child] of children.entries()) {
-      const metrics = measureSubtree(child, nodeMaxWidth, siblingGap, levelGap);
+      const metrics = cachedMeasureSubtree(child);
       const childX = parent.x + parent.width + levelGap;
       const childLayout = assignNode(
         child,
@@ -178,10 +180,10 @@ export function layoutMindmap(
     const children = visibleChildren(parent.node);
     if (!children.length) return;
 
-    const groupHeight = stackHeight(children, nodeMaxWidth, siblingGap, levelGap);
+    const groupHeight = stackHeight(children);
     let childTop = parent.y + parent.height / 2 - groupHeight / 2;
     for (const child of children) {
-      const metrics = measureSubtree(child, nodeMaxWidth, siblingGap, levelGap);
+      const metrics = cachedMeasureSubtree(child);
       const childX = parent.x + parent.width + levelGap;
       const childLayout = assignNode(
         child,
@@ -195,6 +197,17 @@ export function layoutMindmap(
       assignDescendants(childLayout, branchIndex);
       childTop += metrics.subtreeHeight + siblingGap;
     }
+  }
+
+  function stackHeight(nodes: NodeData[]): number {
+    if (!nodes.length) return 0;
+    return (
+      nodes.reduce(
+        (total, node) => total + cachedMeasureSubtree(node).subtreeHeight,
+        0
+      ) +
+      siblingGap * (nodes.length - 1)
+    );
   }
 }
 
@@ -230,46 +243,33 @@ function measureSubtree(
   node: NodeData,
   nodeMaxWidth: number,
   siblingGap: number,
-  levelGap: number
+  levelGap: number,
+  cache?: Map<NodeData, SubtreeMetrics>
 ): SubtreeMetrics {
+  if (cache?.has(node)) return cache.get(node)!;
   const metrics = measureNode(node, nodeMaxWidth);
   const children = visibleChildren(node);
+  let result: SubtreeMetrics;
   if (!children.length) {
-    return { ...metrics, subtreeWidth: metrics.width, subtreeHeight: metrics.height };
+    result = { ...metrics, subtreeWidth: metrics.width, subtreeHeight: metrics.height };
+  } else {
+    const childrenMetrics = children.map((child) =>
+      measureSubtree(child, nodeMaxWidth, siblingGap, levelGap, cache)
+    );
+    const childrenHeight =
+      childrenMetrics.reduce((total, child) => total + child.subtreeHeight, 0) +
+      siblingGap * (children.length - 1);
+    const childrenWidth = Math.max(
+      ...childrenMetrics.map((child) => child.subtreeWidth)
+    );
+    result = {
+      ...metrics,
+      subtreeWidth: metrics.width + levelGap + childrenWidth,
+      subtreeHeight: Math.max(metrics.height, childrenHeight),
+    };
   }
-
-  const childrenMetrics = children.map((child) =>
-    measureSubtree(child, nodeMaxWidth, siblingGap, levelGap)
-  );
-  const childrenHeight =
-    childrenMetrics.reduce((total, child) => total + child.subtreeHeight, 0) +
-    siblingGap * (children.length - 1);
-  const childrenWidth = Math.max(
-    ...childrenMetrics.map((child) => child.subtreeWidth)
-  );
-
-  return {
-    ...metrics,
-    subtreeWidth: metrics.width + levelGap + childrenWidth,
-    subtreeHeight: Math.max(metrics.height, childrenHeight),
-  };
-}
-
-function stackHeight(
-  nodes: NodeData[],
-  nodeMaxWidth: number,
-  siblingGap: number,
-  levelGap: number
-): number {
-  if (!nodes.length) return 0;
-  return (
-    nodes.reduce(
-      (total, node) =>
-        total + measureSubtree(node, nodeMaxWidth, siblingGap, levelGap).subtreeHeight,
-      0
-    ) +
-    siblingGap * (nodes.length - 1)
-  );
+  cache?.set(node, result);
+  return result;
 }
 
 function measureNode(node: NodeData, nodeMaxWidth: number): NodeMetrics {
