@@ -8,6 +8,7 @@ import { MindmapContext } from "@/lib/store/mindmap-context";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { LogoutIcon } from "./Icons";
+import type { MindmapExportFormat } from "@/lib/types";
 
 const MindmapActions = dynamic(() => import("./MindmapActions"), {
   ssr: false,
@@ -33,7 +34,7 @@ function Nav() {
     }
   };
 
-  const handleExport = (format: string) => {
+  const handleExport = (format: MindmapExportFormat) => {
     void exportMindMap(format);
   };
 

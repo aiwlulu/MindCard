@@ -4,11 +4,12 @@ import React from "react";
 import { Menu, MenuButton, MenuItems, MenuItem } from "@headlessui/react";
 import { DownloadIcon, FolderIcon, SaveIcon } from "./Icons";
 import debounce from "@/lib/utils/debounce";
+import type { MindmapExportFormat } from "@/lib/types";
 
 interface MindmapActionsProps {
   onSave: () => void;
   onNavigateToMindmap: () => void;
-  onExport: (format: string) => void;
+  onExport: (format: MindmapExportFormat) => void;
 }
 
 export default function MindmapActions({
