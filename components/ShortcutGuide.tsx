@@ -4,35 +4,28 @@ const ShortcutGuide: React.FC = () => {
   const [showGuide, setShowGuide] = useState(false);
 
   return (
-    <div className="fixed bottom-6 left-5">
+    <div className="mindmap-shortcut-guide">
       <button
         onClick={() => setShowGuide((prev) => !prev)}
-        className="text-white transition duration-150 ease-in-out font-semi py-2 px-4 rounded"
-        style={{ backgroundColor: "rgb(45, 55, 72)" }}
+        className="mindmap-floating-trigger"
+        aria-expanded={showGuide}
       >
-        {showGuide ? "Hide Shortcuts" : "Show Shortcuts"}
+        {showGuide ? "關閉快捷鍵" : "快捷鍵"}
       </button>
       {showGuide && (
-        <div className="mt-4 p-4 bg-gray-800 text-white rounded-lg shadow-xl">
-          <ul className="list-disc list-inside space-y-2">
-            <li className="font-normal">Enter - Insert Sibling Node</li>
-            <li className="font-normal">Tab - Insert Child Node</li>
-            <li className="font-normal">Del - Delete Selected Node</li>
-            <li className="font-normal">PageUp / Alt + ↑ - Move Up Node</li>
-            <li className="font-normal">PageDown / Alt + ↓ - Move Down Node</li>
-            <li className="font-normal">Ctrl + Z - Undo</li>
-            <li className="font-normal">Ctrl + S - Save Mind Map</li>
-            <li className="font-normal">Ctrl + C - Copy Selected Node</li>
-            <li className="font-normal">Ctrl + V - Paste the Copied Node</li>
-            <p className="font-normal text-red-300">
-              Please avoid copying and pasting the root node (it can&apos;t be
-              deleted).
-            </p>
-            <li className="font-normal">Ctrl + &quot;+&quot; - Zoom In Mind Map</li>
-            <li className="font-normal">Ctrl + &quot;-&quot; - Zoom Out Mind Map</li>
-            <li className="font-normal">Ctrl + 0 - Reset Zoom Level</li>
-            <li className="font-normal">F1 - Center the Map</li>
-            <li className="font-normal">F2 - Edit Selected Node</li>
+        <div className="mindmap-shortcut-popover">
+          <ul>
+            <li><kbd>Enter</kbd><span>新增同層節點</span></li>
+            <li><kbd>Tab</kbd><span>新增子節點</span></li>
+            <li><kbd>F2</kbd><span>編輯節點</span></li>
+            <li><kbd>Space</kbd><span>摺疊／展開分支</span></li>
+            <li><kbd>Delete</kbd><span>刪除節點</span></li>
+            <li><kbd>Alt ↑ / ↓</kbd><span>移動同層順序</span></li>
+            <li><kbd>⌘ / Ctrl Z</kbd><span>復原</span></li>
+            <li><kbd>⌘ / Ctrl S</kbd><span>儲存</span></li>
+            <li><kbd>⌘ / Ctrl C / V</kbd><span>複製／貼上節點</span></li>
+            <li><kbd>⌘ / Ctrl + / −</kbd><span>縮放</span></li>
+            <li><kbd>⌘ / Ctrl 0</kbd><span>回到中心</span></li>
           </ul>
         </div>
       )}

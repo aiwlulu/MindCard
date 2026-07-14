@@ -44,11 +44,9 @@ describe("Card", () => {
       );
     });
 
-    fireEvent.click(screen.getByText("Card"));
+    fireEvent.click(screen.getByRole("button", { name: "Cards" }));
     expect(
-      screen.getByText(
-        "This area will display your mind maps but does not include the current file."
-      )
+      screen.getByText("目前沒有其他可連結的心智圖。")
     ).toBeInTheDocument();
   });
 });

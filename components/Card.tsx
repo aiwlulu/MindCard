@@ -59,68 +59,56 @@ const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
   };
 
   return (
-    <div className="fixed right-0 top-24">
-      <div style={{ display: "flex", flexDirection: "column" }}>
-        <div className="mb-2">
+    <div className="mindmap-card-panel">
+      <div className="mindmap-card-panel-inner">
+        <div>
           <button
-            className="text-white px-4 py-2 bg-gray-700 rounded-md"
+            className="mindmap-floating-trigger"
             onClick={() => setIsOpen((prev) => !prev)}
+            aria-expanded={isOpen}
           >
-            {isOpen ? "Close" : "Card"}
+            {isOpen ? "關閉 Cards" : "Cards"}
           </button>
         </div>
 
         {isOpen && (
-          <div className="flex flex-col items-start">
-            <div className="mb-2 flex items-center">
+          <div className="mindmap-card-popover">
+            <div className="mindmap-card-actions">
               <button
-                className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all duration-200 hover:scale-105"
+                className="mindmap-card-remove"
                 onClick={handleRemoveHyperlinkClick}
               >
-                Remove Hyperlink
+                移除連結
               </button>
-              <InfoIcon
+              <button
+                type="button"
+                className="mindmap-card-info"
+                aria-label="Card instructions"
                 onClick={() => setShowInstruction((prev) => !prev)}
-                className="text-white ml-4 cursor-pointer"
-                size={24}
-              />
+              >
+                <InfoIcon size={18} />
+              </button>
             </div>
 
             {showInstruction && (
-              <div className="p-4 mb-2 text-white bg-blue-500 bg-opacity-60 rounded">
-                <div className="space-y-2">
-                  <p>
-                    The card feature allows you to associate nodes from other
-                    mind maps with the current document.
-                  </p>
-                  <p>
-                    Create or Update Hyperlink: Select a node then drag &amp;
-                    drop a card.
-                  </p>
-                  <p>
-                    Remove Hyperlink: Select the node and click &quot;Remove
-                    Hyperlink&quot; button.
-                  </p>
+              <div className="mindmap-card-instructions">
+                <div>
+                  <p>先選取節點，再將下方 Card 拖曳到畫布即可建立連結。</p>
+                  <p>建立後可直接點節點下方的 Card link 開啟另一張心智圖。</p>
                   <button
                     onClick={() => setShowInstruction(false)}
-                    className="mt-2 py-1 px-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg hover:scale-105"
+                    className="mindmap-card-got-it"
                   >
-                    Got it
+                    知道了
                   </button>
                 </div>
               </div>
             )}
 
-            <div
-              className="w-80 p-4 overflow-auto bg-gray-800 rounded-md shadow-lg"
-              style={{ maxHeight: "calc(100vh - 12rem)" }}
-            >
+            <div className="mindmap-card-list">
               {mindmaps.length === 0 ? (
-                <div className="text-white text-center p-4">
-                  <p>
-                    This area will display your mind maps but does not include
-                    the current file.
-                  </p>
+                <div className="mindmap-card-empty">
+                  <p>目前沒有其他可連結的心智圖。</p>
                 </div>
               ) : (
                 mindmaps.map((map) => (
@@ -128,9 +116,9 @@ const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
                     key={map.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, map)}
-                    className="mb-2 p-3 bg-gray-700 rounded shadow cursor-pointer"
+                    className="mindmap-card-item"
                   >
-                    <h3 className="text-white text-lg truncate">{map.title}</h3>
+                    <h3>{map.title}</h3>
                   </div>
                 ))
               )}

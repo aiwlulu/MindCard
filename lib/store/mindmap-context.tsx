@@ -102,7 +102,12 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
             data: mindmapData,
             updatedAt: serverTimestamp(),
           });
-          if (!silent) toast("Saved successfully!", { autoClose: 1000 });
+          if (!silent) {
+            toast("Saved successfully!", {
+              autoClose: 1000,
+              toastId: "mindmap-save-success",
+            });
+          }
         } else {
           const docRef = await addDoc(collection(db, "mindmaps"), {
             data: mindmapData,
@@ -110,7 +115,11 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
             createdAt: serverTimestamp(),
           });
           setCurrentMindmapId(docRef.id);
-          if (!silent) toast("Mind map created successfully");
+          if (!silent) {
+            toast("Mind map created successfully", {
+              toastId: "mindmap-save-success",
+            });
+          }
         }
         setIsDirty(false);
       } catch {

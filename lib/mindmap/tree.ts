@@ -188,6 +188,7 @@ function normalizeNode(raw: Record<string, unknown>, isRoot: boolean): NodeData 
   if (typeof raw.hyperLink === "string" && raw.hyperLink) {
     node.hyperLink = raw.hyperLink;
   }
+  if (raw.collapsed === true) node.collapsed = true;
   if (children.length) node.children = children;
 
   return node;

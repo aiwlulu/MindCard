@@ -8,6 +8,7 @@ export interface NodeData {
   topic: string;
   root?: boolean;
   hyperLink?: string;
+  collapsed?: boolean;
   children?: NodeData[];
 }
 

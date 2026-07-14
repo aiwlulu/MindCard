@@ -36,6 +36,18 @@ describe("mind map tree operations", () => {
     });
   });
 
+  it("preserves collapsed branch state while normalizing stored data", () => {
+    const data = normalizeMindmapData({
+      nodeData: {
+        id: "root",
+        topic: "Root",
+        children: [{ id: "branch", topic: "Branch", collapsed: true }],
+      },
+    });
+
+    expect(data.nodeData.children?.[0].collapsed).toBe(true);
+  });
+
   it("creates a node with a generated id and empty children omitted", () => {
     const node = createNode("New Topic");
 

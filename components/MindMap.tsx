@@ -7,17 +7,21 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import Card from "./Card";
 import ShortcutGuide from "./ShortcutGuide";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import {
   layoutMindmap,
+  NODE_LINE_HEIGHT,
+  NODE_LINK_HEIGHT,
   type LayoutNode,
 } from "@/lib/mindmap/layout";
 import {
   cloneNodeWithNewIds,
   createNode,
+  findNode,
   insertChild,
   insertSibling,
   moveNode,
@@ -48,9 +52,12 @@ const MAX_ZOOM = 2.5;
 
 export default function MindMap({ id }: MindMapProps) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const panStartRef = useRef<{ pointerX: number; pointerY: number; pan: PanState } | null>(null);
   const clipboardRef = useRef<NodeData | null>(null);
+  const router = useRouter();
   const {
+    exportMindMap,
     mindmapData,
     loadMindmap,
     saveMindmap,
@@ -69,12 +76,28 @@ export default function MindMap({ id }: MindMapProps) {
 
   const root = mindmapData?.root ?? mindmapData?.nodeData ?? null;
   const layout = useMemo(() => (root ? layoutMindmap(root) : null), [root]);
+  const currentSelectedNode = useMemo(
+    () =>
+      selectedNode && root
+        ? findNode(root, selectedNode.id) ?? selectedNode
+        : selectedNode,
+    [root, selectedNode]
+  );
+  const contextMenuNode = useMemo(
+    () =>
+      contextMenu && root ? findNode(root, contextMenu.nodeId) : null,
+    [contextMenu, root]
+  );
 
   useEffect(() => {
     if (id) void loadMindmap(id);
     setPan({ x: 0, y: 0 });
     setHistory([]);
   }, [id, loadMindmap]);
+
+  useEffect(() => {
+    editorRef.current?.focus({ preventScroll: true });
+  }, [id]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -96,9 +119,14 @@ export default function MindMap({ id }: MindMapProps) {
       if (nextRoot === mindmapData.nodeData) return;
 
       setHistory((previous) => [...previous.slice(-39), mindmapData]);
-      updateMindmapData((current) =>
-        current ? { ...current, nodeData: updater(current.nodeData) } : current
-      );
+      updateMindmapData((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          nodeData:
+            current === mindmapData ? nextRoot : updater(current.nodeData),
+        };
+      });
     },
     [mindmapData, updateMindmapData]
   );
@@ -124,7 +152,7 @@ export default function MindMap({ id }: MindMapProps) {
   const finishEditing = useCallback(() => {
     if (!editingNodeId) return;
     const nextTopic = editingTopic.trim();
-    const node = root ? findLayoutNode(layout?.nodes, editingNodeId)?.node : null;
+    const node = root ? findNode(root, editingNodeId) : null;
 
     if (node && nextTopic && nextTopic !== node.topic) {
       commitData((tree) =>
@@ -137,16 +165,23 @@ export default function MindMap({ id }: MindMapProps) {
 
     setEditingNodeId(null);
     setEditingTopic("");
-  }, [commitData, editingNodeId, editingTopic, layout?.nodes, root]);
+  }, [commitData, editingNodeId, editingTopic, root]);
 
   const addNode = useCallback(
     (kind: "child" | "sibling", nodeId: string) => {
       const newNode = createNode();
-      commitData((tree) =>
-        kind === "child"
-          ? insertChild(tree, nodeId, newNode)
-          : insertSibling(tree, nodeId, newNode)
-      );
+      commitData((tree) => {
+        const expandedTree =
+          kind === "child"
+            ? updateNode(tree, nodeId, (node) => ({
+                ...node,
+                collapsed: false,
+              }))
+            : tree;
+        return kind === "child"
+          ? insertChild(expandedTree, nodeId, newNode)
+          : insertSibling(expandedTree, nodeId, newNode);
+      });
       setSelectedNode(newNode);
       setEditingNodeId(newNode.id);
       setEditingTopic(newNode.topic);
@@ -157,7 +192,7 @@ export default function MindMap({ id }: MindMapProps) {
 
   const deleteNode = useCallback(
     (nodeId: string) => {
-      const node = root ? findLayoutNode(layout?.nodes, nodeId)?.node : null;
+      const node = root ? findNode(root, nodeId) : null;
       if (node?.root) {
         toast.error("The root node cannot be deleted.", { autoClose: 1500 });
         return;
@@ -167,7 +202,23 @@ export default function MindMap({ id }: MindMapProps) {
       setSelectedNode(null);
       setContextMenu(null);
     },
-    [commitData, layout?.nodes, root, setSelectedNode]
+    [commitData, root, setSelectedNode]
+  );
+
+  const toggleBranch = useCallback(
+    (nodeId: string) => {
+      const node = root ? findNode(root, nodeId) : null;
+      if (!node?.children?.length) return;
+
+      commitData((tree) =>
+        updateNode(tree, nodeId, (current) => ({
+          ...current,
+          collapsed: !current.collapsed,
+        }))
+      );
+      setContextMenu(null);
+    },
+    [commitData, root]
   );
 
   const undo = useCallback(() => {
@@ -179,7 +230,7 @@ export default function MindMap({ id }: MindMapProps) {
   }, [history, setSelectedNode, updateMindmapData]);
 
   const pasteNode = useCallback(async () => {
-    if (!selectedNode) return;
+    if (!currentSelectedNode) return;
 
     let source = clipboardRef.current;
     if (!source && typeof navigator !== "undefined" && navigator.clipboard) {
@@ -193,14 +244,39 @@ export default function MindMap({ id }: MindMapProps) {
     if (!source) return;
 
     const pasted = cloneNodeWithNewIds(source);
-    commitData((tree) => insertSibling(tree, selectedNode.id, pasted));
+    commitData((tree) => insertSibling(tree, currentSelectedNode.id, pasted));
     setSelectedNode(pasted);
-  }, [commitData, selectedNode, setSelectedNode]);
+  }, [commitData, currentSelectedNode, setSelectedNode]);
 
   const centerMap = useCallback(() => {
     setPan({ x: 0, y: 0 });
     setZoom(1);
   }, []);
+
+  const zoomBy = useCallback(
+    (delta: number, clientPoint?: { x: number; y: number }) => {
+      const nextZoom = clampZoom(zoom + delta);
+      if (nextZoom === zoom) return;
+
+      const svg = svgRef.current;
+      if (clientPoint && svg && layout) {
+        const bounds = svg.getBoundingClientRect();
+        if (bounds.width && bounds.height) {
+          const pointX =
+            ((clientPoint.x - bounds.left) / bounds.width) * layout.width;
+          const pointY =
+            ((clientPoint.y - bounds.top) / bounds.height) * layout.height;
+          setPan((current) => ({
+            x: current.x + (zoom - nextZoom) * pointX,
+            y: current.y + (zoom - nextZoom) * pointY,
+          }));
+        }
+      }
+
+      setZoom(nextZoom);
+    },
+    [layout, zoom]
+  );
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -208,7 +284,7 @@ export default function MindMap({ id }: MindMapProps) {
       const target = event.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
 
-      const selectedId = selectedNode?.id;
+      const selectedId = currentSelectedNode?.id;
       const commandKey = event.ctrlKey || event.metaKey;
       const key = event.key.toLowerCase();
 
@@ -222,10 +298,10 @@ export default function MindMap({ id }: MindMapProps) {
         undo();
         return;
       }
-      if (commandKey && key === "c" && selectedNode && !selectedNode.root) {
+      if (commandKey && key === "c" && currentSelectedNode && !currentSelectedNode.root) {
         event.preventDefault();
-        clipboardRef.current = selectedNode;
-        void navigator.clipboard?.writeText(JSON.stringify(selectedNode));
+        clipboardRef.current = currentSelectedNode;
+        void navigator.clipboard?.writeText(JSON.stringify(currentSelectedNode));
         return;
       }
       if (commandKey && key === "v") {
@@ -235,12 +311,12 @@ export default function MindMap({ id }: MindMapProps) {
       }
       if (commandKey && (event.key === "+" || event.key === "=")) {
         event.preventDefault();
-        setZoom((value) => clampZoom(value + 0.1));
+        zoomBy(0.1);
         return;
       }
       if (commandKey && event.key === "-") {
         event.preventDefault();
-        setZoom((value) => clampZoom(value - 0.1));
+        zoomBy(-0.1);
         return;
       }
       if (commandKey && event.key === "0") {
@@ -253,16 +329,66 @@ export default function MindMap({ id }: MindMapProps) {
         centerMap();
         return;
       }
-      if (event.key === "F2" && selectedNode) {
+      if (event.key === "F2" && currentSelectedNode) {
         event.preventDefault();
-        startEditing(selectedNode);
+        startEditing(currentSelectedNode);
         return;
       }
       if (!selectedId) return;
 
+      if (
+        !event.altKey &&
+        (event.key === "ArrowLeft" ||
+          event.key === "ArrowRight" ||
+          event.key === "ArrowUp" ||
+          event.key === "ArrowDown")
+      ) {
+        const currentLayout = findLayoutNode(layout?.nodes, selectedId);
+        let targetNode: NodeData | null = null;
+
+        if (event.key === "ArrowRight") {
+          targetNode =
+            currentLayout?.side === "center"
+              ? layout?.nodes.find(
+                  (item) => item.depth === 1 && item.side === "right"
+                )?.node ?? null
+              : currentLayout?.side === "left"
+              ? findParentNode(root, selectedId)
+              : currentSelectedNode?.collapsed
+                ? null
+                : currentSelectedNode?.children?.[0] ?? null;
+        } else if (event.key === "ArrowLeft") {
+          targetNode =
+            currentLayout?.side === "center"
+              ? layout?.nodes.find(
+                  (item) => item.depth === 1 && item.side === "left"
+                )?.node ?? null
+              : currentLayout?.side === "right"
+              ? findParentNode(root, selectedId)
+              : currentSelectedNode?.collapsed
+                ? null
+                : currentSelectedNode?.children?.[0] ?? null;
+        } else if (layout?.nodes.length) {
+          const orderedNodes = [...layout.nodes].sort(
+            (first, second) => first.y - second.y || first.x - second.x
+          );
+          const currentIndex = orderedNodes.findIndex(
+            (item) => item.node.id === selectedId
+          );
+          const offset = event.key === "ArrowUp" ? -1 : 1;
+          targetNode = orderedNodes[currentIndex + offset]?.node ?? null;
+        }
+
+        if (targetNode) {
+          event.preventDefault();
+          selectNode(targetNode);
+          return;
+        }
+      }
+
       if (event.key === "Enter") {
         event.preventDefault();
-        addNode("sibling", selectedId);
+        addNode(currentSelectedNode?.root ? "child" : "sibling", selectedId);
       } else if (event.key === "Tab") {
         event.preventDefault();
         addNode("child", selectedId);
@@ -275,6 +401,9 @@ export default function MindMap({ id }: MindMapProps) {
       } else if (event.key === "PageDown" || (event.altKey && event.key === "ArrowDown")) {
         event.preventDefault();
         commitData((tree) => moveNode(tree, selectedId, "down"));
+      } else if (event.key === " " && currentSelectedNode?.children?.length) {
+        event.preventDefault();
+        toggleBranch(selectedId);
       }
     },
     [
@@ -284,10 +413,15 @@ export default function MindMap({ id }: MindMapProps) {
       deleteNode,
       editingNodeId,
       pasteNode,
+      layout,
+      root,
       saveMindmap,
-      selectedNode,
+      selectNode,
+      currentSelectedNode,
       startEditing,
+      toggleBranch,
       undo,
+      zoomBy,
     ]
   );
 
@@ -312,7 +446,14 @@ export default function MindMap({ id }: MindMapProps) {
   );
 
   const handlePointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
-    if (event.target !== event.currentTarget) return;
+    const target = event.target as SVGElement;
+    if (
+      event.target !== event.currentTarget &&
+      target.dataset.canvasBackground !== "true"
+    ) {
+      return;
+    }
+    editorRef.current?.focus({ preventScroll: true });
     panStartRef.current = {
       pointerX: event.clientX,
       pointerY: event.clientY,
@@ -324,9 +465,12 @@ export default function MindMap({ id }: MindMapProps) {
   const handlePointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
     if (!panStartRef.current) return;
     const start = panStartRef.current;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const scaleX = layout && bounds.width ? layout.width / bounds.width : 1;
+    const scaleY = layout && bounds.height ? layout.height / bounds.height : 1;
     setPan({
-      x: start.pan.x + event.clientX - start.pointerX,
-      y: start.pan.y + event.clientY - start.pointerY,
+      x: start.pan.x + (event.clientX - start.pointerX) * scaleX,
+      y: start.pan.y + (event.clientY - start.pointerY) * scaleY,
     });
   };
 
@@ -352,17 +496,24 @@ export default function MindMap({ id }: MindMapProps) {
   };
 
   const removeHyperlink = () => {
-    if (selectedNode) {
-      void updateNodeHyperlink(selectedNode.id, "");
+    if (currentSelectedNode) {
+      void updateNodeHyperlink(currentSelectedNode.id, "");
     } else {
       toast.error("Please select a node first", { autoClose: 1500 });
     }
   };
 
+  const openLinkedMindMap = useCallback(
+    (mindmapId: string) => {
+      router.push(`/mindmap/${mindmapId}`);
+    },
+    [router]
+  );
+
   return (
     <div
       ref={editorRef}
-      className="relative bg-gray-900 text-gray-200 mindmap-editor"
+      className="mindmap-editor"
       tabIndex={0}
       role="application"
       aria-label="Mind map editor"
@@ -373,45 +524,103 @@ export default function MindMap({ id }: MindMapProps) {
       }}
     >
       {showBanner && <GuideBanner onClose={handleCloseBanner} />}
+      <div className="mindmap-commandbar" aria-label="Mind map actions">
+        {currentSelectedNode ? (
+          <>
+            <span className="mindmap-commandbar-topic" title={currentSelectedNode.topic}>
+              {currentSelectedNode.topic}
+            </span>
+            <span className="mindmap-commandbar-divider" aria-hidden="true" />
+            <button type="button" onClick={() => addNode("child", currentSelectedNode.id)}>
+              ＋ 子節點 <kbd>Tab</kbd>
+            </button>
+            {!currentSelectedNode.root && (
+              <button type="button" onClick={() => addNode("sibling", currentSelectedNode.id)}>
+                ＋ 同層 <kbd>Enter</kbd>
+              </button>
+            )}
+            <button type="button" onClick={() => startEditing(currentSelectedNode)}>
+              編輯 <kbd>F2</kbd>
+            </button>
+            {currentSelectedNode.children?.length ? (
+              <button
+                type="button"
+                aria-label={currentSelectedNode.collapsed ? "Expand branch" : "Collapse branch"}
+                onClick={() => toggleBranch(currentSelectedNode.id)}
+              >
+                {currentSelectedNode.collapsed ? "展開分支" : "摺疊分支"} <kbd>Space</kbd>
+              </button>
+            ) : null}
+          </>
+        ) : (
+          <span className="mindmap-commandbar-hint">選取節點以顯示快速操作</span>
+        )}
+        <span className="mindmap-commandbar-spacer" />
+        <button
+          type="button"
+          aria-label="Export image"
+          onClick={() => void exportMindMap("svg")}
+        >
+          匯出 SVG
+        </button>
+        <button
+          type="button"
+          aria-label="Export Markdown"
+          onClick={() => void exportMindMap("markdown")}
+        >
+          匯出 MD
+        </button>
+      </div>
       <div className="showcase">
         <div className="block">
           {layout ? (
             <svg
+              ref={svgRef}
               className="mindmap-canvas"
               viewBox={`0 0 ${layout.width} ${layout.height}`}
+              preserveAspectRatio="xMidYMid meet"
               role="img"
               aria-label="Mind map"
               onWheel={(event) => {
                 event.preventDefault();
-                setZoom((value) => clampZoom(value + (event.deltaY < 0 ? 0.08 : -0.08)));
+                zoomBy(event.deltaY < 0 ? 0.08 : -0.08, {
+                  x: event.clientX,
+                  y: event.clientY,
+                });
               }}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
             >
-              <rect width="100%" height="100%" fill="#111827" />
+              <rect
+                width="100%"
+                height="100%"
+                className="mindmap-canvas-background"
+                data-canvas-background="true"
+              />
               <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
                 {layout.edges.map((edge) => (
                   <path
                     key={`${edge.parentId}-${edge.childId}`}
                     d={connectorPath(edge.startX, edge.startY, edge.endX, edge.endY)}
                     fill="none"
-                    stroke="#64748b"
-                    strokeWidth="2"
+                    className={`mindmap-edge mindmap-edge-${edge.side}`}
                   />
                 ))}
                 {layout.nodes.map((item) => (
                   <MindMapNode
                     key={item.node.id}
                     item={item}
-                    selected={selectedNode?.id === item.node.id}
+                    selected={currentSelectedNode?.id === item.node.id}
                     editing={editingNodeId === item.node.id}
                     editingTopic={editingTopic}
                     onSelect={selectNode}
                     onEdit={startEditing}
                     onEditTopic={setEditingTopic}
                     onCommitEdit={finishEditing}
+                    onOpenLink={openLinkedMindMap}
+                    onToggleBranch={toggleBranch}
                     onContextMenu={(event, node) => {
                       event.preventDefault();
                       selectNode(node);
@@ -436,9 +645,10 @@ export default function MindMap({ id }: MindMapProps) {
       </div>
 
       <div className="mindmap-toolbar" aria-label="Map controls">
-        <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => setZoom((value) => clampZoom(value - 0.1))}>−</button>
-        <button type="button" title="Reset zoom" aria-label="Reset zoom" onClick={centerMap}>100%</button>
-        <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => setZoom((value) => clampZoom(value + 0.1))}>+</button>
+        <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => zoomBy(-0.1)}>−</button>
+        <span className="mindmap-zoom-level" aria-live="polite">{Math.round(zoom * 100)}%</span>
+        <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => zoomBy(0.1)}>+</button>
+        <button type="button" title="Center map" aria-label="Center map" onClick={centerMap}>⌾</button>
         <button type="button" title="Fullscreen" aria-label="Fullscreen" onClick={toggleFullscreen}>⛶</button>
       </div>
 
@@ -450,17 +660,30 @@ export default function MindMap({ id }: MindMapProps) {
           onMouseDown={(event) => event.stopPropagation()}
         >
           <button role="menuitem" onClick={() => addNode("child", contextMenu.nodeId)}>Add child</button>
-          <button role="menuitem" onClick={() => addNode("sibling", contextMenu.nodeId)}>Add sibling</button>
+          {!contextMenuNode?.root ? (
+            <button role="menuitem" onClick={() => addNode("sibling", contextMenu.nodeId)}>Add sibling</button>
+          ) : null}
           <button
             role="menuitem"
             onClick={() => {
-              const node = findLayoutNode(layout?.nodes, contextMenu.nodeId)?.node;
-              if (node) startEditing(node);
+              if (contextMenuNode) startEditing(contextMenuNode);
             }}
           >
             Rename
           </button>
-          <button role="menuitem" onClick={() => deleteNode(contextMenu.nodeId)}>Delete</button>
+          {contextMenuNode?.children?.length ? (
+            <button
+              role="menuitem"
+              onClick={() => toggleBranch(contextMenu.nodeId)}
+            >
+              {contextMenuNode.collapsed
+                ? "Expand branch"
+                : "Collapse branch"}
+            </button>
+          ) : null}
+          {!contextMenuNode?.root ? (
+            <button role="menuitem" onClick={() => deleteNode(contextMenu.nodeId)}>Delete</button>
+          ) : null}
         </div>
       )}
     </div>
@@ -476,6 +699,8 @@ interface MindMapNodeProps {
   onEdit: (node: NodeData) => void;
   onEditTopic: (topic: string) => void;
   onCommitEdit: () => void;
+  onOpenLink: (mindmapId: string) => void;
+  onToggleBranch: (nodeId: string) => void;
   onContextMenu: (event: React.MouseEvent<SVGGElement>, node: NodeData) => void;
 }
 
@@ -488,9 +713,22 @@ function MindMapNode({
   onEdit,
   onEditTopic,
   onCommitEdit,
+  onOpenLink,
+  onToggleBranch,
   onContextMenu,
 }: MindMapNodeProps) {
-  const { node, x, y, width, height } = item;
+  const [isComposing, setIsComposing] = useState(false);
+  const { node, x, y, width, height, depth, lines, side } = item;
+  const isRoot = depth === 0;
+  const isFirstLevel = depth === 1;
+  const topicBlockHeight = lines.length * NODE_LINE_HEIGHT;
+  const linkHeight = node.hyperLink ? NODE_LINK_HEIGHT : 0;
+  const contentTop = Math.max(0, (height - topicBlockHeight - linkHeight) / 2);
+  const firstBaseline = contentTop + 16;
+  const textX = isRoot ? width / 2 : side === "left" ? width - 8 : 8;
+  const textAnchor = isRoot ? "middle" : side === "left" ? "end" : "start";
+  const underlineY = contentTop + topicBlockHeight + 1;
+  const collapseX = side === "left" ? -12 : width + 12;
 
   return (
     <g
@@ -510,40 +748,124 @@ function MindMapNode({
       }}
       onContextMenu={(event) => onContextMenu(event, node)}
     >
-      <rect
-        width={width}
-        height={height}
-        rx="12"
-        fill={selected ? "#4145a5" : "#334155"}
-        stroke={selected ? "#bef264" : "#64748b"}
-        strokeWidth={selected ? "3" : "1"}
-      />
+      {isRoot ? (
+        <rect
+          width={width}
+          height={height}
+          rx={Math.min(22, height / 2)}
+          className={`mindmap-root-shape${selected ? " is-selected" : ""}`}
+        />
+      ) : selected ? (
+        <rect
+          x="-5"
+          y="-3"
+          width={width + 10}
+          height={height + 6}
+          rx="8"
+          className="mindmap-node-selection"
+        />
+      ) : null}
       {editing ? (
-        <foreignObject x="8" y="8" width={width - 16} height={height - 16}>
+        <foreignObject x="0" y="0" width={width} height={height}>
           <input
             autoFocus
             value={editingTopic}
             aria-label={`Edit ${node.topic}`}
             className="mindmap-node-input"
+            onFocus={(event) => event.currentTarget.select()}
             onChange={(event) => onEditTopic(event.target.value)}
             onBlur={onCommitEdit}
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={() => setIsComposing(false)}
             onKeyDown={(event) => {
               event.stopPropagation();
-              if (event.key === "Enter") onCommitEdit();
+              if (
+                isComposing ||
+                event.nativeEvent.isComposing ||
+                event.keyCode === 229
+              ) {
+                return;
+              }
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onCommitEdit();
+              }
               if (event.key === "Escape") onCommitEdit();
             }}
           />
         </foreignObject>
       ) : (
         <>
-          <text x="14" y="25" fill="#f8fafc" fontSize="15" fontFamily="system-ui, sans-serif">
-            {node.topic}
+          <text
+            x={textX}
+            y={firstBaseline}
+            textAnchor={textAnchor}
+            className={`mindmap-node-topic${isFirstLevel ? " is-first-level" : ""}`}
+          >
+            {lines.map((line, index) => (
+              <tspan
+                key={`${node.id}-line-${index}`}
+                x={textX}
+                dy={index === 0 ? 0 : NODE_LINE_HEIGHT}
+              >
+                {line}
+              </tspan>
+            ))}
           </text>
+          {!isRoot && !isFirstLevel ? (
+            <line
+              x1="0"
+              x2={width}
+              y1={underlineY}
+              y2={underlineY}
+              className="mindmap-node-underline"
+            />
+          ) : null}
           {node.hyperLink && (
-            <text x="14" y={height - 10} fill="#bef264" fontSize="11" fontFamily="system-ui, sans-serif">
-              ↗ Card link
-            </text>
+            <a
+              href={`/mindmap/${node.hyperLink}`}
+              aria-label="Open linked mind map"
+              className="mindmap-node-link"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onOpenLink(node.hyperLink as string);
+              }}
+            >
+              <text
+                x={textX}
+                y={contentTop + topicBlockHeight + 14}
+                textAnchor={textAnchor}
+              >
+                ↗ 開啟 Card link
+              </text>
+            </a>
           )}
+          {!isRoot && node.children?.length ? (
+            <g
+              role="button"
+              tabIndex={0}
+              aria-label={`${node.collapsed ? "Expand" : "Collapse"} ${node.topic} branch`}
+              className="mindmap-collapse-toggle"
+              transform={`translate(${collapseX} ${height / 2})`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleBranch(node.id);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onToggleBranch(node.id);
+                }
+              }}
+            >
+              <circle r="8" />
+              <text textAnchor="middle" dominantBaseline="central">
+                {node.collapsed ? "+" : "−"}
+              </text>
+            </g>
+          ) : null}
         </>
       )}
     </g>
@@ -552,18 +874,29 @@ function MindMapNode({
 
 function GuideBanner({ onClose }: { onClose: () => void }) {
   return (
-    <div className="absolute top-0 left-0 z-50 flex w-full items-center justify-between bg-blue-900 bg-opacity-30 px-4 py-2 text-sm text-blue-100 md:text-base">
-      <span className="hidden lg:flex">
-        Right-click on a node to interact with it. Double-click on a node to edit its content. Or use the “Show Shortcuts” button for more tips.
+    <div className="mindmap-guide-banner">
+      <span>
+        雙擊編輯，Tab 新增子節點，Enter 新增同層，Space 摺疊分支，右鍵查看更多操作。
       </span>
-      <span className="lg:hidden">Double-click on a node to edit its content.</span>
-      <button type="button" onClick={onClose} className="text-2xl text-blue-100" aria-label="Close guide">×</button>
+      <button type="button" onClick={onClose} aria-label="Close guide">×</button>
     </div>
   );
 }
 
 function findLayoutNode(nodes: LayoutNode[] | undefined, nodeId: string): LayoutNode | null {
   return nodes?.find((item) => item.node.id === nodeId) ?? null;
+}
+
+function findParentNode(root: NodeData | null, nodeId: string): NodeData | null {
+  if (!root?.children?.length) return null;
+  if (root.children.some((child) => child.id === nodeId)) return root;
+
+  for (const child of root.children) {
+    const parent = findParentNode(child, nodeId);
+    if (parent) return parent;
+  }
+
+  return null;
 }
 
 function connectorPath(startX: number, startY: number, endX: number, endY: number): string {

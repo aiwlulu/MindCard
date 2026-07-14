@@ -22,9 +22,28 @@ describe("mind map exports", () => {
 
     expect(svg).toContain("A &lt; Root &gt;");
     expect(svg).toContain("Child &amp; detail");
-    expect(svg).toContain("Card link: map-2");
+    expect(svg).toContain('href="/mindmap/map-2"');
+    expect(svg).toContain("Open linked mind map");
     expect(svg).toContain('role="img"');
     expect(svg).toContain("path");
+  });
+
+  it("exports the visible canvas while keeping collapsed descendants in Markdown", () => {
+    const collapsedRoot: NodeData = {
+      id: "root",
+      topic: "Root",
+      children: [
+        {
+          id: "branch",
+          topic: "Branch",
+          collapsed: true,
+          children: [{ id: "hidden", topic: "Hidden" }],
+        },
+      ],
+    };
+
+    expect(buildMindmapSvg(collapsedRoot)).not.toContain("Hidden");
+    expect(convertToMarkdown(collapsedRoot)).toContain("### Hidden");
   });
 
   it("sanitizes a downloaded filename", () => {
