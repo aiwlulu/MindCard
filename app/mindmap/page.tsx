@@ -26,7 +26,7 @@ const dateFormatter = new Intl.DateTimeFormat("en", {
   minute: "2-digit",
 });
 
-const formatDate = (date: Date): string => dateFormatter.format(date).replace(",", " ·");
+const formatDate = (date: Date): string => dateFormatter.format(date).replace(/,([^,]*)$/, " ·$1");
 
 export default function MindmapPage() {
   const router = useRouter();

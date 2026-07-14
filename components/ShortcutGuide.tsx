@@ -24,9 +24,8 @@ const ShortcutGuide: React.FC = () => {
             <li><kbd>↑ / ↓</kbd><span>Move between siblings</span></li>
             <li><kbd>← / →</kbd><span>Move to parent or first child</span></li>
             <li><kbd>⌘ / Ctrl Z</kbd><span>Undo</span></li>
-            <li><kbd>⌘ / Ctrl S</kbd><span>Save</span></li>
-            <li><kbd>⌘ / Ctrl Z</kbd><span>Undo</span></li>
             <li><kbd>⇧⌘Z / Ctrl Y</kbd><span>Redo</span></li>
+            <li><kbd>⌘ / Ctrl S</kbd><span>Save</span></li>
             <li><kbd>H</kbd><span>Toggle pan mode</span></li>
             <li><kbd>⌘ / Ctrl E</kbd><span>Toggle Markdown mode</span></li>
             <li><kbd>⌘ / Ctrl C / V</kbd><span>Copy or paste topics</span></li>
