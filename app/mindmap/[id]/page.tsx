@@ -1,26 +1,7 @@
 "use client";
-import React, { useEffect, useState, useContext, useCallback, use } from "react";
+import React, { useEffect, useContext, use } from "react";
 import dynamic from "next/dynamic";
 import { MindmapContext } from "@/lib/store/mindmap-context";
-import silenceConsole from "@/lib/utils/silenceConsole";
-
-const options = {
-  blackList: [
-    "ME_version",
-    "layout",
-    "linkDiv",
-    "selectNode",
-    "selectNodes",
-    "addChild",
-    "editTopic",
-    "New Topic",
-    "insertSibling_DOM",
-    "FindEle: Node",
-    "DrawCustomLink",
-  ],
-};
-
-silenceConsole(options);
 
 const DynamicMindmap = dynamic(() => import("@/components/MindMap"), {
   ssr: false,
@@ -32,22 +13,7 @@ interface PageProps {
 
 export default function Page({ params }: PageProps) {
   const { id } = use(params);
-  const { loadMindmap, currentMindmapTitle } = useContext(MindmapContext);
-  const [selectedMindMap, setSelectedMindMap] = useState<string | null>(null);
-
-  const handleMindMapSelect = useCallback(
-    (id: string) => {
-      void loadMindmap(id);
-      setSelectedMindMap(id);
-    },
-    [loadMindmap]
-  );
-
-  useEffect(() => {
-    if (id) {
-      handleMindMapSelect(id);
-    }
-  }, [id, handleMindMapSelect]);
+  const { currentMindmapTitle } = useContext(MindmapContext);
 
   useEffect(() => {
     document.title = currentMindmapTitle
@@ -58,5 +24,5 @@ export default function Page({ params }: PageProps) {
     };
   }, [currentMindmapTitle]);
 
-  return <DynamicMindmap id={selectedMindMap} />;
+  return <DynamicMindmap id={id} />;
 }

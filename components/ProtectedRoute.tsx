@@ -2,7 +2,7 @@
 import React, { useContext, useEffect } from "react";
 import { authContext } from "@/lib/store/auth-context";
 import Authentication from "@/components/Authentication";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Loading from "@/app/loading";
 
 export default function ProtectedRoute({
@@ -12,12 +12,18 @@ export default function ProtectedRoute({
 }) {
   const { user, loading } = useContext(authContext);
   const router = useRouter();
+  const pathname = usePathname();
+  const isPublicRoute = pathname === "/" || pathname.startsWith("/share/");
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!isPublicRoute && !loading && !user) {
       router.push("/");
     }
-  }, [user, loading, router]);
+  }, [isPublicRoute, user, loading, router]);
+
+  if (isPublicRoute) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return <Loading />;

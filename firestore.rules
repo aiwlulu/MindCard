@@ -1,0 +1,31 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /mindmaps/{mindmapId} {
+      allow read: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId;
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+    }
+
+    match /publicMindmaps/{mindmapId} {
+      allow read: if resource.data.isPublic == true;
+      allow create, update, delete: if request.auth != null
+        && get(/databases/$(database)/documents/mindmaps/$(mindmapId)).data.userId
+          == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+    }
+  }
+}

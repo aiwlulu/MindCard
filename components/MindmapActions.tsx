@@ -4,11 +4,12 @@ import React from "react";
 import { Menu, MenuButton, MenuItems, MenuItem } from "@headlessui/react";
 import { DownloadIcon, FolderIcon, SaveIcon } from "./Icons";
 import debounce from "@/lib/utils/debounce";
+import type { MindmapExportFormat } from "@/lib/types";
 
 interface MindmapActionsProps {
   onSave: () => void;
   onNavigateToMindmap: () => void;
-  onExport: (format: string) => void;
+  onExport: (format: MindmapExportFormat) => void;
 }
 
 export default function MindmapActions({
@@ -44,6 +45,18 @@ export default function MindmapActions({
           <span className="hidden lg:block">Export</span>
         </MenuButton>
         <MenuItems className="absolute right-0 mt-2 w-40 bg-slate-700 text-white shadow-md rounded-md py-1 z-50">
+          <MenuItem>
+            {({ active }: { active: boolean }) => (
+              <button
+                onClick={() => onExport("png")}
+                className={`${
+                  active ? "bg-slate-600" : "bg-slate-700"
+                } flex items-center w-full px-4 py-2 text-sm text-left whitespace-nowrap rounded-md`}
+              >
+                Export as PNG
+              </button>
+            )}
+          </MenuItem>
           <MenuItem>
             {({ active }: { active: boolean }) => (
               <button

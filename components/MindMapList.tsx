@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import SweetAlert from "./SweetAlert";
 import debounce from "@/lib/utils/debounce";
@@ -11,12 +11,16 @@ interface MindMapListProps {
   mindMaps: MindmapListItem[];
   onMindMapCreate: () => void;
   onDeleteMindMap: (id: string) => void;
+  onTogglePublic: (id: string, isPublic: boolean) => void;
+  onCopyPublicLink: (id: string) => void;
 }
 
 function MindMapList({
   mindMaps,
   onMindMapCreate,
   onDeleteMindMap,
+  onTogglePublic,
+  onCopyPublicLink,
 }: MindMapListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -24,18 +28,24 @@ function MindMapList({
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [searchTerm, setSearchTerm] = useState("");
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const mapsPerPage = 19;
+  const pageTransitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mapsPerPage = 20;
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
     setCurrentPage(1);
   };
 
-  useEffect(() => {
-    if (initialPage !== currentPage) {
-      setCurrentPage(initialPage);
-    }
-  }, [initialPage, currentPage]);
+  useEffect(() => setCurrentPage(initialPage), [initialPage]);
+
+  useEffect(
+    () => () => {
+      if (pageTransitionTimer.current) {
+        clearTimeout(pageTransitionTimer.current);
+      }
+    },
+    []
+  );
 
   const filteredMindMaps = useMemo(() => {
     if (!searchTerm) return mindMaps;
@@ -45,6 +55,14 @@ function MindMapList({
   }, [mindMaps, searchTerm]);
 
   const totalPages = Math.ceil(filteredMindMaps.length / mapsPerPage);
+  const publicCount = mindMaps.filter((map) => map.isPublic).length;
+
+  useEffect(() => {
+    const lastAvailablePage = Math.max(1, totalPages);
+    if (currentPage <= lastAvailablePage) return;
+    setCurrentPage(lastAvailablePage);
+    router.replace(`/mindmap/?page=${lastAvailablePage}`);
+  }, [currentPage, router, totalPages]);
 
   const handleMindMapSelect = (id: string) => {
     router.push(`/mindmap/${id}`);
@@ -66,11 +84,15 @@ function MindMapList({
   const handlePageChange = (pageNumber: number) => {
     if (pageNumber === currentPage) return;
     setIsTransitioning(true);
-    setTimeout(() => {
+    if (pageTransitionTimer.current) {
+      clearTimeout(pageTransitionTimer.current);
+    }
+    pageTransitionTimer.current = setTimeout(() => {
       setCurrentPage(pageNumber);
       router.push(`/mindmap/?page=${pageNumber}`);
       setIsTransitioning(false);
-    }, 200);
+      pageTransitionTimer.current = null;
+    }, 180);
   };
 
   const indexOfLastMap = currentPage * mapsPerPage;
@@ -85,9 +107,9 @@ function MindMapList({
     const pageBtn = (i: number) => (
       <button
         key={i}
-        className={`mx-2 mt-6 px-3 py-1 border ${
-          currentPage === i ? "border-blue-500" : "border-gray-300"
-        } rounded-full focus:outline-none`}
+        aria-current={currentPage === i ? "page" : undefined}
+        aria-label={`Go to page ${i}`}
+        className={currentPage === i ? "is-current" : undefined}
         onClick={() => handlePageChange(i)}
       >
         {i}
@@ -104,7 +126,7 @@ function MindMapList({
         pageNumbers.push(pageBtn(1));
         if (startPage > 2) {
           pageNumbers.push(
-            <span key="start-ellipsis" className="mx-2 mt-6">
+            <span key="start-ellipsis" className="mindmap-pagination-ellipsis">
               {ellipsis}
             </span>
           );
@@ -116,7 +138,7 @@ function MindMapList({
       if (endPage < totalPages) {
         if (endPage < totalPages - 1) {
           pageNumbers.push(
-            <span key="end-ellipsis" className="mx-2 mt-6">
+            <span key="end-ellipsis" className="mindmap-pagination-ellipsis">
               {ellipsis}
             </span>
           );
@@ -129,43 +151,123 @@ function MindMapList({
   };
 
   return (
-    <div className="mt-10 mx-4 sm:mx-10 md:mx-20">
-      <SearchBar value={searchTerm} onChange={handleSearchChange} />
+    <main className="mindmap-library">
+      <header className="mindmap-library-header">
+        <div>
+          <p>Your workspace</p>
+          <h1>Mind maps</h1>
+          <span>
+            {mindMaps.length} {mindMaps.length === 1 ? "map" : "maps"}
+            {publicCount ? ` · ${publicCount} public` : ""}
+          </span>
+        </div>
+        <button className="mindmap-library-new" onClick={handleCreate}>
+          <span aria-hidden="true">＋</span>
+          New mind map
+        </button>
+      </header>
+
+      <div className="mindmap-library-tools">
+        <SearchBar value={searchTerm} onChange={handleSearchChange} />
+        <span aria-live="polite">
+          {searchTerm
+            ? `${filteredMindMaps.length} result${filteredMindMaps.length === 1 ? "" : "s"}`
+            : "Sorted by newest"}
+        </span>
+      </div>
 
       <div
-        className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-center transition-opacity duration-200 ${
-          isTransitioning ? "opacity-0" : "opacity-100"
-        }`}
+        aria-busy={isTransitioning}
+        className={`mindmap-list-grid${
+          totalPages > 1 ? " is-paginated" : ""
+        }${isTransitioning ? " is-transitioning" : ""}`}
+        data-testid="mindmap-list-grid"
       >
-        <div className="flex items-center justify-center col-span-2 sm:col-span-1">
-          <button
-            className="btn btn-primary-outline px-4 py-2 text-center"
-            onClick={handleCreate}
-          >
-            + New
-          </button>
-        </div>
-
         {currentMaps.map((map) => (
-          <div
+          <article
             key={map.id}
-            className="relative cursor-pointer p-4 bg-slate-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 ease-in-out transform hover:scale-105 col-span-2 sm:col-span-1"
-            onClick={() => handleMindMapSelect(map.id)}
+            className="mindmap-list-slot"
           >
-            <TrashIcon
-              className="absolute top-2 right-2 text-red-500 hover:text-red-700 cursor-pointer"
-              onClick={(e) => {
-                e?.stopPropagation();
+            <button
+              type="button"
+              className="mindmap-list-open"
+              aria-label={`Open ${map.title}`}
+              onClick={() => handleMindMapSelect(map.id)}
+            >
+              <div className="mindmap-list-card-copy">
+                <h2>{map.title}</h2>
+                <p>{map.description}</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              className="mindmap-list-delete"
+              aria-label={`Delete ${map.title}`}
+              onClick={(event) => {
+                event.stopPropagation();
                 handleDelete(map.id);
               }}
-            />
-            <h3 className="text-lg font-semibold truncate">{map.title}</h3>
-            <p className="text-sm text-slate-300 truncate">{map.description}</p>
-          </div>
+            >
+              <TrashIcon />
+            </button>
+            <div className="mindmap-list-share-actions">
+              <button
+                type="button"
+                aria-label={map.isPublic ? `Make ${map.title} private` : `Make ${map.title} public`}
+                aria-pressed={map.isPublic === true}
+                className={map.isPublic ? "is-public" : undefined}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onTogglePublic(map.id, !map.isPublic);
+                }}
+              >
+                <span aria-hidden="true">{map.isPublic ? "●" : "○"}</span>
+                {map.isPublic ? "Public" : "Share"}
+              </button>
+              {map.isPublic ? (
+                <button
+                  type="button"
+                  aria-label={`Copy public link for ${map.title}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onCopyPublicLink(map.id);
+                  }}
+                >
+                  Copy link
+                </button>
+              ) : null}
+            </div>
+          </article>
         ))}
+        {!currentMaps.length ? (
+          <div className="mindmap-library-empty">
+            <span aria-hidden="true">⌕</span>
+            <h2>No mind maps found</h2>
+            <p>Try another search, or create a new mind map.</p>
+          </div>
+        ) : null}
       </div>
-      <div className="my-4 flex justify-center">{renderPageNumbers()}</div>
-    </div>
+      {totalPages > 1 ? (
+        <nav className="mindmap-pagination" aria-label="Mind map pages">
+          <button
+            type="button"
+            disabled={currentPage <= 1 || isTransitioning}
+            onClick={() => handlePageChange(currentPage - 1)}
+          >
+            ← Previous
+          </button>
+          <div>{renderPageNumbers()}</div>
+          <span>Page {currentPage} of {totalPages}</span>
+          <button
+            type="button"
+            disabled={currentPage >= totalPages || isTransitioning}
+            onClick={() => handlePageChange(currentPage + 1)}
+          >
+            Next →
+          </button>
+        </nav>
+      ) : null}
+    </main>
   );
 }
 

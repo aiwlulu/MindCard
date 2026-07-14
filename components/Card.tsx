@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import SweetAlert from "./SweetAlert";
 import { toast } from "react-toastify";
@@ -8,14 +8,27 @@ import type { FirestoreMindmapDoc } from "@/lib/types";
 interface CardProps {
   currentMindmapId: string | null;
   removeHyperlink: () => void;
+  linkCompletedVersion?: number;
 }
 
-const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
+const Card: React.FC<CardProps> = ({
+  currentMindmapId,
+  removeHyperlink,
+  linkCompletedVersion = 0,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [mindmaps, setMindmaps] = useState<FirestoreMindmapDoc[]>([]);
-  const { getAllMindmaps, selectedNode, setSelectedNode } =
-    useContext(MindmapContext);
+  const { getAllMindmaps, selectedNode } = useContext(MindmapContext);
   const [showInstruction, setShowInstruction] = useState(false);
+  const previousLinkCompletedVersion = useRef(linkCompletedVersion);
+
+  useEffect(() => {
+    if (linkCompletedVersion !== previousLinkCompletedVersion.current) {
+      setIsOpen(false);
+      setShowInstruction(false);
+      previousLinkCompletedVersion.current = linkCompletedVersion;
+    }
+  }, [linkCompletedVersion]);
 
   useEffect(() => {
     const fetchMindmaps = async () => {
@@ -39,7 +52,8 @@ const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
       icon: "warning",
       onConfirm: () => {
         removeHyperlink();
-        setSelectedNode(null);
+        setIsOpen(false);
+        setShowInstruction(false);
       },
     });
   };
@@ -59,51 +73,45 @@ const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
   };
 
   return (
-    <div className="fixed right-0 top-24">
-      <div style={{ display: "flex", flexDirection: "column" }}>
-        <div className="mb-2">
+    <div className="mindmap-card-panel">
+      <div className="mindmap-card-panel-inner">
+        <div>
           <button
-            className="text-white px-4 py-2 bg-gray-700 rounded-md"
+            className="mindmap-floating-trigger"
             onClick={() => setIsOpen((prev) => !prev)}
+            aria-expanded={isOpen}
           >
-            {isOpen ? "Close" : "Card"}
+            {isOpen ? "Close Cards" : "Cards"}
           </button>
         </div>
 
         {isOpen && (
-          <div className="flex flex-col items-start">
-            <div className="mb-2 flex items-center">
+          <div className="mindmap-card-popover">
+            <div className="mindmap-card-actions">
               <button
-                className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all duration-200 hover:scale-105"
+                className="mindmap-card-remove"
                 onClick={handleRemoveHyperlinkClick}
               >
-                Remove Hyperlink
+                Remove link
               </button>
-              <InfoIcon
+              <button
+                type="button"
+                className="mindmap-card-info"
+                aria-label="Card instructions"
                 onClick={() => setShowInstruction((prev) => !prev)}
-                className="text-white ml-4 cursor-pointer"
-                size={24}
-              />
+              >
+                <InfoIcon size={18} />
+              </button>
             </div>
 
             {showInstruction && (
-              <div className="p-4 mb-2 text-white bg-blue-500 bg-opacity-60 rounded">
-                <div className="space-y-2">
-                  <p>
-                    The card feature allows you to associate nodes from other
-                    mind maps with the current document.
-                  </p>
-                  <p>
-                    Create or Update Hyperlink: Select a node then drag &amp;
-                    drop a card.
-                  </p>
-                  <p>
-                    Remove Hyperlink: Select the node and click &quot;Remove
-                    Hyperlink&quot; button.
-                  </p>
+              <div className="mindmap-card-instructions">
+                <div>
+                  <p>Select a node, then drag a card onto the canvas to create a link.</p>
+                  <p>Use the card link below the node to open the linked mind map.</p>
                   <button
                     onClick={() => setShowInstruction(false)}
-                    className="mt-2 py-1 px-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg hover:scale-105"
+                    className="mindmap-card-got-it"
                   >
                     Got it
                   </button>
@@ -111,16 +119,10 @@ const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
               </div>
             )}
 
-            <div
-              className="w-80 p-4 overflow-auto bg-gray-800 rounded-md shadow-lg"
-              style={{ maxHeight: "calc(100vh - 12rem)" }}
-            >
+            <div className="mindmap-card-list">
               {mindmaps.length === 0 ? (
-                <div className="text-white text-center p-4">
-                  <p>
-                    This area will display your mind maps but does not include
-                    the current file.
-                  </p>
+                <div className="mindmap-card-empty">
+                  <p>No other mind maps are available to link.</p>
                 </div>
               ) : (
                 mindmaps.map((map) => (
@@ -128,9 +130,9 @@ const Card: React.FC<CardProps> = ({ currentMindmapId, removeHyperlink }) => {
                     key={map.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, map)}
-                    className="mb-2 p-3 bg-gray-700 rounded shadow cursor-pointer"
+                    className="mindmap-card-item"
                   >
-                    <h3 className="text-white text-lg truncate">{map.title}</h3>
+                    <h3>{map.title}</h3>
                   </div>
                 ))
               )}

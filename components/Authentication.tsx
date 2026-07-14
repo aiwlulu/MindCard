@@ -1,7 +1,6 @@
-import React, { useState, useContext, useEffect } from "react";
-import { authContext } from "@/lib/store/auth-context";
+import React, { useContext, useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import Image from "next/image";
+import { authContext } from "@/lib/store/auth-context";
 import { EyeIcon, EyeOffIcon } from "./Icons";
 
 interface FormData {
@@ -34,167 +33,144 @@ function Authentication() {
     }
   }, [useDemoAccount, isRegistering]);
 
-  const togglePasswordVisibility = () => setPasswordVisible((prev) => !prev);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    setFormData((previous) => ({ ...previous, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     const { name, email, password } = formData;
+
     if (isRegistering) {
-      registerWithEmailAndPassword(email, password, name).catch((error: { code?: string }) => {
-        if (error.code === "auth/email-already-in-use") {
-          toast.error("The email address is already in use by another account.");
+      registerWithEmailAndPassword(email, password, name).catch(
+        (error: { code?: string }) => {
+          if (error.code === "auth/email-already-in-use") {
+            toast.error("The email address is already in use by another account.");
+          }
         }
-      });
-    } else {
-      loginWithEmailAndPassword(email, password).catch((error: { code?: string }) => {
-        if (error.code === "auth/invalid-login-credentials") {
-          toast.error("Incorrect username or password.");
-        }
-      });
+      );
+      return;
     }
+
+    loginWithEmailAndPassword(email, password).catch(
+      (error: { code?: string }) => {
+        if (
+          error.code === "auth/invalid-login-credentials" ||
+          error.code === "auth/invalid-credential"
+        ) {
+          toast.error("Incorrect email or password.");
+        }
+      }
+    );
   };
 
   const handleRegisterLoginToggle = () => {
-    if (isRegistering) {
-      setUseDemoAccount(true);
-    }
-    setIsRegistering((prev) => {
-      if (!prev) {
-        setUseDemoAccount(false);
-        setFormData({ name: "", email: "", password: "" });
-      }
-      return !prev;
-    });
+    const nextIsRegistering = !isRegistering;
+    setIsRegistering(nextIsRegistering);
+    setUseDemoAccount(!nextIsRegistering);
   };
 
   return (
-    <main className="container max-w-2xl px-6 mx-auto">
-      <h1 className="mt-4 mb-6 text-5xl font-bold text-center">Welcome 👋</h1>
+    <div className="landing-auth-card">
+      <div className="landing-auth-heading">
+        <span>{isRegistering ? "Create workspace" : "Welcome back"}</span>
+        <h3>
+          {isRegistering
+            ? "Create your MindCard account"
+            : "Sign in to keep mapping"}
+        </h3>
+      </div>
 
-      <div className="flex flex-col overflow-hidden shadow-md shadow-slate-500 bg-slate-800 rounded-2xl">
-        <div className="h-52 relative">
-          <Image
-            src="/home.png"
-            alt="MindCard welcome banner"
-            fill
-            className="object-cover"
-          />
-        </div>
-
-        <div className="px-4 py-4 w-70% mx-auto">
-          <h3 className="text-2xl text-center">
-            {isRegistering
-              ? "Please sign up to continue"
-              : "Please sign in to continue"}
-          </h3>
-
-          <p className="text-xs mt-3 text-center">
-            {isRegistering ? "" : "If you are already a member, easily login!"}
-          </p>
-
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {isRegistering && (
-              <input
-                className="p-2 mt-1 rounded-xl focus:outline-none"
-                type="text"
-                name="name"
-                placeholder="Name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-              />
-            )}
-
+      <form onSubmit={handleSubmit} className="landing-auth-form">
+        {isRegistering ? (
+          <label>
+            <span>Name</span>
             <input
-              className={`p-2 ${isRegistering ? "" : "mt-4"} rounded-xl focus:outline-none`}
-              type="email"
-              name="email"
-              placeholder="Email"
-              value={formData.email}
+              type="text"
+              name="name"
+              autoComplete="name"
+              placeholder="Your name"
+              value={formData.name}
               onChange={handleChange}
               required
             />
+          </label>
+        ) : null}
 
-            <div className="relative">
-              <input
-                className="p-2 rounded-xl w-full focus:outline-none"
-                type={passwordVisible ? "text" : "password"}
-                name="password"
-                placeholder="Password"
-                id="password-input"
-                value={formData.password}
-                onChange={handleChange}
-                minLength={6}
-                required
-              />
-              <span
-                className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer"
-                onClick={togglePasswordVisibility}
-              >
-                {passwordVisible ? <EyeIcon size={16} /> : <EyeOffIcon size={16} />}
-              </span>
-            </div>
+        <label>
+          <span>Email</span>
+          <input
+            type="email"
+            name="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={formData.email}
+            onChange={handleChange}
+            required
+          />
+        </label>
 
-            {!isRegistering && (
-              <label className="flex items-center mt-2 ml-2">
-                <input
-                  type="checkbox"
-                  checked={useDemoAccount}
-                  onChange={() => setUseDemoAccount((prev) => !prev)}
-                />
-                <span className="text-sm ml-3">
-                  Click to Fill in the Demo Account
-                </span>
-              </label>
-            )}
-
-            <button className="py-2 mt-1 w-full btn btn-primary-outline">
-              {isRegistering ? "Register" : "Login"}
-            </button>
-
-            <div className="mt-3 grid grid-cols-3 items-center text-gray-400">
-              <hr className="border-gray-400" />
-              <p className="text-center text-sm">OR</p>
-              <hr className="border-gray-400" />
-            </div>
-
+        <label>
+          <span>Password</span>
+          <div className="landing-auth-password">
+            <input
+              type={passwordVisible ? "text" : "password"}
+              name="password"
+              autoComplete={isRegistering ? "new-password" : "current-password"}
+              placeholder="At least 6 characters"
+              id="password-input"
+              value={formData.password}
+              onChange={handleChange}
+              minLength={6}
+              required
+            />
             <button
-              onClick={googleLoginHandler}
               type="button"
-              className="flex self-start gap-2 p-4 mx-auto mt-2 font-medium align-middle bg-gray-700 rounded-lg"
+              aria-label={passwordVisible ? "Hide password" : "Show password"}
+              onClick={() => setPasswordVisible((previous) => !previous)}
             >
-              <span
-                className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm font-bold text-blue-600"
-                aria-hidden="true"
-              >
-                G
-              </span>
-              Login with Google
+              {passwordVisible ? <EyeIcon size={16} /> : <EyeOffIcon size={16} />}
             </button>
+          </div>
+        </label>
 
-            <div className="mt-2 text-xs flex justify-between items-center">
-              <p>
-                {isRegistering
-                  ? "Already have an account?"
-                  : "Don't have an account?"}
-              </p>
-              <button
-                type="button"
-                className="py-2 px-3 btn btn-primary-outline"
-                onClick={handleRegisterLoginToggle}
-              >
-                {isRegistering ? "Login" : "Register"}
-              </button>
-            </div>
-          </form>
+        {!isRegistering ? (
+          <label className="landing-auth-demo">
+            <input
+              type="checkbox"
+              checked={useDemoAccount}
+              onChange={() => setUseDemoAccount((previous) => !previous)}
+            />
+            <span>Use the ready-to-try demo account</span>
+          </label>
+        ) : null}
+
+        <button type="submit" className="landing-auth-submit">
+          {isRegistering ? "Create account" : "Sign in"}
+        </button>
+
+        <div className="landing-auth-divider">
+          <span>or</span>
         </div>
-      </div>
-    </main>
+
+        <button
+          onClick={() => void googleLoginHandler()}
+          type="button"
+          className="landing-auth-google"
+        >
+          <span aria-hidden="true">G</span>
+          Continue with Google
+        </button>
+
+        <p className="landing-auth-switch">
+          {isRegistering ? "Already have an account?" : "New to MindCard?"}
+          <button type="button" onClick={handleRegisterLoginToggle}>
+            {isRegistering ? "Sign in" : "Create an account"}
+          </button>
+        </p>
+      </form>
+    </div>
   );
 }
 

@@ -8,6 +8,7 @@ import { MindmapContext } from "@/lib/store/mindmap-context";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { LogoutIcon } from "./Icons";
+import type { MindmapExportFormat } from "@/lib/types";
 
 const MindmapActions = dynamic(() => import("./MindmapActions"), {
   ssr: false,
@@ -19,6 +20,7 @@ function Nav() {
   const router = useRouter();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const pathname = usePathname();
+  const isShareRoute = pathname.startsWith("/share/");
   const showSaveButton =
     pathname.startsWith("/mindmap/") && pathname.length > 9;
 
@@ -28,18 +30,20 @@ function Nav() {
   };
 
   const navigateToMindmap = () => {
-    if (pathname !== "/") {
+    if (isShareRoute) {
+      router.push("/");
+    } else if (pathname !== "/") {
       router.push("/mindmap");
     }
   };
 
-  const handleExport = (format: string) => {
+  const handleExport = (format: MindmapExportFormat) => {
     void exportMindMap(format);
   };
 
   useEffect(() => {
     const fetchDisplayName = async () => {
-      if (user) {
+      if (user && !isShareRoute) {
         if (user.displayName) {
           setDisplayName(user.displayName);
         } else {
@@ -56,20 +60,7 @@ function Nav() {
       }
     };
     void fetchDisplayName();
-  }, [user]);
-
-  useEffect(() => {
-    if (showSaveButton) {
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if ((event.ctrlKey || event.metaKey) && event.key === "s") {
-          event.preventDefault();
-          void saveMindmap();
-        }
-      };
-      window.addEventListener("keydown", handleKeyDown);
-      return () => window.removeEventListener("keydown", handleKeyDown);
-    }
-  }, [saveMindmap, showSaveButton]);
+  }, [isShareRoute, user]);
 
   return (
     <header className="h-20 w-full md:w-11/12 mx-auto px-4 sm:px-6 py-2 flex items-center justify-between">
@@ -88,19 +79,19 @@ function Nav() {
         >
           MindCard
         </strong>
-        {user && !loading && !showSaveButton && (
+        {user && !loading && !showSaveButton && !isShareRoute && (
           <small className="truncate">Hi, {displayName}!</small>
         )}
       </div>
       <div className="flex items-center gap-4">
-        {user && !loading && showSaveButton && (
+        {user && !loading && showSaveButton && !isShareRoute && (
           <MindmapActions
             onSave={() => void saveMindmap()}
             onNavigateToMindmap={navigateToMindmap}
             onExport={handleExport}
           />
         )}
-        {user && !loading && (
+        {user && !loading && !isShareRoute && (
           <button onClick={logoutAndRedirect} className="btn btn-danger">
             <LogoutIcon size={20} className="block lg:hidden" />
             <span className="hidden lg:block truncate">Sign out</span>
