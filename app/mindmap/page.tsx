@@ -33,10 +33,22 @@ export default function MindmapPage() {
   const { user } = useContext(authContext);
   const { getAllMindmaps } = useContext(MindmapContext);
   const [mindMaps, setMindMaps] = useState<MindmapListItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      getAllMindmaps().then((maps) => {
+    let active = true;
+
+    if (!user) {
+      setIsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setIsLoading(true);
+    getAllMindmaps()
+      .then((maps) => {
+        if (!active) return;
         const formattedMaps: MindmapListItem[] = maps.map((map) => ({
           ...map,
           description: (map.updatedAt ?? map.createdAt)
@@ -44,8 +56,17 @@ export default function MindmapPage() {
             : "Not available",
         }));
         setMindMaps(formattedMaps);
+      })
+      .catch(() => {
+        if (active) setMindMaps([]);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
       });
-    }
+
+    return () => {
+      active = false;
+    };
   }, [user, getAllMindmaps]);
 
   const handleMindMapCreate = async () => {
@@ -121,6 +142,7 @@ export default function MindmapPage() {
   return (
     <MindMapList
       mindMaps={mindMaps}
+      isLoading={isLoading}
       onMindMapCreate={() => void handleMindMapCreate()}
       onDeleteMindMap={(id) => void deleteMindMap(id)}
       onTogglePublic={(id, isPublic) => void togglePublicSharing(id, isPublic)}

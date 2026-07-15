@@ -35,17 +35,21 @@ jest.mock("@/lib/firebase", () => ({ db: { name: "database" } }));
 jest.mock("@/components/MindMapList", () =>
   function MockMindMapList({
     mindMaps,
+    isLoading,
     onTogglePublic,
   }: {
     mindMaps: Array<{ id: string; isPublic?: boolean }>;
+    isLoading: boolean;
     onTogglePublic: (id: string, isPublic: boolean) => void;
   }) {
+    if (isLoading) return <div role="status">Loading mind maps…</div>;
+
     return mindMaps.length ? (
       <button onClick={() => onTogglePublic(mindMaps[0].id, true)}>
         Publish test map
       </button>
     ) : (
-      <div>Loading maps</div>
+      <div>No maps</div>
     );
   }
 );
@@ -130,5 +134,27 @@ describe("Mindmap folder public sharing", () => {
     expect(JSON.stringify(mockBatchSet.mock.calls[0][1])).not.toContain(
       "secret-map"
     );
+  });
+
+  it("shows a loading state while mind maps are being fetched", async () => {
+    const loadingContext = {
+      ...context,
+      getAllMindmaps: jest.fn().mockReturnValue(new Promise<never>(() => {})),
+    };
+
+    await act(async () => {
+      render(
+        <authContext.Provider
+          value={{ user: { uid: "user-1" } as never, loading: false } as never}
+        >
+          <MindmapContext.Provider value={loadingContext}>
+            <MindmapPage />
+          </MindmapContext.Provider>
+        </authContext.Provider>
+      );
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading mind maps");
+    expect(screen.queryByText("No maps")).not.toBeInTheDocument();
   });
 });

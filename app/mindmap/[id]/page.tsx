@@ -13,16 +13,18 @@ interface PageProps {
 
 export default function Page({ params }: PageProps) {
   const { id } = use(params);
-  const { currentMindmapTitle } = useContext(MindmapContext);
+  const { mindmapData } = useContext(MindmapContext);
+  const root = mindmapData?.root ?? mindmapData?.nodeData;
+  const mindmapTitle = root?.topic ?? null;
 
   useEffect(() => {
-    document.title = currentMindmapTitle
-      ? `${currentMindmapTitle} | MindCard`
+    document.title = mindmapTitle
+      ? `${mindmapTitle} | MindCard`
       : "MindCard";
     return () => {
       document.title = "MindCard";
     };
-  }, [currentMindmapTitle]);
+  }, [mindmapTitle]);
 
   return <DynamicMindmap id={id} />;
 }
