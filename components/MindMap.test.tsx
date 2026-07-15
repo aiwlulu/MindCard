@@ -776,6 +776,14 @@ describe("MindMap editor", () => {
     expect(svg).not.toHaveClass("is-pan-mode");
   });
 
+  it("uses a vector icon instead of emoji for pan mode", () => {
+    renderMindMap();
+
+    const panMode = screen.getByRole("button", { name: "Enable pan mode" });
+    expect(panMode.querySelector('svg[data-icon="pan"]')).toBeInTheDocument();
+    expect(panMode).toHaveTextContent("");
+  });
+
   it("starts right-button canvas panning from a topic without opening its menu", () => {
     renderMindMap();
     const svg = screen.getByRole("img", { name: "Mind map" });
@@ -1049,6 +1057,7 @@ describe("MindMap editor", () => {
     renderMindMap(context);
 
     expect(screen.queryByRole("button", { name: "Root" })).not.toBeInTheDocument();
-    expect(screen.getByText("Loading mind map…")).toBeInTheDocument();
+    expect(screen.getByText("Growing your mind map…")).toBeInTheDocument();
+    expect(screen.getByTestId("mindmap-loader-graphic")).toBeInTheDocument();
   });
 });

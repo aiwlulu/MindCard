@@ -5,10 +5,27 @@ import SweetAlert from "./SweetAlert";
 import debounce from "@/lib/utils/debounce";
 import SearchBar from "./SearchBar";
 import { TrashIcon } from "./Icons";
+import MindMapLoader from "./MindMapLoader";
 import type { MindmapListItem } from "@/lib/types";
+
+type MindMapSortMode = "created" | "updated";
+
+const getSortTime = (
+  map: MindmapListItem,
+  sortMode: MindMapSortMode
+): number => {
+  const timestamp =
+    sortMode === "updated" ? map.updatedAt ?? map.createdAt : map.createdAt;
+
+  if (!timestamp) return Number.NEGATIVE_INFINITY;
+  return (
+    timestamp.seconds * 1000 + (timestamp.nanoseconds ?? 0) / 1_000_000
+  );
+};
 
 interface MindMapListProps {
   mindMaps: MindmapListItem[];
+  isLoading?: boolean;
   onMindMapCreate: () => void;
   onDeleteMindMap: (id: string) => void;
   onTogglePublic: (id: string, isPublic: boolean) => void;
@@ -17,6 +34,7 @@ interface MindMapListProps {
 
 function MindMapList({
   mindMaps,
+  isLoading = false,
   onMindMapCreate,
   onDeleteMindMap,
   onTogglePublic,
@@ -27,6 +45,7 @@ function MindMapList({
   const initialPage = parseInt(searchParams.get("page") ?? "1", 10) || 1;
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortMode, setSortMode] = useState<MindMapSortMode>("created");
   const [isTransitioning, setIsTransitioning] = useState(false);
   const pageTransitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mapsPerPage = 20;
@@ -48,11 +67,25 @@ function MindMapList({
   );
 
   const filteredMindMaps = useMemo(() => {
-    if (!searchTerm) return mindMaps;
-    return mindMaps.filter((map) =>
-      map.title.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [mindMaps, searchTerm]);
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const filtered = normalizedSearch
+      ? mindMaps.filter((map) =>
+          map.title.toLowerCase().includes(normalizedSearch)
+        )
+      : mindMaps;
+
+    return [...filtered].sort((first, second) => {
+      const selectedTimeDifference =
+        getSortTime(second, sortMode) - getSortTime(first, sortMode);
+      if (selectedTimeDifference !== 0) return selectedTimeDifference;
+
+      const createdTimeDifference =
+        getSortTime(second, "created") - getSortTime(first, "created");
+      if (createdTimeDifference !== 0) return createdTimeDifference;
+
+      return first.title.localeCompare(second.title);
+    });
+  }, [mindMaps, searchTerm, sortMode]);
 
   const totalPages = Math.ceil(filteredMindMaps.length / mapsPerPage);
   const publicCount = mindMaps.filter((map) => map.isPublic).length;
@@ -80,6 +113,11 @@ function MindMapList({
   const handleCreate = debounce(() => {
     onMindMapCreate();
   }, 300);
+
+  const handleSortChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setSortMode(event.target.value as MindMapSortMode);
+    setCurrentPage(1);
+  };
 
   const handlePageChange = (pageNumber: number) => {
     if (pageNumber === currentPage) return;
@@ -157,8 +195,11 @@ function MindMapList({
           <p>Your workspace</p>
           <h1>Mind maps</h1>
           <span>
-            {mindMaps.length} {mindMaps.length === 1 ? "map" : "maps"}
-            {publicCount ? ` · ${publicCount} public` : ""}
+            {isLoading
+              ? "Loading maps…"
+              : `${mindMaps.length} ${mindMaps.length === 1 ? "map" : "maps"}${
+                  publicCount ? ` · ${publicCount} public` : ""
+                }`}
           </span>
         </div>
         <button className="mindmap-library-new" onClick={handleCreate}>
@@ -169,21 +210,36 @@ function MindMapList({
 
       <div className="mindmap-library-tools">
         <SearchBar value={searchTerm} onChange={handleSearchChange} />
-        <span aria-live="polite">
-          {searchTerm
-            ? `${filteredMindMaps.length} result${filteredMindMaps.length === 1 ? "" : "s"}`
-            : "Sorted by newest"}
-        </span>
+        <div className="mindmap-library-tools-meta">
+          {searchTerm ? (
+            <span aria-live="polite">
+              {`${filteredMindMaps.length} result${filteredMindMaps.length === 1 ? "" : "s"}`}
+            </span>
+          ) : null}
+          <label className="mindmap-library-sort">
+            <span>Sort by</span>
+            <select
+              aria-label="Sort mind maps by"
+              value={sortMode}
+              onChange={handleSortChange}
+            >
+              <option value="created">Date created</option>
+              <option value="updated">Last updated</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <div
-        aria-busy={isTransitioning}
+        aria-busy={isLoading || isTransitioning}
         className={`mindmap-list-grid${
           totalPages > 1 ? " is-paginated" : ""
         }${isTransitioning ? " is-transitioning" : ""}`}
         data-testid="mindmap-list-grid"
       >
-        {currentMaps.map((map) => (
+        {isLoading ? (
+          <MindMapLoader variant="inline" label="Loading mind maps…" />
+        ) : currentMaps.map((map) => (
           <article
             key={map.id}
             className="mindmap-list-slot"
@@ -239,7 +295,7 @@ function MindMapList({
             </div>
           </article>
         ))}
-        {!currentMaps.length ? (
+        {!isLoading && !currentMaps.length ? (
           <div className="mindmap-library-empty">
             <span aria-hidden="true">⌕</span>
             <h2>No mind maps found</h2>

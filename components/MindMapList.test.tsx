@@ -5,11 +5,12 @@ import type { MindmapListItem } from "@/lib/types";
 
 const mockRouterPush = jest.fn();
 const mockRouterReplace = jest.fn();
+let mockPage = "2";
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace }),
   useSearchParams: () => ({
-    get: (name: string) => (name === "page" ? "2" : null),
+    get: (name: string) => (name === "page" ? mockPage : null),
   }),
 }));
 
@@ -26,6 +27,7 @@ const mindMaps: MindmapListItem[] = Array.from({ length: 45 }, (_, index) => ({
 describe("MindMapList pagination", () => {
   beforeEach(() => {
     jest.useFakeTimers();
+    mockPage = "2";
     mockRouterPush.mockReset();
     mockRouterReplace.mockReset();
   });
@@ -33,6 +35,83 @@ describe("MindMapList pagination", () => {
   afterEach(() => {
     jest.runOnlyPendingTimers();
     jest.useRealTimers();
+  });
+
+  it("renders a loading indicator instead of the empty state while loading", () => {
+    render(
+      <MindMapList
+        mindMaps={[]}
+        isLoading
+        onMindMapCreate={jest.fn()}
+        onDeleteMindMap={jest.fn()}
+        onTogglePublic={jest.fn()}
+        onCopyPublicLink={jest.fn()}
+      />
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading mind maps");
+    expect(screen.getByTestId("mindmap-loader-graphic")).toBeInTheDocument();
+    expect(screen.queryByText("No mind maps found")).not.toBeInTheDocument();
+  });
+
+  it("sorts by creation time by default and can switch to last updated time", () => {
+    mockPage = "1";
+    const sortableMindMaps: MindmapListItem[] = [
+      {
+        ...mindMaps[0],
+        id: "older-map",
+        title: "Older map",
+        createdAt: { seconds: 100 } as never,
+        updatedAt: { seconds: 500 } as never,
+      },
+      {
+        ...mindMaps[1],
+        id: "newest-map",
+        title: "Newest map",
+        createdAt: { seconds: 300 } as never,
+        updatedAt: { seconds: 350 } as never,
+      },
+      {
+        ...mindMaps[2],
+        id: "middle-map",
+        title: "Middle map",
+        createdAt: { seconds: 200 } as never,
+        updatedAt: null,
+      },
+    ];
+
+    render(
+      <MindMapList
+        mindMaps={sortableMindMaps}
+        onMindMapCreate={jest.fn()}
+        onDeleteMindMap={jest.fn()}
+        onTogglePublic={jest.fn()}
+        onCopyPublicLink={jest.fn()}
+      />
+    );
+
+    const sortControl = screen.getByRole("combobox", {
+      name: "Sort mind maps by",
+    });
+    const openMapNames = () =>
+      screen
+        .getAllByRole("button", { name: /^Open / })
+        .map((button) => button.getAttribute("aria-label"));
+
+    expect(sortControl).toHaveValue("created");
+    expect(openMapNames()).toEqual([
+      "Open Newest map",
+      "Open Middle map",
+      "Open Older map",
+    ]);
+
+    fireEvent.change(sortControl, { target: { value: "updated" } });
+
+    expect(openMapNames()).toEqual([
+      "Open Older map",
+      "Open Newest map",
+      "Open Middle map",
+    ]);
   });
 
   it("keeps a stable paginated grid while moving from a full page to a shorter page", () => {

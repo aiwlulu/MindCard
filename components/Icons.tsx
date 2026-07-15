@@ -151,3 +151,24 @@ export function EyeOffIcon({ size = 16, className = "" }: IconProps) {
     </svg>
   );
 }
+
+export function PanIcon({ size = 18, className = "" }: IconProps) {
+  return (
+    <svg
+      {...baseProps}
+      data-icon="pan"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M12 2v20" />
+      <path d="m8 6 4-4 4 4" />
+      <path d="m8 18 4 4 4-4" />
+      <path d="M2 12h20" />
+      <path d="m6 8-4 4 4 4" />
+      <path d="m18 8 4 4-4 4" />
+    </svg>
+  );
+}

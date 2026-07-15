@@ -10,6 +10,8 @@ import React, {
 import { toast } from "react-toastify";
 import Card from "./Card";
 import ShortcutGuide from "./ShortcutGuide";
+import MindMapLoader from "./MindMapLoader";
+import { PanIcon } from "./Icons";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import {
   layoutMindmap,
@@ -1304,10 +1306,7 @@ export default function MindMap({ id }: MindMapProps) {
               </g>
                 </svg>
               ) : (
-                <div className="mindmap-loading" role="status">
-                  <span aria-hidden="true" />
-                  Loading mind map…
-                </div>
+                <MindMapLoader variant="canvas" label="Growing your mind map…" />
               )}
             </div>
           ) : null}
@@ -1338,7 +1337,7 @@ export default function MindMap({ id }: MindMapProps) {
             title="Pan mode — left-drag the canvas (H). Right-drag always pans."
             onClick={toggleInteractionMode}
           >
-            {interactionMode === "pan" ? "⌖" : "✋"}
+            <PanIcon />
           </button>
           <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => zoomBy(-0.1)}>−</button>
           <span className="mindmap-zoom-level" aria-live="polite">{Math.round(zoom * 100)}%</span>
