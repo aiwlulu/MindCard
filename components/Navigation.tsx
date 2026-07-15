@@ -70,6 +70,7 @@ function Nav() {
           alt="MindCard logo"
           width={64}
           height={64}
+          loading="eager"
           className="cursor-pointer logo-hover"
           onClick={navigateToMindmap}
         />

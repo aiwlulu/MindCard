@@ -57,6 +57,34 @@ describe("Navigation save shortcut ownership", () => {
     expect(saveMindmap).not.toHaveBeenCalled();
   });
 
+  it("loads the above-the-fold logo eagerly", () => {
+    const context = {
+      saveMindmap: jest.fn(),
+      exportMindMap: jest.fn(),
+    } as unknown as MindmapContextValue;
+
+    render(
+      <authContext.Provider
+        value={
+          {
+            user: null,
+            loading: false,
+            logout: jest.fn(),
+          } as never
+        }
+      >
+        <MindmapContext.Provider value={context}>
+          <Navigation />
+        </MindmapContext.Provider>
+      </authContext.Provider>
+    );
+
+    expect(screen.getByAltText("MindCard logo")).toHaveAttribute(
+      "loading",
+      "eager"
+    );
+  });
+
   it("hides account and private workspace actions on public share routes", () => {
     mockPathname = "/share/public-map";
     const context = {
