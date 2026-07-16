@@ -100,6 +100,22 @@ export function TrashIcon({ size = 18, className = "", onClick }: IconProps) {
   );
 }
 
+export function ClearIcon({ size = 16, className = "" }: IconProps) {
+  return (
+    <svg
+      {...baseProps}
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="m6 6 12 12" />
+      <path d="m18 6-12 12" />
+    </svg>
+  );
+}
+
 export function InfoIcon({ size = 24, className = "", onClick }: IconProps) {
   return (
     <svg

@@ -709,6 +709,27 @@ html {
   vector-effect: non-scaling-stroke;
 }
 
+.mindmap-drop-indicator {
+  fill: none;
+  stroke: #65a892;
+  stroke-width: 3;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  animation: mindmap-drop-indicator-pulse 1s ease-in-out infinite;
+}
+
+@keyframes mindmap-drop-indicator-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
 .mindmap-node-topic {
   fill: #dedee4;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,

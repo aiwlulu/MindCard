@@ -19,6 +19,7 @@ const ShortcutGuide: React.FC = () => {
             <li><kbd>Tab</kbd><span>Add child topic</span></li>
             <li><kbd>F2</kbd><span>Edit topic</span></li>
             <li><kbd>Space</kbd><span>Collapse or expand branch</span></li>
+            <li><kbd>Shift + Space</kbd><span>Expand or collapse entire subtree</span></li>
             <li><kbd>Delete</kbd><span>Delete topic</span></li>
             <li><kbd>Alt ↑ / ↓</kbd><span>Reorder siblings</span></li>
             <li><kbd>↑ / ↓</kbd><span>Move between siblings</span></li>

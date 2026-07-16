@@ -44,6 +44,29 @@ const data: MindmapData = {
   },
 };
 
+function createNestedBranchData(): MindmapData {
+  return {
+    nodeData: {
+      id: "root",
+      root: true,
+      topic: "Root",
+      children: [
+        {
+          id: "parent",
+          topic: "Parent",
+          children: [
+            {
+              id: "branch",
+              topic: "Branch",
+              children: [{ id: "leaf", topic: "Leaf" }],
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
 function createContext(): MindmapContextValue {
   return {
     mindmapData: data,
@@ -146,6 +169,19 @@ describe("MindMap editor", () => {
     expect(context.updateMindmapData).toHaveBeenCalledWith(expect.any(Function));
   });
 
+  it("keeps the inline editor active when clicking to reposition the cursor", () => {
+    const context = createContext();
+    renderMindMap(context);
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Child" }));
+    const input = screen.getByDisplayValue("Child");
+    fireEvent.focus(input);
+    fireEvent.click(input);
+
+    expect(screen.getByDisplayValue("Child")).toBeInTheDocument();
+    expect(input).toHaveFocus();
+  });
+
   it("keeps the multiline editor open when Shift+Enter is pressed", () => {
     renderMindMap();
 
@@ -176,6 +212,27 @@ describe("MindMap editor", () => {
     });
 
     expect(context.updateMindmapData).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it("inserts a sibling above with Shift+Enter", () => {
+    const context = createContext();
+    context.selectedNode = data.nodeData.children?.[0] ?? null;
+    renderMindMap(context);
+
+    fireEvent.keyDown(screen.getByRole("application", { name: "Mind map editor" }), {
+      key: "Enter",
+      shiftKey: true,
+    });
+
+    const update = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
+      current: MindmapData
+    ) => MindmapData;
+    const children = update(data).nodeData.children ?? [];
+    expect(children.map((child) => child.id)).toEqual(
+      expect.arrayContaining(["child"])
+    );
+    expect(children[1]?.id).toBe("child");
+    expect(children[0]?.topic).toBe("New Topic");
   });
 
   it("uses Enter on the root to create a child instead of an invalid sibling", () => {
@@ -443,6 +500,71 @@ describe("MindMap editor", () => {
       current: MindmapData
     ) => MindmapData;
     expect(update(data).nodeData.children?.[0].collapsed).toBe(true);
+  });
+
+  it("collapses every branch in the selected subtree with Shift+Space", () => {
+    const nestedData = createNestedBranchData();
+    const context = createContext();
+    context.mindmapData = nestedData;
+    context.selectedNode = nestedData.nodeData.children?.[0] ?? null;
+    renderMindMap(context);
+
+    fireEvent.keyDown(screen.getByRole("application", { name: "Mind map editor" }), {
+      key: " ",
+      shiftKey: true,
+    });
+
+    const update = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
+      current: MindmapData
+    ) => MindmapData;
+    const parent = update(nestedData).nodeData.children?.[0];
+    expect(parent?.collapsed).toBe(true);
+    expect(parent?.children?.[0].collapsed).toBe(true);
+  });
+
+  it("expands every branch in the selected subtree with Shift+Space", () => {
+    const nestedData = createNestedBranchData();
+    const selectedNode = nestedData.nodeData.children?.[0];
+    if (!selectedNode) throw new Error("Expected nested parent node");
+    selectedNode.collapsed = true;
+    selectedNode.children?.forEach((child) => {
+      child.collapsed = true;
+    });
+    const context = createContext();
+    context.mindmapData = nestedData;
+    context.selectedNode = selectedNode;
+    renderMindMap(context);
+
+    fireEvent.keyDown(screen.getByRole("application", { name: "Mind map editor" }), {
+      key: " ",
+      shiftKey: true,
+    });
+
+    const update = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
+      current: MindmapData
+    ) => MindmapData;
+    const parent = update(nestedData).nodeData.children?.[0];
+    expect(parent?.collapsed).toBe(false);
+    expect(parent?.children?.[0].collapsed).toBe(false);
+  });
+
+  it("keeps Space limited to the selected branch", () => {
+    const nestedData = createNestedBranchData();
+    const context = createContext();
+    context.mindmapData = nestedData;
+    context.selectedNode = nestedData.nodeData.children?.[0] ?? null;
+    renderMindMap(context);
+
+    fireEvent.keyDown(screen.getByRole("application", { name: "Mind map editor" }), {
+      key: " ",
+    });
+
+    const update = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
+      current: MindmapData
+    ) => MindmapData;
+    const parent = update(nestedData).nodeData.children?.[0];
+    expect(parent?.collapsed).toBe(true);
+    expect(parent?.children?.[0].collapsed).toBeUndefined();
   });
 
   it("collapses a child subtree from its inline branch control", () => {
@@ -886,6 +1008,49 @@ describe("MindMap editor", () => {
     expect(document.querySelectorAll(".mindmap-node-selection")).toHaveLength(2);
   });
 
+  it.each(["Delete", "Backspace"])(
+    "deletes every selected node with the %s shortcut",
+    (key) => {
+      const context = createContext();
+      render(<StatefulMindMap context={context} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Child" }));
+      fireEvent.click(screen.getByRole("button", { name: "Grandchild" }), {
+        ctrlKey: true,
+      });
+      fireEvent.keyDown(
+        screen.getByRole("application", { name: "Mind map editor" }),
+        { key }
+      );
+
+      expect(
+        screen.queryByRole("button", { name: "Child" })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Grandchild" })
+      ).not.toBeInTheDocument();
+    }
+  );
+
+  it("protects the root while deleting other selected nodes", () => {
+    const context = createContext();
+    render(<StatefulMindMap context={context} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Root" }));
+    fireEvent.click(screen.getByRole("button", { name: "Child" }), {
+      ctrlKey: true,
+    });
+    fireEvent.keyDown(
+      screen.getByRole("application", { name: "Mind map editor" }),
+      { key: "Backspace" }
+    );
+
+    expect(screen.getByRole("button", { name: "Root" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Child" })
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps a multi-selection after dragging the selected topics", () => {
     const context = createContext();
     render(<StatefulMindMap context={context} />);
@@ -923,6 +1088,96 @@ describe("MindMap editor", () => {
 
     expect(document.querySelectorAll(".mindmap-node-selection")).toHaveLength(2);
   });
+
+  it.each([
+    {
+      position: "before" as const,
+      source: "Third",
+      target: "Second",
+      clientY: 102,
+      expected: ["first", "third", "second"],
+    },
+    {
+      position: "after" as const,
+      source: "First",
+      target: "Second",
+      clientY: 138,
+      expected: ["second", "first", "third"],
+    },
+  ])(
+    "moves a dragged node $position its target sibling",
+    ({ source, target, clientY, expected }) => {
+      const dragData: MindmapData = {
+        nodeData: {
+          id: "root",
+          root: true,
+          topic: "Root",
+          children: [
+            { id: "first", topic: "First" },
+            { id: "second", topic: "Second" },
+            { id: "third", topic: "Third" },
+          ],
+        },
+      };
+      const context = createContext();
+      context.mindmapData = dragData;
+      const elementFromPointDescriptor = Object.getOwnPropertyDescriptor(
+        document,
+        "elementFromPoint"
+      );
+
+      renderMindMap(context);
+      const sourceNode = screen.getByRole("button", { name: source });
+      const targetNode = screen.getByRole("button", { name: target });
+      Object.defineProperty(targetNode, "getBoundingClientRect", {
+        configurable: true,
+        value: () => ({ top: 100, bottom: 140, height: 40 }),
+      });
+      Object.defineProperty(document, "elementFromPoint", {
+        configurable: true,
+        value: () => targetNode,
+      });
+
+      try {
+        fireEvent.pointerDown(sourceNode, {
+          button: 0,
+          pointerId: 15,
+          pointerType: "mouse",
+          clientX: 20,
+          clientY: 20,
+        });
+        fireEvent.pointerMove(sourceNode, {
+          pointerId: 15,
+          pointerType: "mouse",
+          clientX: 40,
+          clientY,
+        });
+        fireEvent.pointerUp(sourceNode, {
+          pointerId: 15,
+          pointerType: "mouse",
+          clientX: 40,
+          clientY,
+        });
+      } finally {
+        if (elementFromPointDescriptor) {
+          Object.defineProperty(
+            document,
+            "elementFromPoint",
+            elementFromPointDescriptor
+          );
+        } else {
+          Reflect.deleteProperty(document, "elementFromPoint");
+        }
+      }
+
+      const update = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
+        current: MindmapData
+      ) => MindmapData;
+      expect(update(dragData).nodeData.children?.map((node) => node.id)).toEqual(
+        expected
+      );
+    }
+  );
 
   it("selects the New Topic placeholder so typing replaces it", () => {
     const context = createContext();

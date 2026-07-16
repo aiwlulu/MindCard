@@ -10,6 +10,7 @@ describe("ShortcutGuide", () => {
 
     expect(screen.getByText("Add sibling topic")).toBeInTheDocument();
     expect(screen.getByText("Collapse or expand branch")).toBeInTheDocument();
+    expect(screen.getByText("Expand or collapse entire subtree")).toBeInTheDocument();
     expect(screen.getByText("Center map")).toBeInTheDocument();
     expect(screen.getByText("Select multiple topics")).toBeInTheDocument();
     expect(screen.getByText("Marquee select topics")).toBeInTheDocument();

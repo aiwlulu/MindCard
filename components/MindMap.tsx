@@ -35,8 +35,10 @@ import {
   formatHiddenDescendantCount,
   insertChild,
   insertSibling,
+  insertSiblingBefore,
   moveNode,
   moveNodesAsChildren,
+  moveNodesAsSiblings,
   removeNode,
   setAllBranchesCollapsed,
   updateNode,
@@ -93,9 +95,18 @@ interface NodeDragState {
 type TreeUpdater = (root: NodeData) => NodeData;
 type EditorMode = "map" | "markdown" | "split";
 type InteractionMode = "select" | "pan";
+type DropPosition = "before" | "inside" | "after";
 
 const MIN_ZOOM = 0.45;
 const MAX_ZOOM = 8;
+
+function isSubtreeFullyCollapsed(node: NodeData): boolean {
+  if (node.children?.length && !node.root && !node.collapsed) return false;
+
+  return (node.children ?? []).every(
+    (child) => !child.children?.length || isSubtreeFullyCollapsed(child)
+  );
+}
 
 export default function MindMap({ id }: MindMapProps) {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -138,6 +149,7 @@ export default function MindMap({ id }: MindMapProps) {
     () => new Set()
   );
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<DropPosition | null>(null);
   const [externalLinkNodeId, setExternalLinkNodeId] = useState<string | null>(
     null
   );
@@ -161,6 +173,13 @@ export default function MindMap({ id }: MindMapProps) {
         ? findNode(root, selectedNode.id) ?? selectedNode
         : null,
     [root, selectedNode]
+  );
+  const selectedSubtreeFullyCollapsed = useMemo(
+    () =>
+      currentSelectedNode
+        ? isSubtreeFullyCollapsed(currentSelectedNode)
+        : false,
+    [currentSelectedNode]
   );
   const contextMenuNode = useMemo(
     () =>
@@ -335,7 +354,7 @@ export default function MindMap({ id }: MindMapProps) {
   }, [commitData, editingNodeId, editingTopic, root]);
 
   const addNode = useCallback(
-    (kind: "child" | "sibling", nodeId: string) => {
+    (kind: "child" | "sibling" | "sibling-before", nodeId: string) => {
       const newNode = createNode();
       commitData((tree) => {
         const expandedTree =
@@ -345,9 +364,11 @@ export default function MindMap({ id }: MindMapProps) {
                 collapsed: false,
               }))
             : tree;
-        return kind === "child"
-          ? insertChild(expandedTree, nodeId, newNode)
-          : insertSibling(expandedTree, nodeId, newNode);
+        if (kind === "child") return insertChild(expandedTree, nodeId, newNode);
+        if (kind === "sibling-before") {
+          return insertSiblingBefore(expandedTree, nodeId, newNode);
+        }
+        return insertSibling(expandedTree, nodeId, newNode);
       });
       setSelectedNode(newNode);
       setSelectedNodeIds(new Set([newNode.id]));
@@ -358,15 +379,29 @@ export default function MindMap({ id }: MindMapProps) {
     [commitData, setSelectedNode]
   );
 
-  const deleteNode = useCallback(
-    (nodeId: string) => {
-      const node = root ? findNode(root, nodeId) : null;
-      if (node?.root) {
-        toast.error("The root node cannot be deleted.", { autoClose: 1500 });
-        return;
-      }
+  const deleteNodes = useCallback(
+    (nodeIds: string[]) => {
+      if (!root || !nodeIds.length) return;
 
-      commitData((tree) => removeNode(tree, nodeId).root);
+      const uniqueNodeIds = [...new Set(nodeIds)];
+      const rootSelected = uniqueNodeIds.some(
+        (nodeId) => findNode(root, nodeId)?.root
+      );
+      const deletableNodeIds = uniqueNodeIds.filter(
+        (nodeId) => !findNode(root, nodeId)?.root
+      );
+
+      if (rootSelected) {
+        toast.error("The root node cannot be deleted.", { autoClose: 1500 });
+      }
+      if (!deletableNodeIds.length) return;
+
+      commitData((tree) =>
+        deletableNodeIds.reduce(
+          (current, nodeId) => removeNode(current, nodeId).root,
+          tree
+        )
+      );
       setSelectedNode(null);
       setSelectedNodeIds(new Set());
       setContextMenu(null);
@@ -384,6 +419,22 @@ export default function MindMap({ id }: MindMapProps) {
           ...current,
           collapsed: !current.collapsed,
         }))
+      );
+      setContextMenu(null);
+    },
+    [commitData, root]
+  );
+
+  const toggleSubtree = useCallback(
+    (nodeId: string) => {
+      const node = root ? findNode(root, nodeId) : null;
+      if (!node?.children?.length) return;
+
+      const collapsed = !isSubtreeFullyCollapsed(node);
+      commitData((tree) =>
+        updateNode(tree, nodeId, (current) =>
+          setAllBranchesCollapsed(current, collapsed, current.root === true)
+        )
       );
       setContextMenu(null);
     },
@@ -652,15 +703,23 @@ export default function MindMap({ id }: MindMapProps) {
         }
       }
 
-      if (event.key === "Enter") {
+      if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
         addNode(currentSelectedNode?.root ? "child" : "sibling", selectedId);
+      } else if (event.key === "Enter" && event.shiftKey) {
+        event.preventDefault();
+        addNode(
+          currentSelectedNode?.root ? "child" : "sibling-before",
+          selectedId
+        );
       } else if (event.key === "Tab") {
         event.preventDefault();
         addNode("child", selectedId);
       } else if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
-        deleteNode(selectedId);
+        deleteNodes(
+          selectedNodeIds.size ? [...selectedNodeIds] : [selectedId]
+        );
       } else if (event.key === "PageUp" || (event.altKey && event.key === "ArrowUp")) {
         event.preventDefault();
         commitData((tree) => moveNode(tree, selectedId, "up"));
@@ -669,14 +728,15 @@ export default function MindMap({ id }: MindMapProps) {
         commitData((tree) => moveNode(tree, selectedId, "down"));
       } else if (event.key === " " && currentSelectedNode?.children?.length) {
         event.preventDefault();
-        toggleBranch(selectedId);
+        if (event.shiftKey) toggleSubtree(selectedId);
+        else toggleBranch(selectedId);
       }
     },
     [
       addNode,
       centerMap,
       commitData,
-      deleteNode,
+      deleteNodes,
       editingNodeId,
       interactionMode,
       pasteNode,
@@ -684,11 +744,13 @@ export default function MindMap({ id }: MindMapProps) {
       redo,
       saveMindmap,
       selectNode,
+      selectedNodeIds,
       editorMode,
       switchEditorMode,
       currentSelectedNode,
       startEditing,
       toggleBranch,
+      toggleSubtree,
       toggleInteractionMode,
       undo,
       zoomBy,
@@ -759,11 +821,27 @@ export default function MindMap({ id }: MindMapProps) {
         .elementFromPoint?.(event.clientX, event.clientY)
         ?.closest("[data-node-id]") as SVGGElement | null | undefined;
       const targetId = target?.dataset.nodeId ?? null;
-      setDropTargetId(
-        targetId && !drag.nodeIds.includes(targetId) ? targetId : null
-      );
+      if (!targetId || drag.nodeIds.includes(targetId)) {
+        setDropTargetId(null);
+        setDropPosition(null);
+        return;
+      }
+
+      const targetNode = root ? findNode(root, targetId) : null;
+      let position: DropPosition = "inside";
+      if (targetNode && !targetNode.root && target) {
+        const bounds = target.getBoundingClientRect();
+        if (bounds.height > 0) {
+          const relativeY = (event.clientY - bounds.top) / bounds.height;
+          if (relativeY <= 0.28) position = "before";
+          else if (relativeY >= 0.72) position = "after";
+        }
+      }
+
+      setDropTargetId(targetId);
+      setDropPosition(position);
     },
-    []
+    [root]
   );
 
   const handleNodePointerUp = useCallback(
@@ -771,10 +849,18 @@ export default function MindMap({ id }: MindMapProps) {
       const drag = nodeDragRef.current;
       if (!drag || drag.pointerId !== event.pointerId) return;
 
-      if (drag.moved && dropTargetId) {
-        commitData((tree) =>
-          moveNodesAsChildren(tree, drag.nodeIds, dropTargetId)
-        );
+      if (drag.moved && dropTargetId && dropPosition) {
+        commitData((tree) => {
+          if (dropPosition === "inside") {
+            return moveNodesAsChildren(tree, drag.nodeIds, dropTargetId);
+          }
+          return moveNodesAsSiblings(
+            tree,
+            drag.nodeIds,
+            dropTargetId,
+            dropPosition
+          );
+        });
         setSelectedNodeIds(new Set(drag.nodeIds));
       }
 
@@ -791,9 +877,10 @@ export default function MindMap({ id }: MindMapProps) {
 
       nodeDragRef.current = null;
       setDropTargetId(null);
+      setDropPosition(null);
       event.currentTarget.releasePointerCapture?.(event.pointerId);
     },
-    [commitData, dropTargetId]
+    [commitData, dropPosition, dropTargetId]
   );
 
   const handlePointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
@@ -1136,13 +1223,28 @@ export default function MindMap({ id }: MindMapProps) {
               </>
             ) : null}
             {currentSelectedNode.children?.length ? (
-              <button
-                type="button"
-                aria-label={currentSelectedNode.collapsed ? "Expand branch" : "Collapse branch"}
-                onClick={() => toggleBranch(currentSelectedNode.id)}
-              >
-                {currentSelectedNode.collapsed ? "Expand branch" : "Collapse branch"} <kbd>Space</kbd>
-              </button>
+              <>
+                <button
+                  type="button"
+                  aria-label={currentSelectedNode.collapsed ? "Expand branch" : "Collapse branch"}
+                  onClick={() => toggleBranch(currentSelectedNode.id)}
+                >
+                  {currentSelectedNode.collapsed ? "Expand branch" : "Collapse branch"} <kbd>Space</kbd>
+                </button>
+                <button
+                  type="button"
+                  aria-label={
+                    selectedSubtreeFullyCollapsed
+                      ? "Expand subtree"
+                      : "Collapse subtree"
+                  }
+                  onClick={() => toggleSubtree(currentSelectedNode.id)}
+                >
+                  {selectedSubtreeFullyCollapsed
+                    ? "Expand subtree"
+                    : "Collapse subtree"} <kbd>⇧Space</kbd>
+                </button>
+              </>
             ) : null}
           </>
         ) : (
@@ -1278,6 +1380,9 @@ export default function MindMap({ id }: MindMapProps) {
                         : currentSelectedNode?.id === item.node.id
                     }
                     dropTarget={dropTargetId === item.node.id}
+                    dropPosition={
+                      dropTargetId === item.node.id ? dropPosition : null
+                    }
                     editing={editingNodeId === item.node.id}
                     editingTopic={editingTopic}
                     onSelect={selectNodeFromPointer}
@@ -1377,7 +1482,12 @@ export default function MindMap({ id }: MindMapProps) {
             </button>
           ) : null}
           {!contextMenuNode?.root ? (
-            <button role="menuitem" onClick={() => deleteNode(contextMenu.nodeId)}>Delete</button>
+            <button
+              role="menuitem"
+              onClick={() => deleteNodes([contextMenu.nodeId])}
+            >
+              Delete
+            </button>
           ) : null}
         </div>
       )}
@@ -1389,6 +1499,7 @@ interface MindMapNodeProps {
   item: LayoutNode;
   selected: boolean;
   dropTarget: boolean;
+  dropPosition: DropPosition | null;
   editing: boolean;
   editingTopic: string;
   onSelect: (node: NodeData, additive?: boolean) => void;
@@ -1408,6 +1519,7 @@ function MindMapNode({
   item,
   selected,
   dropTarget,
+  dropPosition,
   editing,
   editingTopic,
   onSelect,
@@ -1455,7 +1567,9 @@ function MindMapNode({
       data-node-id={node.id}
       data-node-depth={depth}
       transform={`translate(${x} ${y})`}
-      className={`mindmap-node${dropTarget ? " is-drop-target" : ""}`}
+      className={`mindmap-node${dropTarget ? " is-drop-target" : ""}${
+        dropPosition ? ` is-drop-${dropPosition}` : ""
+      }`}
       onClick={(event) => {
         event.stopPropagation();
         onSelect(node, event.ctrlKey || event.metaKey);
@@ -1487,6 +1601,15 @@ function MindMapNode({
           className="mindmap-node-selection"
         />
       ) : null}
+      {dropPosition === "before" || dropPosition === "after" ? (
+        <line
+          className="mindmap-drop-indicator"
+          x1="-10"
+          x2={width + 10}
+          y1={dropPosition === "before" ? -7 : height + 7}
+          y2={dropPosition === "before" ? -7 : height + 7}
+        />
+      ) : null}
       {editing ? (
         <foreignObject x="0" y="0" width={width} height={height}>
           <textarea
@@ -1495,6 +1618,13 @@ function MindMapNode({
             value={editingTopic}
             aria-label={`Edit ${node.topic}`}
             className="mindmap-node-input"
+            onClick={(event) => event.stopPropagation()}
+            onDoubleClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerMove={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
+            onPointerCancel={(event) => event.stopPropagation()}
+            onContextMenu={(event) => event.stopPropagation()}
             onFocus={(event) => event.currentTarget.select()}
             onChange={(event) => onEditTopic(event.target.value)}
             onBlur={onCommitEdit}
