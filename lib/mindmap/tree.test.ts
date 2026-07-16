@@ -9,6 +9,7 @@ import {
   insertSibling,
   moveNode,
   moveNodesAsChildren,
+  moveNodesAsSiblings,
   normalizeMindmapData,
   removeNode,
   setAllBranchesCollapsed,
@@ -168,6 +169,17 @@ describe("mind map tree operations", () => {
       "two",
     ]);
     expect(findNode(withSibling, "two")?.children?.[0].id).toBe("two-a");
+  });
+
+  it("moves selected nodes before or after a target sibling", () => {
+    const tree = baseTree();
+
+    const before = moveNodesAsSiblings(tree, ["two"], "one", "before");
+    const after = moveNodesAsSiblings(tree, ["one"], "two", "after");
+
+    expect(before.children?.map((node) => node.id)).toEqual(["two", "one"]);
+    expect(after.children?.map((node) => node.id)).toEqual(["two", "one"]);
+    expect(moveNodesAsSiblings(tree, ["one"], "one-a", "before")).toEqual(tree);
   });
 
   it("removes a non-root node but protects the root", () => {

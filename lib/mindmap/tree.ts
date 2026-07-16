@@ -148,6 +148,30 @@ export function insertSibling(
   return changed ? { ...root, children } : root;
 }
 
+export function insertSiblingBefore(
+  root: NodeData,
+  nodeId: string,
+  sibling: NodeData
+): NodeData {
+  if (!root.children?.length) return root;
+
+  const siblingIndex = root.children.findIndex((child) => child.id === nodeId);
+  if (siblingIndex >= 0) {
+    const children = [...root.children];
+    children.splice(siblingIndex, 0, cloneNode(sibling));
+    return { ...root, children };
+  }
+
+  let changed = false;
+  const children = root.children.map((child) => {
+    const updated = insertSiblingBefore(child, nodeId, sibling);
+    changed ||= updated !== child;
+    return updated;
+  });
+
+  return changed ? { ...root, children } : root;
+}
+
 export function removeNode(
   root: NodeData,
   nodeId: string
@@ -250,6 +274,76 @@ export function moveNodesAsChildren(
       collectSelectedRoots(child, ancestorSelected || selected);
     }
   }
+}
+
+export type SiblingMovePosition = "before" | "after";
+
+export function moveNodesAsSiblings(
+  root: NodeData,
+  nodeIds: string[],
+  targetId: string,
+  position: SiblingMovePosition
+): NodeData {
+  const selectedIds = new Set(nodeIds);
+  if (!selectedIds.size || selectedIds.has(root.id) || selectedIds.has(targetId)) {
+    return root;
+  }
+
+  const target = findNode(root, targetId);
+  if (!target || target.root) return root;
+
+  const sources: NodeData[] = [];
+  collectSelectedRoots(root, false);
+  if (!sources.length || sources.some((source) => findNode(source, targetId))) {
+    return root;
+  }
+
+  let nextRoot = root;
+  for (const source of sources) {
+    const result = removeNode(nextRoot, source.id);
+    if (!result.removed) return root;
+    nextRoot = result.root;
+  }
+
+  return insertSiblings(nextRoot, targetId, sources, position);
+
+  function collectSelectedRoots(node: NodeData, ancestorSelected: boolean) {
+    const selected = selectedIds.has(node.id);
+    if (selected && !ancestorSelected) {
+      sources.push(node);
+      return;
+    }
+
+    for (const child of node.children ?? []) {
+      collectSelectedRoots(child, ancestorSelected || selected);
+    }
+  }
+}
+
+function insertSiblings(
+  root: NodeData,
+  targetId: string,
+  siblings: NodeData[],
+  position: SiblingMovePosition
+): NodeData {
+  if (!root.children?.length) return root;
+
+  const targetIndex = root.children.findIndex((child) => child.id === targetId);
+  if (targetIndex >= 0) {
+    const children = [...root.children];
+    const insertIndex = position === "before" ? targetIndex : targetIndex + 1;
+    children.splice(insertIndex, 0, ...siblings.map(cloneNode));
+    return { ...root, children };
+  }
+
+  let changed = false;
+  const children = root.children.map((child) => {
+    const updated = insertSiblings(child, targetId, siblings, position);
+    changed ||= updated !== child;
+    return updated;
+  });
+
+  return changed ? { ...root, children } : root;
 }
 
 export function setAllBranchesCollapsed(
