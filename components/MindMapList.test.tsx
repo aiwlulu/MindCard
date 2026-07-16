@@ -27,6 +27,7 @@ const mindMaps: MindmapListItem[] = Array.from({ length: 45 }, (_, index) => ({
 describe("MindMapList pagination", () => {
   beforeEach(() => {
     jest.useFakeTimers();
+    sessionStorage.clear();
     mockPage = "2";
     mockRouterPush.mockReset();
     mockRouterReplace.mockReset();
@@ -112,6 +113,54 @@ describe("MindMapList pagination", () => {
       "Open Newest map",
       "Open Middle map",
     ]);
+  });
+
+  it("clears the search and returns to the first page", () => {
+    const searchInput = "Search mind maps";
+
+    render(
+      <MindMapList
+        mindMaps={mindMaps}
+        onMindMapCreate={jest.fn()}
+        onDeleteMindMap={jest.fn()}
+        onTogglePublic={jest.fn()}
+        onCopyPublicLink={jest.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByRole("textbox", { name: searchInput }), {
+      target: { value: "Map 21" },
+    });
+    expect(screen.getByRole("button", { name: "Open Map 21" })).toBeInTheDocument();
+    expect(sessionStorage.getItem("mindcard:mindmap-search")).toBe("Map 21");
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+
+    expect(screen.getByRole("textbox", { name: searchInput })).toHaveValue("");
+    expect(sessionStorage.getItem("mindcard:mindmap-search")).toBeNull();
+    expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Map 1" })).toBeInTheDocument();
+  });
+
+  it("restores the search from the current browser session", () => {
+    mockPage = "1";
+    sessionStorage.setItem("mindcard:mindmap-search", "Map 21");
+
+    render(
+      <MindMapList
+        mindMaps={mindMaps}
+        onMindMapCreate={jest.fn()}
+        onDeleteMindMap={jest.fn()}
+        onTogglePublic={jest.fn()}
+        onCopyPublicLink={jest.fn()}
+      />
+    );
+
+    expect(screen.getByRole("textbox", { name: "Search mind maps" })).toHaveValue(
+      "Map 21"
+    );
+    expect(screen.getByRole("button", { name: "Open Map 21" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open Map 1" })).not.toBeInTheDocument();
   });
 
   it("keeps a stable paginated grid while moving from a full page to a shorter page", () => {

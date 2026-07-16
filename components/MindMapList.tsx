@@ -9,6 +9,31 @@ import MindMapLoader from "./MindMapLoader";
 import type { MindmapListItem } from "@/lib/types";
 
 type MindMapSortMode = "created" | "updated";
+const SEARCH_STORAGE_KEY = "mindcard:mindmap-search";
+
+const readStoredSearch = (): string => {
+  if (typeof window === "undefined") return "";
+
+  try {
+    return window.sessionStorage.getItem(SEARCH_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
+
+const writeStoredSearch = (searchTerm: string): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    if (searchTerm) {
+      window.sessionStorage.setItem(SEARCH_STORAGE_KEY, searchTerm);
+    } else {
+      window.sessionStorage.removeItem(SEARCH_STORAGE_KEY);
+    }
+  } catch {
+    // Storage can be unavailable in private browsing contexts.
+  }
+};
 
 const getSortTime = (
   map: MindmapListItem,
@@ -45,6 +70,7 @@ function MindMapList({
   const initialPage = parseInt(searchParams.get("page") ?? "1", 10) || 1;
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSearchRestored, setIsSearchRestored] = useState(false);
   const [sortMode, setSortMode] = useState<MindMapSortMode>("created");
   const [isTransitioning, setIsTransitioning] = useState(false);
   const pageTransitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -55,7 +81,22 @@ function MindMapList({
     setCurrentPage(1);
   };
 
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setCurrentPage(1);
+  };
+
   useEffect(() => setCurrentPage(initialPage), [initialPage]);
+
+  useEffect(() => {
+    setSearchTerm(readStoredSearch());
+    setIsSearchRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isSearchRestored) return;
+    writeStoredSearch(searchTerm);
+  }, [isSearchRestored, searchTerm]);
 
   useEffect(
     () => () => {
@@ -209,7 +250,11 @@ function MindMapList({
       </header>
 
       <div className="mindmap-library-tools">
-        <SearchBar value={searchTerm} onChange={handleSearchChange} />
+        <SearchBar
+          value={searchTerm}
+          onChange={handleSearchChange}
+          onClear={handleSearchClear}
+        />
         <div className="mindmap-library-tools-meta">
           {searchTerm ? (
             <span aria-live="polite">

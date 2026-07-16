@@ -1814,13 +1814,22 @@ html {
 
 .mindmap-library-search {
   display: flex;
+  min-width: 0;
   width: min(28rem, 100%);
   align-items: center;
   gap: 0.45rem;
   color: #858897;
 }
 
-.mindmap-library-search > span[aria-hidden] {
+.mindmap-library-search-label {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: inherit;
+  cursor: text;
+}
+
+.mindmap-library-search-label > span[aria-hidden] {
   padding-left: 0.35rem;
   font-size: 1.05rem;
 }
@@ -1833,6 +1842,29 @@ html {
   color: #e4e4e9;
   background: transparent;
   font-size: 0.82rem;
+  outline: none;
+}
+
+.mindmap-library-search-clear {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  margin-right: 0.1rem;
+  border: 0;
+  border-radius: 0.4rem;
+  color: #9d9daa;
+  background: transparent;
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.mindmap-library-search-clear:hover,
+.mindmap-library-search-clear:focus-visible {
+  color: #eeeef2;
+  background: rgba(143, 141, 196, 0.18);
   outline: none;
 }
 
