@@ -15,6 +15,7 @@ import { PanIcon } from "./Icons";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import {
   layoutMindmap,
+  NODE_MAX_WIDTH,
   NODE_LINE_HEIGHT,
   NODE_LINK_HEIGHT,
   type LayoutNode,
@@ -99,6 +100,37 @@ type DropPosition = "before" | "inside" | "after";
 
 const MIN_ZOOM = 0.45;
 const MAX_ZOOM = 8;
+const EDITOR_MIN_WIDTH = 260;
+const EDITOR_MAX_WIDTH = 520;
+const EDITOR_MIN_HEIGHT = 96;
+const EDITOR_MAX_HEIGHT = 360;
+const EDITOR_HORIZONTAL_PADDING = 28;
+const EDITOR_CHARACTER_WIDTH = 15;
+
+function getEditingBoxSize(topic: string, baseWidth: number, baseHeight: number) {
+  const lines = topic.split("\n");
+  const longestLineLength = lines.reduce(
+    (longest, line) => Math.max(longest, Array.from(line).length),
+    0
+  );
+  const estimatedWidth = Math.min(
+    EDITOR_MAX_WIDTH,
+    Math.max(
+      EDITOR_MIN_WIDTH,
+      Math.max(NODE_MAX_WIDTH, longestLineLength * EDITOR_CHARACTER_WIDTH) +
+        EDITOR_HORIZONTAL_PADDING
+    )
+  );
+  const estimatedHeight = Math.min(
+    EDITOR_MAX_HEIGHT,
+    Math.max(EDITOR_MIN_HEIGHT, lines.length * NODE_LINE_HEIGHT + 22)
+  );
+
+  return {
+    width: Math.max(baseWidth, estimatedWidth),
+    height: Math.max(baseHeight, estimatedHeight),
+  };
+}
 
 function isSubtreeFullyCollapsed(node: NodeData): boolean {
   if (node.children?.length && !node.root && !node.collapsed) return false;
@@ -1558,6 +1590,9 @@ function MindMapNode({
   const collapseWidth = node.collapsed
     ? Math.max(16, collapseLabel.length * 5.5 + 7)
     : 18;
+  const editingBox = editing
+    ? getEditingBoxSize(editingTopic, width, height)
+    : null;
 
   return (
     <g
@@ -1611,7 +1646,12 @@ function MindMapNode({
         />
       ) : null}
       {editing ? (
-        <foreignObject x="0" y="0" width={width} height={height}>
+        <foreignObject
+          x="0"
+          y="0"
+          width={editingBox?.width ?? width}
+          height={editingBox?.height ?? height}
+        >
           <textarea
             autoFocus
             wrap="soft"
