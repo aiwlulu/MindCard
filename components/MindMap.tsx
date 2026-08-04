@@ -634,6 +634,15 @@ export default function MindMap({ id }: MindMapProps) {
         void saveMindmap();
         return;
       }
+      if (commandKey && key === "l") {
+        event.preventDefault();
+        if (currentSelectedNode) {
+          startExternalLinkEditing(currentSelectedNode);
+        } else {
+          toast.error("Please select a node first", { autoClose: 1500 });
+        }
+        return;
+      }
       if (editingNodeId) return;
       const target = event.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
@@ -781,6 +790,7 @@ export default function MindMap({ id }: MindMapProps) {
       switchEditorMode,
       currentSelectedNode,
       startEditing,
+      startExternalLinkEditing,
       toggleBranch,
       toggleSubtree,
       toggleInteractionMode,
@@ -1239,6 +1249,8 @@ export default function MindMap({ id }: MindMapProps) {
                   className="mindmap-commandbar-input"
                   placeholder="https://example.com"
                   value={externalLinkDraft}
+                  autoFocus
+                  onFocus={(event) => event.target.select()}
                   onChange={(event) => setExternalLinkDraft(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") saveExternalLink();
