@@ -64,6 +64,39 @@ describe("mind map Markdown editing", () => {
     expect(result.root?.children?.[0].children?.[0].topic).toBe("Interviews");
   });
 
+  it("marks a whole-line **bold** bullet as bold and strips the markers", () => {
+    const result = parseMindmapMarkdown(
+      "# Product plan\n- **Key takeaway**\n- Regular note\n"
+    );
+
+    expect(result.root?.children?.[0]).toMatchObject({
+      topic: "Key takeaway",
+      bold: true,
+    });
+    expect(result.root?.children?.[1]).toMatchObject({
+      topic: "Regular note",
+    });
+    expect(result.root?.children?.[1].bold).toBeUndefined();
+  });
+
+  it("round-trips the bold flag through convertToMarkdown", () => {
+    const boldRoot: NodeData = {
+      id: "root",
+      root: true,
+      topic: "Plan",
+      children: [{ id: "n1", topic: "Important", bold: true }],
+    };
+
+    const markdown = convertToMarkdown(boldRoot);
+    expect(markdown).toContain("**Important**");
+
+    const result = parseMindmapMarkdown(markdown);
+    expect(result.root?.children?.[0]).toMatchObject({
+      topic: "Important",
+      bold: true,
+    });
+  });
+
   it("preserves node identity and non-Markdown metadata while applying edits", () => {
     const parsed = parseMindmapMarkdown(
       "# Product plan\n## Updated research\n### [Docs](https://example.com/docs)\n"

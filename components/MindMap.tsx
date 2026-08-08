@@ -1734,7 +1734,7 @@ function MindMapNode({
             x={textX}
             y={firstBaseline}
             textAnchor={textAnchor}
-            className={`mindmap-node-topic${isFirstLevel ? " is-first-level" : ""}`}
+            className={`mindmap-node-topic${isFirstLevel ? " is-first-level" : ""}${node.bold ? " is-bold" : ""}`}
           >
             {lines.map((line, index) => (
               <tspan

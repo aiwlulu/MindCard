@@ -59,7 +59,9 @@ export function buildMindmapSvg(root: NodeData): string {
         const centerY = lineY;
         collapsedMarkup = `<rect x="${centerX - badgeWidth / 2}" y="${centerY - 8}" width="${badgeWidth}" height="16" rx="8" fill="#292a32" stroke="${branchColor}"/><text x="${centerX}" y="${centerY + 3}" text-anchor="middle" fill="#d6d6df" font-size="8">${label}</text>`;
       }
-      return `<g data-node-id="${escapeXml(node.id)}">${rootMarkup}<text x="${textX}" y="${firstBaseline}" text-anchor="${textAnchor}" fill="#dedee4" font-size="15" font-weight="${depth <= 1 ? 600 : 400}" font-family="system-ui, sans-serif">${textMarkup}</text>${underlineMarkup}${linkMarkup}${externalLinkMarkup}${collapsedMarkup}</g>`;
+      const fontWeight = node.bold ? 750 : depth <= 1 ? 600 : 400;
+      const textFill = node.bold ? "#f4f4f8" : "#dedee4";
+      return `<g data-node-id="${escapeXml(node.id)}">${rootMarkup}<text x="${textX}" y="${firstBaseline}" text-anchor="${textAnchor}" fill="${textFill}" font-size="15" font-weight="${fontWeight}" font-family="system-ui, sans-serif">${textMarkup}</text>${underlineMarkup}${linkMarkup}${externalLinkMarkup}${collapsedMarkup}</g>`;
     })
     .join("");
 

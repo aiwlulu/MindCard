@@ -746,6 +746,11 @@ html {
   font-weight: 650;
 }
 
+.mindmap-node-topic.is-bold {
+  fill: #f4f4f8;
+  font-weight: 750;
+}
+
 .mindmap-node-underline {
   vector-effect: non-scaling-stroke;
   stroke-linecap: round;

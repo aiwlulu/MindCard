@@ -5,6 +5,7 @@ import { createNode } from "./tree";
 const HEADING_PATTERN = /^(#{1,6})\s+(.+?)\s*$/;
 const BULLET_PATTERN = /^(\s*)[-*+]\s+(.+?)\s*$/;
 const EXTERNAL_LINK_PATTERN = /^\[([^\]]+)]\((https?:\/\/.+)\)$/i;
+const BOLD_LINE_PATTERN = /^\*\*([\s\S]+)\*\*$/;
 
 export interface MarkdownParseResult {
   root: NodeData | null;
@@ -20,7 +21,8 @@ export function convertToMarkdown(node: NodeData, depth = 0): string {
   const topic = node.externalLink
     ? `[${label}](${node.externalLink})`
     : label;
-  let markdown = `${prefix}${topic}\n`;
+  const content = node.bold ? `**${topic}**` : topic;
+  let markdown = `${prefix}${content}\n`;
 
   for (const child of node.children ?? []) {
     markdown += convertToMarkdown(child, depth + 1);
@@ -117,18 +119,30 @@ export function reconcileMarkdownTree(
 }
 
 function createMarkdownNode(content: string): NodeData | null {
-  const normalizedContent = content.trim().replace(/<br\s*\/?>/gi, "\n");
+  let normalizedContent = content.trim().replace(/<br\s*\/?>/gi, "\n");
+  if (!normalizedContent) return null;
+
+  const boldMatch = normalizedContent.match(BOLD_LINE_PATTERN);
+  const bold = Boolean(boldMatch);
+  if (boldMatch) normalizedContent = boldMatch[1].trim();
   if (!normalizedContent) return null;
 
   const externalLinkMatch = normalizedContent.match(EXTERNAL_LINK_PATTERN);
-  if (!externalLinkMatch) return createNode(normalizedContent);
+  if (!externalLinkMatch) {
+    const node = createNode(normalizedContent);
+    return bold ? { ...node, bold: true } : node;
+  }
 
   const externalLink = normalizeExternalUrl(externalLinkMatch[2]);
-  if (!externalLink) return createNode(normalizedContent);
+  if (!externalLink) {
+    const node = createNode(normalizedContent);
+    return bold ? { ...node, bold: true } : node;
+  }
 
   return {
     ...createNode(externalLinkMatch[1].replace(/<br\s*\/?>/gi, "\n")),
     externalLink,
+    ...(bold ? { bold: true } : {}),
   };
 }
 

@@ -7,6 +7,7 @@ export interface NodeData {
   id: string;
   topic: string;
   root?: boolean;
+  bold?: boolean;
   hyperLink?: string;
   externalLink?: string;
   collapsed?: boolean;
