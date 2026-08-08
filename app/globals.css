@@ -1232,6 +1232,34 @@ html {
   }
 }
 
+.mindmap-pan-indicator {
+  position: absolute;
+  left: 50%;
+  top: 1rem;
+  z-index: 40;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid rgba(101, 168, 146, 0.35);
+  border-radius: 999px;
+  background: rgba(36, 37, 47, 0.94);
+  color: #d5d5dd;
+  font-size: 0.8125rem;
+  line-height: 1;
+  box-shadow: 0 10px 28px rgba(5, 6, 10, 0.28);
+  pointer-events: none;
+  animation: mindmap-canvas-enter 150ms ease-out both;
+}
+
+.mindmap-pan-indicator kbd {
+  padding: 0.1rem 0.35rem;
+  border: 1px solid rgba(213, 213, 221, 0.3);
+  border-radius: 0.3rem;
+  font-size: 0.7rem;
+}
+
 .mindmap-toolbar {
   position: absolute;
   right: 1rem;

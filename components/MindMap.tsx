@@ -619,6 +619,31 @@ export default function MindMap({ id }: MindMapProps) {
     [layout, zoom]
   );
 
+  const handleWheel = useCallback(
+    (event: React.WheelEvent<SVGSVGElement>) => {
+      event.preventDefault();
+
+      // Pinch-to-zoom on trackpads is reported as a ctrl/meta-modified wheel event.
+      if (event.ctrlKey || event.metaKey) {
+        zoomBy(event.deltaY < 0 ? 0.08 : -0.08, {
+          x: event.clientX,
+          y: event.clientY,
+        });
+        return;
+      }
+
+      // Plain two-finger scroll pans the canvas, matching Figma/Miro-style tools.
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const scaleX = layout && bounds.width ? layout.width / bounds.width : 1;
+      const scaleY = layout && bounds.height ? layout.height / bounds.height : 1;
+      setPan((current) => ({
+        x: current.x - event.deltaX * scaleX,
+        y: current.y - event.deltaY * scaleY,
+      }));
+    },
+    [layout, zoomBy]
+  );
+
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       const commandKey = event.ctrlKey || event.metaKey;
@@ -1293,7 +1318,9 @@ export default function MindMap({ id }: MindMapProps) {
           </>
         ) : (
           <span className="mindmap-commandbar-hint">
-            Select a node · Press H for pan · Right-drag to browse
+            {interactionMode === "pan"
+              ? "Pan mode active · Press Esc or H to select nodes again"
+              : "Select a node · Press H for pan · Right-drag to browse"}
           </span>
         )) : (
           <span
@@ -1369,6 +1396,11 @@ export default function MindMap({ id }: MindMapProps) {
           ) : null}
           {editorMode !== "markdown" ? (
             <div className="mindmap-map-pane">
+              {interactionMode === "pan" ? (
+                <div className="mindmap-pan-indicator" role="status">
+                  🖐️ Pan mode — drag to browse <kbd>Esc</kbd> to exit
+                </div>
+              ) : null}
               {layout ? (
                 <svg
               ref={svgRef}
@@ -1379,13 +1411,7 @@ export default function MindMap({ id }: MindMapProps) {
               preserveAspectRatio="xMidYMid meet"
               role="img"
               aria-label="Mind map"
-              onWheel={(event) => {
-                event.preventDefault();
-                zoomBy(event.deltaY < 0 ? 0.08 : -0.08, {
-                  x: event.clientX,
-                  y: event.clientY,
-                });
-              }}
+              onWheel={handleWheel}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
