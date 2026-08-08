@@ -952,6 +952,9 @@ export default function MindMap({ id }: MindMapProps) {
 
   const handlePointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
     const target = event.target as SVGElement;
+    // Never let pan/selection gestures swallow clicks on node controls
+    // (expand/collapse badge, external/card links) — even in pan mode.
+    if (target.closest('[data-node-control="true"]')) return;
     const startedOnBackground =
       event.target === event.currentTarget ||
       target.dataset.canvasBackground === "true";
