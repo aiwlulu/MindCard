@@ -20,7 +20,7 @@ export function buildMindmapSvg(root: NodeData): string {
     })
     .join("");
   const nodeMarkup = layout.nodes
-    .map(({ node, x, y, width, height, lines, depth, branchIndex }) => {
+    .map(({ node, x, y, width, height, lines, richLines, depth, branchIndex }) => {
       const topicBlockHeight = lines.length * NODE_LINE_HEIGHT;
       const linkCount = Number(Boolean(node.hyperLink)) + Number(Boolean(node.externalLink));
       const linkHeight = linkCount * NODE_LINK_HEIGHT;
@@ -32,11 +32,17 @@ export function buildMindmapSvg(root: NodeData): string {
       const textAnchor = depth === 0 ? "middle" : "start";
       const firstBaseline = y + contentTop + 16;
       const branchColor = getBranchColor(branchIndex, depth);
-      const textMarkup = lines
-        .map(
-          (line, index) =>
-            `<tspan x="${textX}" dy="${index === 0 ? 0 : NODE_LINE_HEIGHT}">${escapeXml(line)}</tspan>`
-        )
+      const textMarkup = richLines
+        .map((line, index) => {
+          const segmentMarkup = line
+            .map((segment) =>
+              segment.bold
+                ? `<tspan font-weight="750" fill="#f4f4f8">${escapeXml(segment.text)}</tspan>`
+                : escapeXml(segment.text)
+            )
+            .join("");
+          return `<tspan x="${textX}" dy="${index === 0 ? 0 : NODE_LINE_HEIGHT}">${segmentMarkup}</tspan>`;
+        })
         .join("");
       const linkMarkup = node.hyperLink
         ? `<a href="/mindmap/${escapeXml(node.hyperLink)}" target="_blank" rel="noopener noreferrer"><text x="${textX}" y="${y + contentTop + topicBlockHeight + 14}" text-anchor="${textAnchor}" fill="#aaa8d4" font-size="11">↗ Open linked mind map</text></a>`

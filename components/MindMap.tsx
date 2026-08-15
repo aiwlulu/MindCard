@@ -1608,7 +1608,7 @@ function MindMapNode({
   onContextMenu,
 }: MindMapNodeProps) {
   const [isComposing, setIsComposing] = useState(false);
-  const { node, x, y, width, height, depth, lines, branchIndex } = item;
+  const { node, x, y, width, height, depth, lines, richLines, branchIndex } = item;
   const isRoot = depth === 0;
   const isFirstLevel = depth === 1;
   const topicBlockHeight = lines.length * NODE_LINE_HEIGHT;
@@ -1736,13 +1736,20 @@ function MindMapNode({
             textAnchor={textAnchor}
             className={`mindmap-node-topic${isFirstLevel ? " is-first-level" : ""}${node.bold ? " is-bold" : ""}`}
           >
-            {lines.map((line, index) => (
+            {richLines.map((line, index) => (
               <tspan
                 key={`${node.id}-line-${index}`}
                 x={textX}
                 dy={index === 0 ? 0 : NODE_LINE_HEIGHT}
               >
-                {line}
+                {line.map((segment, segmentIndex) => (
+                  <tspan
+                    key={`${node.id}-line-${index}-${segmentIndex}`}
+                    className={segment.bold ? "is-bold" : undefined}
+                  >
+                    {segment.text}
+                  </tspan>
+                ))}
               </tspan>
             ))}
           </text>

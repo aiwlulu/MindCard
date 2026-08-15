@@ -1,4 +1,5 @@
 import type { NodeData } from "@/lib/types";
+import { parseInlineBold, type TopicSegment } from "./richtext";
 
 export const NODE_MIN_WIDTH = 96;
 export const NODE_MAX_WIDTH = 300;
@@ -23,6 +24,7 @@ export interface LayoutNode {
   height: number;
   depth: number;
   lines: string[];
+  richLines: TopicSegment[][];
   side: LayoutSide;
   branchIndex: number | null;
   connectionY: number;
@@ -58,6 +60,7 @@ interface NodeMetrics {
   width: number;
   height: number;
   lines: string[];
+  richLines: TopicSegment[][];
 }
 
 interface SubtreeMetrics extends NodeMetrics {
@@ -128,6 +131,7 @@ export function layoutMindmap(
       height: metrics.height,
       depth,
       lines: metrics.lines,
+      richLines: metrics.richLines,
       side,
       branchIndex,
       connectionY,
@@ -212,31 +216,62 @@ export function layoutMindmap(
 }
 
 export function wrapTopic(topic: string, maxWidth = NODE_MAX_WIDTH): string[] {
-  const availableWidth = Math.max(
-    1,
-    maxWidth - NODE_HORIZONTAL_PADDING * 2
+  return wrapTopicSegments(topic, maxWidth).map((line) =>
+    line.map((segment) => segment.text).join("")
   );
-  const lines: string[] = [];
+}
 
-  for (const paragraph of topic.split("\n")) {
-    let line = "";
-    let width = 0;
+export function wrapTopicSegments(
+  topic: string,
+  maxWidth = NODE_MAX_WIDTH
+): TopicSegment[][] {
+  const availableWidth = Math.max(1, maxWidth - NODE_HORIZONTAL_PADDING * 2);
+  const lines: TopicSegment[][] = [];
+  let current: TopicSegment[] = [];
+  let width = 0;
 
-    for (const character of Array.from(paragraph || " ")) {
-      const characterWidth = estimateCharacterWidth(character);
-      if (line && width + characterWidth > availableWidth) {
-        lines.push(line.trimEnd());
-        line = "";
-        width = 0;
-      }
-      line += character;
-      width += characterWidth;
-    }
-
-    lines.push(line.trimEnd() || " ");
+  function pushLine() {
+    const trimmed = trimLineEnd(current);
+    lines.push(trimmed.length ? trimmed : [{ text: " ", bold: false }]);
+    current = [];
+    width = 0;
   }
 
-  return lines.length ? lines : [" "];
+  function appendCharacter(character: string, bold: boolean) {
+    const last = current[current.length - 1];
+    if (last && last.bold === bold) last.text += character;
+    else current.push({ text: character, bold });
+  }
+
+  for (const segment of parseInlineBold(topic)) {
+    const paragraphs = segment.text.split("\n");
+    paragraphs.forEach((paragraph, index) => {
+      if (index > 0) pushLine();
+      for (const character of Array.from(paragraph)) {
+        const characterWidth = estimateCharacterWidth(character);
+        if (current.length && width + characterWidth > availableWidth) {
+          pushLine();
+        }
+        appendCharacter(character, segment.bold);
+        width += characterWidth;
+      }
+    });
+  }
+
+  pushLine();
+
+  return lines;
+}
+
+function trimLineEnd(line: TopicSegment[]): TopicSegment[] {
+  const trimmed = line.map((segment) => ({ ...segment }));
+  while (trimmed.length) {
+    const last = trimmed[trimmed.length - 1];
+    last.text = last.text.replace(/\s+$/, "");
+    if (last.text) break;
+    trimmed.pop();
+  }
+  return trimmed;
 }
 
 function measureSubtree(
@@ -273,7 +308,10 @@ function measureSubtree(
 }
 
 function measureNode(node: NodeData, nodeMaxWidth: number): NodeMetrics {
-  const lines = wrapTopic(node.topic, nodeMaxWidth);
+  const richLines = wrapTopicSegments(node.topic, nodeMaxWidth);
+  const lines = richLines.map((line) =>
+    line.map((segment) => segment.text).join("")
+  );
   const longestLineWidth = Math.max(...lines.map(estimateTextWidth));
   const width = Math.min(
     nodeMaxWidth,
@@ -286,7 +324,7 @@ function measureNode(node: NodeData, nodeMaxWidth: number): NodeMetrics {
       getNodeLinkCount(node) * NODE_LINK_HEIGHT
   );
 
-  return { width, height, lines };
+  return { width, height, lines, richLines };
 }
 
 function visibleChildren(node: NodeData): NodeData[] {

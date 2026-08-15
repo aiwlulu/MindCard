@@ -746,7 +746,8 @@ html {
   font-weight: 650;
 }
 
-.mindmap-node-topic.is-bold {
+.mindmap-node-topic.is-bold,
+.mindmap-node-topic tspan.is-bold {
   fill: #f4f4f8;
   font-weight: 750;
 }

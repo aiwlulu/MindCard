@@ -5,7 +5,7 @@ import { createNode } from "./tree";
 const HEADING_PATTERN = /^(#{1,6})\s+(.+?)\s*$/;
 const BULLET_PATTERN = /^(\s*)[-*+]\s+(.+?)\s*$/;
 const EXTERNAL_LINK_PATTERN = /^\[([^\]]+)]\((https?:\/\/.+)\)$/i;
-const BOLD_LINE_PATTERN = /^\*\*([\s\S]+)\*\*$/;
+const BOLD_LINE_PATTERN = /^\*\*((?:(?!\*\*)[\s\S])+)\*\*$/;
 
 export interface MarkdownParseResult {
   root: NodeData | null;
