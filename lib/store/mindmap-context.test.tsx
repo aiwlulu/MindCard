@@ -107,6 +107,65 @@ function ExistingMapHarness() {
   );
 }
 
+
+function FocusExportHarness() {
+  const {
+    mindmapData,
+    updateMindmapData,
+    focusedNodeId,
+    setFocusedNodeId,
+    exportMindMap,
+  } = useContext(MindmapContext);
+
+  useEffect(() => {
+    updateMindmapData((current) =>
+      current ?? {
+        nodeData: {
+          id: "root",
+          root: true,
+          topic: "Whole map",
+          children: [
+            {
+              id: "branch",
+              topic: "Branch",
+              children: [{ id: "leaf", topic: "Leaf" }],
+            },
+          ],
+        },
+      }
+    );
+  }, [updateMindmapData]);
+
+  return (
+    <>
+      <output aria-label="Focus">{focusedNodeId ?? "none"}</output>
+      <output aria-label="Topic">{mindmapData?.nodeData.topic ?? "empty"}</output>
+      <button onClick={() => setFocusedNodeId("branch")}>Focus branch</button>
+      <button onClick={() => void exportMindMap("markdown")}>Export</button>
+      <button
+        onClick={() =>
+          updateMindmapData((current) =>
+            current
+              ? { ...current, nodeData: { ...current.nodeData, children: [] } }
+              : current
+          )
+        }
+      >
+        Drop branch
+      </button>
+    </>
+  );
+}
+
+function readBlobText(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+}
+
 describe("MindmapProvider", () => {
   beforeEach(() => {
     mockAddDoc.mockReset().mockResolvedValue({ id: "created-map" });
@@ -240,5 +299,58 @@ describe("MindmapProvider", () => {
     const publicSnapshot = mockBatchSet.mock.calls[0][1];
     expect(JSON.stringify(publicSnapshot)).not.toContain("private-card-id");
     expect(JSON.stringify(publicSnapshot)).toContain("https://example.com");
+  });
+  it("exports only the focused subtree and clears a focus that disappears", async () => {
+    const downloads: string[] = [];
+    const clickSpy = jest
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function mockClick(this: HTMLAnchorElement) {
+        downloads.push(this.download);
+      });
+    const blobs: Blob[] = [];
+    const createObjectURL = jest.fn((blob: Blob) => {
+      blobs.push(blob);
+      return "blob:mock";
+    });
+    const originalCreate = URL.createObjectURL;
+    const originalRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = createObjectURL as never;
+    URL.revokeObjectURL = jest.fn() as never;
+
+    try {
+      render(
+        <authContext.Provider
+          value={{ user: { uid: "user-1" } as never, loading: false } as never}
+        >
+          <MindmapProvider>
+            <FocusExportHarness />
+          </MindmapProvider>
+        </authContext.Provider>
+      );
+
+      await screen.findByText("Whole map");
+      fireEvent.click(screen.getByRole("button", { name: "Focus branch" }));
+      expect(screen.getByLabelText("Focus")).toHaveTextContent("branch");
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Export" }));
+      });
+
+      await waitFor(() => expect(blobs).toHaveLength(1));
+      const markdown = await readBlobText(blobs[0]);
+      expect(markdown).toContain("Branch");
+      expect(markdown).toContain("Leaf");
+      expect(markdown).not.toContain("Whole map");
+      expect(downloads).toEqual(["MindCard-Branch.md"]);
+
+      fireEvent.click(screen.getByRole("button", { name: "Drop branch" }));
+      await waitFor(() =>
+        expect(screen.getByLabelText("Focus")).toHaveTextContent("none")
+      );
+    } finally {
+      URL.createObjectURL = originalCreate;
+      URL.revokeObjectURL = originalRevoke;
+      clickSpy.mockRestore();
+    }
   });
 });

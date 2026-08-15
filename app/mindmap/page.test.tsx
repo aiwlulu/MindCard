@@ -72,6 +72,8 @@ const context: MindmapContextValue = {
   ]),
   selectedNode: null,
   setSelectedNode: jest.fn(),
+  focusedNodeId: null,
+  setFocusedNodeId: jest.fn(),
   updateNodeHyperlink: jest.fn(),
   exportMindMap: jest.fn(),
 };

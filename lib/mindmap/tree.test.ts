@@ -4,6 +4,7 @@ import {
   cloneNodeWithNewIds,
   createNode,
   findNode,
+  findNodePath,
   formatHiddenDescendantCount,
   insertChild,
   insertSibling,
@@ -238,4 +239,16 @@ describe("mind map tree operations", () => {
     expect(cloned.children?.[0].id).not.toBe("one-a");
     expect(cloned.topic).toBe("One");
   });
+});
+
+it("returns the ancestor path down to a node", () => {
+  expect(findNodePath(baseTree(), "one-a").map((node) => node.id)).toEqual([
+    "root",
+    "one",
+    "one-a",
+  ]);
+  expect(findNodePath(baseTree(), "root").map((node) => node.id)).toEqual([
+    "root",
+  ]);
+  expect(findNodePath(baseTree(), "missing")).toEqual([]);
 });

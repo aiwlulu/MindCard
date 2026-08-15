@@ -83,6 +83,18 @@ export function findNode(root: NodeData, nodeId: string): NodeData | null {
   return null;
 }
 
+/** Path from the root down to the node, inclusive. Empty when absent. */
+export function findNodePath(root: NodeData, nodeId: string): NodeData[] {
+  if (root.id === nodeId) return [root];
+
+  for (const child of root.children ?? []) {
+    const path = findNodePath(child, nodeId);
+    if (path.length) return [root, ...path];
+  }
+
+  return [];
+}
+
 export function countDescendants(node: NodeData): number {
   return (node.children ?? []).reduce(
     (total, child) => total + 1 + countDescendants(child),

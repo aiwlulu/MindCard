@@ -21,6 +21,8 @@ const mockContext: Pick<
   getAllMindmaps: jest.fn(),
   selectedNode: null,
   setSelectedNode: jest.fn(),
+  focusedNodeId: null,
+  setFocusedNodeId: jest.fn(),
   mindmapData: null,
   updateMindmapData: jest.fn(),
   saveMindmap: jest.fn(),

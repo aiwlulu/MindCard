@@ -60,6 +60,8 @@ export const MindmapContext = createContext<MindmapContextValue>({
   getAllMindmaps: async () => [],
   selectedNode: null,
   setSelectedNode: () => {},
+  focusedNodeId: null,
+  setFocusedNodeId: () => {},
   updateNodeHyperlink: async () => {},
   exportMindMap: async () => {},
 });
@@ -72,6 +74,7 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
     null
   );
   const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
+  const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [saveStatus, setSaveStatus] = useState<MindmapSaveStatus>("idle");
   const [isCurrentMindmapPublic, setIsCurrentMindmapPublic] = useState(false);
@@ -171,6 +174,13 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(timeoutId);
   }, [currentMindmapId, isDirty, mindmapData, saveMindmap]);
 
+  // Drop the focus when its node disappears (deleted, or replaced via Markdown).
+  useEffect(() => {
+    if (!focusedNodeId) return;
+    const root = mindmapData?.root ?? mindmapData?.nodeData;
+    if (!root || !findNode(root, focusedNodeId)) setFocusedNodeId(null);
+  }, [focusedNodeId, mindmapData]);
+
   const loadMindmap = useCallback(async (id: string): Promise<MindmapData | null> => {
     setSaveStatus("idle");
     try {
@@ -178,6 +188,7 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
       if (!snapshot.exists()) {
         setMindmapData(null);
         setCurrentMindmapId(null);
+        setFocusedNodeId(null);
         setCurrentMindmapTitle(null);
         setIsCurrentMindmapPublic(false);
         toast.error("Mind map not found.");
@@ -194,6 +205,7 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
       setCurrentMindmapTitle(normalized.nodeData.topic);
       setIsCurrentMindmapPublic(storedData.isPublic === true);
       setSelectedNode(null);
+      setFocusedNodeId(null);
       setIsDirty(false);
       setSaveStatus("saved");
       return normalized;
@@ -287,7 +299,9 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const root = mindmapData.root ?? mindmapData.nodeData;
+      const fullRoot = mindmapData.root ?? mindmapData.nodeData;
+      const root =
+        (focusedNodeId ? findNode(fullRoot, focusedNodeId) : null) ?? fullRoot;
       const safeTitle = sanitizeFilename(root.topic);
 
       try {
@@ -315,7 +329,7 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
         toast.error("An error occurred during the export process.");
       }
     },
-    [mindmapData]
+    [focusedNodeId, mindmapData]
   );
 
   const value = useMemo<MindmapContextValue>(
@@ -331,6 +345,8 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
       getAllMindmaps,
       selectedNode,
       setSelectedNode,
+      focusedNodeId,
+      setFocusedNodeId,
       updateNodeHyperlink,
       exportMindMap,
     }),
@@ -338,6 +354,7 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
       currentMindmapId,
       currentMindmapTitle,
       exportMindMap,
+      focusedNodeId,
       getAllMindmaps,
       loadMindmap,
       mindmapData,

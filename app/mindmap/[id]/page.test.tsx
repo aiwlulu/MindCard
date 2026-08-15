@@ -22,6 +22,8 @@ function createContext(topic: string): MindmapContextValue {
     getAllMindmaps: jest.fn().mockResolvedValue([]),
     selectedNode: null,
     setSelectedNode: jest.fn(),
+    focusedNodeId: null,
+    setFocusedNodeId: jest.fn(),
     updateNodeHyperlink: jest.fn().mockResolvedValue(undefined),
     exportMindMap: jest.fn().mockResolvedValue(undefined),
   };

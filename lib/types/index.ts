@@ -85,6 +85,9 @@ export interface MindmapContextValue {
   getAllMindmaps: (excludeId?: string) => Promise<FirestoreMindmapDoc[]>;
   selectedNode: NodeData | null;
   setSelectedNode: React.Dispatch<React.SetStateAction<NodeData | null>>;
+  /** Node the canvas and exports are scoped to, or null for the whole map. */
+  focusedNodeId: string | null;
+  setFocusedNodeId: (nodeId: string | null) => void;
   updateNodeHyperlink: (
     nodeId: string,
     hyperlinkData: HyperlinkData | ""

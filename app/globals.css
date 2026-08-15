@@ -1238,6 +1238,91 @@ html {
   }
 }
 
+.mindmap-focus-breadcrumb {
+  position: absolute;
+  left: 1rem;
+  top: 3.6rem;
+  z-index: 35;
+  display: flex;
+  max-width: calc(100% - 2rem);
+  align-items: center;
+  gap: 0.3rem;
+  overflow-x: auto;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid rgba(143, 141, 196, 0.28);
+  border-radius: 0.6rem;
+  background: rgba(36, 37, 47, 0.94);
+  box-shadow: 0 8px 24px rgba(5, 6, 10, 0.24);
+  scrollbar-width: none;
+}
+
+.mindmap-focus-breadcrumb::-webkit-scrollbar {
+  display: none;
+}
+
+.mindmap-focus-badge {
+  flex: 0 0 auto;
+  padding: 0.16rem 0.4rem;
+  border-radius: 0.35rem;
+  background: #41424f;
+  color: #d9d9e2;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mindmap-focus-breadcrumb button {
+  flex: 0 1 auto;
+  max-width: 11rem;
+  overflow: hidden;
+  padding: 0.24rem 0.4rem;
+  border-radius: 0.4rem;
+  color: #b9b9c6;
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mindmap-focus-breadcrumb button:hover,
+.mindmap-focus-breadcrumb button:focus-visible {
+  color: #f0f0f3;
+  background: #343542;
+  outline: none;
+}
+
+.mindmap-focus-breadcrumb button.is-current {
+  color: #eeeef2;
+  font-weight: 600;
+  cursor: default;
+}
+
+.mindmap-focus-breadcrumb button.is-current:hover {
+  background: transparent;
+}
+
+.mindmap-focus-separator {
+  flex: 0 0 auto;
+  color: #75768a;
+  font-size: 0.76rem;
+}
+
+.mindmap-focus-exit {
+  flex: 0 0 auto;
+  margin-left: 0.15rem;
+  border-left: 1px solid #4a4b58;
+  border-radius: 0 0.4rem 0.4rem 0;
+}
+
+.mindmap-focus-breadcrumb kbd {
+  margin-left: 0.25rem;
+  padding: 0.05rem 0.25rem;
+  border: 1px solid #50515f;
+  border-radius: 0.25rem;
+  color: #a8a8b4;
+  background: #22232c;
+  font-size: 0.64rem;
+}
+
 .mindmap-pan-indicator {
   position: absolute;
   left: 50%;

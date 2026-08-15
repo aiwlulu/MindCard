@@ -33,6 +33,7 @@ import {
   countDescendants,
   createNode,
   findNode,
+  findNodePath,
   formatHiddenDescendantCount,
   insertChild,
   insertSibling,
@@ -160,6 +161,8 @@ export default function MindMap({ id }: MindMapProps) {
     saveStatus = "idle",
     selectedNode,
     setSelectedNode,
+    focusedNodeId,
+    setFocusedNodeId,
     updateMindmapData,
     updateNodeHyperlink,
   } = React.useContext(MindmapContext);
@@ -192,9 +195,16 @@ export default function MindMap({ id }: MindMapProps) {
   const [cardLinkCompletedVersion, setCardLinkCompletedVersion] = useState(0);
 
   const routeMatchesLoadedMap = !id || currentMindmapId === id;
-  const root = routeMatchesLoadedMap
+  const fullRoot = routeMatchesLoadedMap
     ? mindmapData?.root ?? mindmapData?.nodeData ?? null
     : null;
+  const focusPath = useMemo(
+    () => (fullRoot && focusedNodeId ? findNodePath(fullRoot, focusedNodeId) : []),
+    [focusedNodeId, fullRoot]
+  );
+  const focusRoot = focusPath.length > 1 ? focusPath[focusPath.length - 1] : null;
+  // Everything the canvas renders and edits hangs off the focused subtree.
+  const root = focusRoot ?? fullRoot;
   const layout = useMemo(
     () => (root && editorMode !== "markdown" ? layoutMindmap(root) : null),
     [editorMode, root]
@@ -309,11 +319,41 @@ export default function MindMap({ id }: MindMapProps) {
     [selectNode]
   );
 
+  // The focused node stands in for the root on the canvas.
+  const isCanvasRoot = useCallback(
+    (node?: NodeData | null) =>
+      Boolean(node && (node.root || node.id === focusedNodeId)),
+    [focusedNodeId]
+  );
+
+  const focusOnNode = useCallback(
+    (node: NodeData) => {
+      setFocusedNodeId(node.root ? null : node.id);
+      setPan({ x: 0, y: 0 });
+      setZoom(1);
+      setSelectedNode(node);
+      setSelectedNodeIds(new Set([node.id]));
+      setContextMenu(null);
+      editorRef.current?.focus();
+    },
+    [setFocusedNodeId, setSelectedNode]
+  );
+
+  const exitFocus = useCallback(() => {
+    setFocusedNodeId(null);
+    setPan({ x: 0, y: 0 });
+    setZoom(1);
+    setContextMenu(null);
+    editorRef.current?.focus();
+  }, [setFocusedNodeId]);
+
   const switchEditorMode = useCallback(
     (mode: EditorMode) => {
       if (mode !== "map" && editorMode === "map") {
-        if (!root) return;
-        setMarkdownDraft(convertToMarkdown(root));
+        if (!fullRoot) return;
+        // Markdown always edits the whole map, so focus mode is dropped.
+        setFocusedNodeId(null);
+        setMarkdownDraft(convertToMarkdown(fullRoot));
         setMarkdownError(null);
         setSelectedNode(null);
         setSelectedNodeIds(new Set());
@@ -321,7 +361,7 @@ export default function MindMap({ id }: MindMapProps) {
       }
       setEditorMode(mode);
     },
-    [editorMode, root, setSelectedNode]
+    [editorMode, fullRoot, setFocusedNodeId, setSelectedNode]
   );
 
   const updateMarkdownDraft = useCallback(
@@ -416,15 +456,20 @@ export default function MindMap({ id }: MindMapProps) {
       if (!root || !nodeIds.length) return;
 
       const uniqueNodeIds = [...new Set(nodeIds)];
-      const rootSelected = uniqueNodeIds.some(
-        (nodeId) => findNode(root, nodeId)?.root
-      );
+      const isProtected = (nodeId: string) =>
+        findNode(root, nodeId)?.root === true || nodeId === focusedNodeId;
+      const rootSelected = uniqueNodeIds.some(isProtected);
       const deletableNodeIds = uniqueNodeIds.filter(
-        (nodeId) => !findNode(root, nodeId)?.root
+        (nodeId) => !isProtected(nodeId)
       );
 
       if (rootSelected) {
-        toast.error("The root node cannot be deleted.", { autoClose: 1500 });
+        toast.error(
+          focusedNodeId && uniqueNodeIds.includes(focusedNodeId)
+            ? "Exit focus before deleting the focused node."
+            : "The root node cannot be deleted.",
+          { autoClose: 1500 }
+        );
       }
       if (!deletableNodeIds.length) return;
 
@@ -438,7 +483,7 @@ export default function MindMap({ id }: MindMapProps) {
       setSelectedNodeIds(new Set());
       setContextMenu(null);
     },
-    [commitData, root, setSelectedNode]
+    [commitData, focusedNodeId, root, setSelectedNode]
   );
 
   const toggleBranch = useCallback(
@@ -475,10 +520,16 @@ export default function MindMap({ id }: MindMapProps) {
 
   const setAllBranches = useCallback(
     (collapsed: boolean) => {
-      commitData((tree) => setAllBranchesCollapsed(tree, collapsed));
+      commitData((tree) =>
+        focusedNodeId
+          ? updateNode(tree, focusedNodeId, (node) =>
+              setAllBranchesCollapsed(node, collapsed, true)
+            )
+          : setAllBranchesCollapsed(tree, collapsed)
+      );
       setContextMenu(null);
     },
-    [commitData]
+    [commitData, focusedNodeId]
   );
 
   const startExternalLinkEditing = useCallback((node: NodeData) => {
@@ -679,6 +730,11 @@ export default function MindMap({ id }: MindMapProps) {
         setInteractionMode("select");
         return;
       }
+      if (key === "escape" && focusedNodeId) {
+        event.preventDefault();
+        exitFocus();
+        return;
+      }
       if (key === "h") {
         event.preventDefault();
         toggleInteractionMode();
@@ -771,11 +827,11 @@ export default function MindMap({ id }: MindMapProps) {
 
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
-        addNode(currentSelectedNode?.root ? "child" : "sibling", selectedId);
+        addNode(isCanvasRoot(currentSelectedNode) ? "child" : "sibling", selectedId);
       } else if (event.key === "Enter" && event.shiftKey) {
         event.preventDefault();
         addNode(
-          currentSelectedNode?.root ? "child" : "sibling-before",
+          isCanvasRoot(currentSelectedNode) ? "child" : "sibling-before",
           selectedId
         );
       } else if (event.key === "Tab") {
@@ -804,7 +860,10 @@ export default function MindMap({ id }: MindMapProps) {
       commitData,
       deleteNodes,
       editingNodeId,
+      exitFocus,
+      focusedNodeId,
       interactionMode,
+      isCanvasRoot,
       pasteNode,
       root,
       redo,
@@ -852,7 +911,7 @@ export default function MindMap({ id }: MindMapProps) {
       if (
         interactionMode === "pan" ||
         event.button !== 0 ||
-        node.root ||
+        isCanvasRoot(node) ||
         target.closest('[data-node-control="true"]')
       ) {
         return;
@@ -869,7 +928,7 @@ export default function MindMap({ id }: MindMapProps) {
       };
       event.currentTarget.setPointerCapture?.(event.pointerId);
     },
-    [interactionMode, selectedNodeIds]
+    [interactionMode, isCanvasRoot, selectedNodeIds]
   );
 
   const handleNodePointerMove = useCallback(
@@ -896,7 +955,7 @@ export default function MindMap({ id }: MindMapProps) {
 
       const targetNode = root ? findNode(root, targetId) : null;
       let position: DropPosition = "inside";
-      if (targetNode && !targetNode.root && target) {
+      if (targetNode && !isCanvasRoot(targetNode) && target) {
         const bounds = target.getBoundingClientRect();
         if (bounds.height > 0) {
           const relativeY = (event.clientY - bounds.top) / bounds.height;
@@ -908,7 +967,7 @@ export default function MindMap({ id }: MindMapProps) {
       setDropTargetId(targetId);
       setDropPosition(position);
     },
-    [root]
+    [isCanvasRoot, root]
   );
 
   const handleNodePointerUp = useCallback(
@@ -1241,7 +1300,7 @@ export default function MindMap({ id }: MindMapProps) {
             <button type="button" onClick={() => addNode("child", currentSelectedNode.id)}>
               + Child <kbd>Tab</kbd>
             </button>
-            {!currentSelectedNode.root && (
+            {!isCanvasRoot(currentSelectedNode) && (
               <button type="button" onClick={() => addNode("sibling", currentSelectedNode.id)}>
                 + Sibling <kbd>Enter</kbd>
               </button>
@@ -1399,6 +1458,44 @@ export default function MindMap({ id }: MindMapProps) {
           ) : null}
           {editorMode !== "markdown" ? (
             <div className="mindmap-map-pane">
+              {focusRoot ? (
+                <nav className="mindmap-focus-breadcrumb" aria-label="Focus path">
+                  <span className="mindmap-focus-badge">Focused</span>
+                  {focusPath.map((node, index) => {
+                    const isCurrent = index === focusPath.length - 1;
+                    return (
+                      <React.Fragment key={node.id}>
+                        {index ? (
+                          <span aria-hidden="true" className="mindmap-focus-separator">
+                            ›
+                          </span>
+                        ) : null}
+                        <button
+                          type="button"
+                          title={node.topic}
+                          aria-current={isCurrent ? "true" : undefined}
+                          className={isCurrent ? "is-current" : undefined}
+                          onClick={() => {
+                            if (isCurrent) return;
+                            if (index === 0) exitFocus();
+                            else focusOnNode(node);
+                          }}
+                        >
+                          {node.topic}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    className="mindmap-focus-exit"
+                    aria-label="Exit focus"
+                    onClick={exitFocus}
+                  >
+                    Exit focus <kbd>Esc</kbd>
+                  </button>
+                </nav>
+              ) : null}
               {interactionMode === "pan" ? (
                 <div className="mindmap-pan-indicator" role="status">
                   🖐️ Pan mode — drag to browse <kbd>Esc</kbd> to exit
@@ -1533,7 +1630,7 @@ export default function MindMap({ id }: MindMapProps) {
           onMouseDown={(event) => event.stopPropagation()}
         >
           <button role="menuitem" onClick={() => addNode("child", contextMenu.nodeId)}>Add child</button>
-          {!contextMenuNode?.root ? (
+          {!isCanvasRoot(contextMenuNode) ? (
             <button role="menuitem" onClick={() => addNode("sibling", contextMenu.nodeId)}>Add sibling</button>
           ) : null}
           <button
@@ -1544,6 +1641,19 @@ export default function MindMap({ id }: MindMapProps) {
           >
             Rename
           </button>
+          {contextMenuNode && !isCanvasRoot(contextMenuNode) ? (
+            <button
+              role="menuitem"
+              onClick={() => focusOnNode(contextMenuNode)}
+            >
+              Focus this node
+            </button>
+          ) : null}
+          {focusedNodeId ? (
+            <button role="menuitem" onClick={exitFocus}>
+              Exit focus
+            </button>
+          ) : null}
           {contextMenuNode?.children?.length ? (
             <button
               role="menuitem"
@@ -1554,7 +1664,7 @@ export default function MindMap({ id }: MindMapProps) {
                 : "Collapse branch"}
             </button>
           ) : null}
-          {!contextMenuNode?.root ? (
+          {!isCanvasRoot(contextMenuNode) ? (
             <button
               role="menuitem"
               onClick={() => deleteNodes([contextMenu.nodeId])}

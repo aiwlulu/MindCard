@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import MindMap from "./MindMap";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import type { MindmapContextValue, MindmapData } from "@/lib/types";
@@ -79,6 +79,8 @@ function createContext(): MindmapContextValue {
     getAllMindmaps: jest.fn().mockResolvedValue([]),
     selectedNode: null,
     setSelectedNode: jest.fn(),
+    focusedNodeId: null,
+    setFocusedNodeId: jest.fn(),
     updateNodeHyperlink: jest.fn().mockResolvedValue(undefined),
     exportMindMap: jest.fn().mockResolvedValue(undefined),
   };
@@ -100,10 +102,18 @@ function StatefulMindMap({ context }: { context: MindmapContextValue }) {
   const [currentSelection, setCurrentSelection] = React.useState(
     context.selectedNode
   );
+  const [currentFocus, setCurrentFocus] = React.useState(
+    context.focusedNodeId
+  );
   const value: MindmapContextValue = {
     ...context,
     mindmapData: currentData,
     selectedNode: currentSelection,
+    focusedNodeId: currentFocus,
+    setFocusedNodeId: (nodeId) => {
+      context.setFocusedNodeId(nodeId);
+      setCurrentFocus(nodeId);
+    },
     setSelectedNode: (node) => {
       context.setSelectedNode(node);
       setCurrentSelection(node);
@@ -1314,5 +1324,58 @@ describe("MindMap editor", () => {
     expect(screen.queryByRole("button", { name: "Root" })).not.toBeInTheDocument();
     expect(screen.getByText("Growing your mind map…")).toBeInTheDocument();
     expect(screen.getByTestId("mindmap-loader-graphic")).toBeInTheDocument();
+  });
+  it("focuses a node from the context menu and returns via the breadcrumb", () => {
+    const context = createContext();
+    render(<StatefulMindMap context={context} />);
+
+    const canvas = () => screen.getByRole("img", { name: "Mind map" });
+    fireEvent.contextMenu(within(canvas()).getByRole("button", { name: "Child" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Focus this node" }));
+
+    expect(context.setFocusedNodeId).toHaveBeenCalledWith("child");
+    const breadcrumb = screen.getByRole("navigation", { name: "Focus path" });
+    expect(breadcrumb).toHaveTextContent("Root");
+    expect(breadcrumb).toHaveTextContent("Child");
+    // The focused node takes over the root slot on the canvas.
+    expect(
+      within(canvas())
+        .getByRole("button", { name: "Child" })
+        .getAttribute("data-node-depth")
+    ).toBe("0");
+    expect(
+      within(canvas()).queryByRole("button", { name: "Root" })
+    ).toBeNull();
+    expect(
+      within(canvas()).getByRole("button", { name: "Grandchild" })
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(breadcrumb).getByRole("button", { name: "Root" }));
+
+    expect(screen.queryByRole("navigation", { name: "Focus path" })).toBeNull();
+    expect(
+      within(canvas())
+        .getByRole("button", { name: "Root" })
+        .getAttribute("data-node-depth")
+    ).toBe("0");
+  });
+
+  it("exits focus mode with Escape", () => {
+    const context = createContext();
+    render(<StatefulMindMap context={context} />);
+
+    const canvas = screen.getByRole("img", { name: "Mind map" });
+    fireEvent.contextMenu(within(canvas).getByRole("button", { name: "Child" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Focus this node" }));
+    expect(
+      screen.getByRole("navigation", { name: "Focus path" })
+    ).toBeInTheDocument();
+
+    fireEvent.keyDown(
+      screen.getByRole("application", { name: "Mind map editor" }),
+      { key: "Escape" }
+    );
+
+    expect(screen.queryByRole("navigation", { name: "Focus path" })).toBeNull();
   });
 });

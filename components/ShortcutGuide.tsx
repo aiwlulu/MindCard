@@ -28,6 +28,8 @@ const ShortcutGuide: React.FC = () => {
             <li><kbd>⇧⌘Z / Ctrl Y</kbd><span>Redo</span></li>
             <li><kbd>⌘ / Ctrl S</kbd><span>Save</span></li>
             <li><kbd>H</kbd><span>Toggle pan mode</span></li>
+            <li><kbd>Right click</kbd><span>Focus a node as the main topic</span></li>
+            <li><kbd>Esc</kbd><span>Exit focus mode</span></li>
             <li><kbd>⌘ / Ctrl E</kbd><span>Toggle Markdown mode</span></li>
             <li><kbd>⌘ / Ctrl C / V</kbd><span>Copy or paste topics</span></li>
             <li><kbd>⌘ / Ctrl Click</kbd><span>Select multiple topics</span></li>
