@@ -96,7 +96,10 @@ export default function PublicMindMapViewer({ root: sourceRoot }: PublicMindMapV
           </button>
           <button
             type="button"
-            onClick={() => setRoot((current) => setAllBranchesCollapsed(current, true))}
+            onClick={() => {
+              setRoot((current) => setAllBranchesCollapsed(current, true));
+              centerMap();
+            }}
           >
             Collapse all
           </button>
