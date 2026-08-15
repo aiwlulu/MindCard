@@ -193,6 +193,8 @@ export default function MindMap({ id }: MindMapProps) {
   const [markdownDraft, setMarkdownDraft] = useState("");
   const [markdownError, setMarkdownError] = useState<string | null>(null);
   const [cardLinkCompletedVersion, setCardLinkCompletedVersion] = useState(0);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   const routeMatchesLoadedMap = !id || currentMindmapId === id;
   const fullRoot = routeMatchesLoadedMap
@@ -266,6 +268,17 @@ export default function MindMap({ id }: MindMapProps) {
     },
     []
   );
+
+  useEffect(() => {
+    if (!isMoreMenuOpen) return;
+    const closeOnOutside = (event: MouseEvent) => {
+      if (!moreMenuRef.current?.contains(event.target as Node)) {
+        setIsMoreMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeOnOutside);
+    return () => document.removeEventListener("pointerdown", closeOnOutside);
+  }, [isMoreMenuOpen]);
 
   const commitData = useCallback(
     (updater: TreeUpdater) => {
@@ -1308,24 +1321,13 @@ export default function MindMap({ id }: MindMapProps) {
             <button type="button" onClick={() => startEditing(currentSelectedNode)}>
               Edit <kbd>F2</kbd>
             </button>
-            <button
-              type="button"
-              aria-label={
-                currentSelectedNode.externalLink
-                  ? "Edit external link"
-                  : "Add external link"
-              }
-              onClick={() => startExternalLinkEditing(currentSelectedNode)}
-            >
-              External link
-            </button>
-            {currentSelectedNode.externalLink ? (
+            {currentSelectedNode.children?.length ? (
               <button
                 type="button"
-                aria-label="Remove external link"
-                onClick={() => removeExternalLink(currentSelectedNode.id)}
+                aria-label={currentSelectedNode.collapsed ? "Expand branch" : "Collapse branch"}
+                onClick={() => toggleBranch(currentSelectedNode.id)}
               >
-                Remove link
+                {currentSelectedNode.collapsed ? "Expand branch" : "Collapse branch"} <kbd>Space</kbd>
               </button>
             ) : null}
             {externalLinkNodeId === currentSelectedNode.id ? (
@@ -1353,30 +1355,6 @@ export default function MindMap({ id }: MindMapProps) {
                 </button>
               </>
             ) : null}
-            {currentSelectedNode.children?.length ? (
-              <>
-                <button
-                  type="button"
-                  aria-label={currentSelectedNode.collapsed ? "Expand branch" : "Collapse branch"}
-                  onClick={() => toggleBranch(currentSelectedNode.id)}
-                >
-                  {currentSelectedNode.collapsed ? "Expand branch" : "Collapse branch"} <kbd>Space</kbd>
-                </button>
-                <button
-                  type="button"
-                  aria-label={
-                    selectedSubtreeFullyCollapsed
-                      ? "Expand subtree"
-                      : "Collapse subtree"
-                  }
-                  onClick={() => toggleSubtree(currentSelectedNode.id)}
-                >
-                  {selectedSubtreeFullyCollapsed
-                    ? "Expand subtree"
-                    : "Collapse subtree"} <kbd>⇧Space</kbd>
-                </button>
-              </>
-            ) : null}
           </>
         ) : (
           <span className="mindmap-commandbar-hint">
@@ -1393,22 +1371,105 @@ export default function MindMap({ id }: MindMapProps) {
           </span>
         )}
         {editorMode !== "markdown" ? (
-          <>
+          <div className="mindmap-commandbar-menu" ref={moreMenuRef}>
             <button
               type="button"
-              aria-label="Expand all branches"
-              onClick={() => setAllBranches(false)}
+              aria-label="More actions"
+              aria-haspopup="menu"
+              aria-expanded={isMoreMenuOpen}
+              className={isMoreMenuOpen ? "is-active" : undefined}
+              onClick={() => setIsMoreMenuOpen((open) => !open)}
             >
-              Expand all
+              More <span aria-hidden="true">⌄</span>
             </button>
-            <button
-              type="button"
-              aria-label="Collapse all branches"
-              onClick={() => setAllBranches(true)}
-            >
-              Collapse all
-            </button>
-          </>
+            {isMoreMenuOpen ? (
+              <div
+                className="mindmap-commandbar-menu-list"
+                onKeyDown={(event) => {
+                  event.stopPropagation();
+                  if (event.key === "Escape") setIsMoreMenuOpen(false);
+                }}
+              >
+                {currentSelectedNode ? (
+                  <>
+                    <button
+                      type="button"
+                      aria-label={
+                        currentSelectedNode.externalLink
+                          ? "Edit external link"
+                          : "Add external link"
+                      }
+                      onClick={() => {
+                        setIsMoreMenuOpen(false);
+                        startExternalLinkEditing(currentSelectedNode);
+                      }}
+                    >
+                      {currentSelectedNode.externalLink
+                        ? "Edit external link"
+                        : "Add external link"}{" "}
+                      <kbd>⌘L</kbd>
+                    </button>
+                    {currentSelectedNode.externalLink ? (
+                      <button
+                        type="button"
+                          aria-label="Remove external link"
+                        onClick={() => {
+                          setIsMoreMenuOpen(false);
+                          removeExternalLink(currentSelectedNode.id);
+                        }}
+                      >
+                        Remove external link
+                      </button>
+                    ) : null}
+                    {currentSelectedNode.children?.length ? (
+                      <button
+                        type="button"
+                          aria-label={
+                          selectedSubtreeFullyCollapsed
+                            ? "Expand subtree"
+                            : "Collapse subtree"
+                        }
+                        onClick={() => {
+                          setIsMoreMenuOpen(false);
+                          toggleSubtree(currentSelectedNode.id);
+                        }}
+                      >
+                        {selectedSubtreeFullyCollapsed
+                          ? "Expand subtree"
+                          : "Collapse subtree"}{" "}
+                        <kbd>⇧Space</kbd>
+                      </button>
+                    ) : null}
+                    <span
+                      className="mindmap-commandbar-menu-divider"
+                      aria-hidden="true"
+                    />
+                  </>
+                ) : null}
+                <button
+                  type="button"
+                  aria-label="Expand all branches"
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    setAllBranches(false);
+                  }}
+                >
+                  Expand all
+                </button>
+                <button
+                  type="button"
+                  aria-label="Collapse all branches"
+                  onClick={() => {
+                    setIsMoreMenuOpen(false);
+                    setAllBranches(true);
+                    centerMap();
+                  }}
+                >
+                  Collapse all
+                </button>
+              </div>
+            ) : null}
+          </div>
         ) : null}
         <span className="mindmap-commandbar-spacer" aria-hidden="true" />
         <span

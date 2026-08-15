@@ -376,12 +376,16 @@ describe("MindMap editor", () => {
     expect(document.querySelectorAll(".mindmap-node-selection")).toHaveLength(1);
   });
 
+  const openMoreMenu = () =>
+    fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+
   it("adds and opens an external URL without replacing the current page", () => {
     const context = createContext();
     context.selectedNode = data.nodeData.children?.[0] ?? null;
     const open = jest.spyOn(window, "open").mockImplementation(() => null);
     const { rerender } = renderMindMap(context);
 
+    openMoreMenu();
     fireEvent.click(screen.getByRole("button", { name: "Add external link" }));
     fireEvent.change(screen.getByRole("textbox", { name: "External URL" }), {
       target: { value: "example.com/reference" },
@@ -414,6 +418,7 @@ describe("MindMap editor", () => {
     context.selectedNode = data.nodeData.children?.[0] ?? null;
     renderMindMap(context);
 
+    openMoreMenu();
     fireEvent.click(screen.getByRole("button", { name: "Add external link" }));
     fireEvent.paste(screen.getByRole("textbox", { name: "External URL" }), {
       clipboardData: {
@@ -487,6 +492,7 @@ describe("MindMap editor", () => {
     context.selectedNode = linkedChild;
     renderMindMap(context);
 
+    openMoreMenu();
     fireEvent.click(
       screen.getByRole("button", { name: "Remove external link" })
     );
@@ -759,10 +765,34 @@ describe("MindMap editor", () => {
     ).toEqual(["Grandchild", "Copied topic"]);
   });
 
+  it("keeps secondary actions inside the More menu", () => {
+    const context = createContext();
+    context.selectedNode = data.nodeData.children?.[0] ?? null;
+    renderMindMap(context);
+
+    expect(
+      screen.queryByRole("button", { name: "Expand all branches" })
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Add external link" })
+    ).toBeNull();
+
+    openMoreMenu();
+    expect(
+      screen.getByRole("button", { name: "Expand all branches" })
+    ).toBeInTheDocument();
+
+    openMoreMenu();
+    expect(
+      screen.queryByRole("button", { name: "Expand all branches" })
+    ).toBeNull();
+  });
+
   it("collapses and expands all descendant branches", () => {
     const context = createContext();
     renderMindMap(context);
 
+    openMoreMenu();
     fireEvent.click(screen.getByRole("button", { name: "Collapse all branches" }));
     const collapseUpdate = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
       current: MindmapData
@@ -770,6 +800,7 @@ describe("MindMap editor", () => {
     expect(collapseUpdate(data).nodeData.collapsed).toBeUndefined();
     expect(collapseUpdate(data).nodeData.children?.[0].collapsed).toBe(true);
 
+    openMoreMenu();
     fireEvent.click(screen.getByRole("button", { name: "Expand all branches" }));
     const expandUpdate = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
       current: MindmapData

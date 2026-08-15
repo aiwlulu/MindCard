@@ -834,17 +834,12 @@ html {
   min-height: 2.35rem;
   align-items: center;
   gap: 0.25rem;
-  overflow-x: auto;
+  flex-wrap: wrap;
   padding: 0.3rem;
   border: 1px solid rgba(143, 141, 196, 0.2);
   border-radius: 0.65rem;
   background: rgba(36, 37, 47, 0.94);
   box-shadow: 0 8px 24px rgba(5, 6, 10, 0.22);
-  scrollbar-width: none;
-}
-
-.mindmap-commandbar::-webkit-scrollbar {
-  display: none;
 }
 
 .mindmap-commandbar button {
@@ -960,6 +955,53 @@ html {
   height: 1.2rem;
   flex: 0 0 auto;
   background: #474853;
+}
+
+.mindmap-commandbar-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.mindmap-commandbar .mindmap-commandbar-menu > button.is-active {
+  color: #f0f0f3;
+  background: #343542;
+}
+
+.mindmap-commandbar-menu-list {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 40;
+  display: flex;
+  min-width: 13rem;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.3rem;
+  border: 1px solid rgba(143, 141, 196, 0.24);
+  border-radius: 0.55rem;
+  background: #24252f;
+  box-shadow: 0 12px 28px rgba(5, 6, 10, 0.38);
+}
+
+.mindmap-commandbar .mindmap-commandbar-menu-list button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.mindmap-commandbar-menu-divider {
+  height: 1px;
+  margin: 0.2rem 0.1rem;
+  background: #3c3d49;
+}
+
+@media (max-width: 1180px) {
+  .mindmap-commandbar > button kbd {
+    display: none;
+  }
 }
 
 .mindmap-commandbar-spacer {
