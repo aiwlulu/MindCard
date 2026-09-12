@@ -81,6 +81,8 @@ firebase deploy --only firestore:rules
 
 Turning sharing off immediately revokes anonymous access under these rules.
 
+The rules also validate document shape: private maps accept only `data`, `userId`, `isPublic`, and timestamps, ownership can never change on update, and the public snapshot may only hold `data`, `isPublic`, and `updatedAt`. Public share pages are the only routes that may be embedded in an iframe; every other route sends `frame-ancestors 'none'` (see `next.config.js`).
+
 ## AI integration roadmap
 
 MindCard does not currently expose an AI write API. The planned approach is **API first, MCP adapter second**: one narrow, versioned service owns authentication, validation, authorization, and tree updates; an MCP server can then expose the same operations without receiving raw Firebase or administrator credentials.

@@ -2,30 +2,77 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(data) {
+      return signedIn() && data.userId == request.auth.uid;
+    }
+
+    // Fields a client may write on a private mind map document.
+    function validMindmapFields(data) {
+      return data.data is map
+        && data.isPublic is bool
+        && (!('createdAt' in data) || data.createdAt is timestamp)
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
     match /mindmaps/{mindmapId} {
-      allow read: if request.auth != null
-        && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null
-        && request.resource.data.userId == request.auth.uid;
-      allow update: if request.auth != null
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == resource.data.userId;
-      allow delete: if request.auth != null
-        && resource.data.userId == request.auth.uid;
+      allow read: if isOwner(resource.data);
+
+      allow create: if isOwner(request.resource.data)
+        && request.resource.data.keys().hasOnly(
+          ['data', 'userId', 'isPublic', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['data', 'userId', 'isPublic'])
+        && validMindmapFields(request.resource.data);
+
+      // Updates may only touch content/flags; ownership can never change.
+      allow update: if isOwner(resource.data)
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          ['data', 'isPublic', 'updatedAt'])
+        && validMindmapFields(request.resource.data);
+
+      allow delete: if isOwner(resource.data);
     }
 
     match /publicMindmaps/{mindmapId} {
       allow read: if resource.data.isPublic == true;
-      allow create, update, delete: if request.auth != null
+
+      // A public copy may only ever hold the sanitized tree, never owner data.
+      allow create, update: if signedIn()
         && get(/databases/$(database)/documents/mindmaps/$(mindmapId)).data.userId
-          == request.auth.uid;
+          == request.auth.uid
+        && request.resource.data.keys().hasOnly(['data', 'isPublic', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['data', 'isPublic'])
+        && request.resource.data.isPublic == true
+        && request.resource.data.data is map
+        && (!('updatedAt' in request.resource.data)
+          || request.resource.data.updatedAt is timestamp);
+
+      // Owners can always revoke, including while deleting the source map.
+      allow delete: if signedIn()
+        && (!exists(/databases/$(database)/documents/mindmaps/$(mindmapId))
+          || get(/databases/$(database)/documents/mindmaps/$(mindmapId)).data.userId
+            == request.auth.uid);
     }
 
     match /users/{userId} {
-      allow create: if request.auth != null
-        && request.resource.data.uid == request.auth.uid;
-      allow read, update, delete: if request.auth != null
-        && resource.data.uid == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 200
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 320;
+
+      allow read, delete: if signedIn() && resource.data.uid == request.auth.uid;
+
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'email']);
     }
   }
 }
