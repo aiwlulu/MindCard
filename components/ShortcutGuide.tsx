@@ -31,6 +31,8 @@ const ShortcutGuide: React.FC = () => {
             <li><kbd>Right click</kbd><span>Focus a node as the main topic</span></li>
             <li><kbd>Esc</kbd><span>Exit focus mode</span></li>
             <li><kbd>⌘ / Ctrl E</kbd><span>Toggle Markdown mode</span></li>
+            <li><kbd>Enter / Tab</kbd><span>Continue or nest Markdown lines</span></li>
+            <li><kbd>⌘ / Ctrl B</kbd><span>Bold topic in Markdown</span></li>
             <li><kbd>⌘ / Ctrl C / V</kbd><span>Copy or paste topics</span></li>
             <li><kbd>⌘ / Ctrl Click</kbd><span>Select multiple topics</span></li>
             <li><kbd>Left drag</kbd><span>Marquee select topics</span></li>

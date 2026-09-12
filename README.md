@@ -113,6 +113,7 @@ MindCard no longer depends on a mind-map rendering package. The editor is implem
 - `lib/mindmap/layout.ts` — deterministic right-growing tree layout
 - `lib/mindmap/tree.ts` — structural edits, movement, collapse, and reparenting
 - `lib/mindmap/markdown.ts` — Markdown outline parsing and serialization
+- `lib/mindmap/markdown-editing.ts` — Enter/Tab/⌘B keyboard behaviour for the Markdown editor
 - `lib/mindmap/export.ts` — PNG, SVG, and Markdown export
 - `components/MindMap.tsx` — canvas interaction, keyboard flow, split view, and autosave UI
 - `components/PublicMindMapViewer.tsx` — isolated read-only public renderer

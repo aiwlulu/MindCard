@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import MindMap from "./MindMap";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import type { MindmapContextValue, MindmapData } from "@/lib/types";
@@ -1335,15 +1335,70 @@ describe("MindMap editor", () => {
   });
 
   it("keeps the last valid map when Markdown is temporarily incomplete", () => {
+    jest.useFakeTimers();
+    try {
+      const context = createContext();
+      render(<StatefulMindMap context={context} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Markdown mode" }));
+      const editor = screen.getByRole("textbox", { name: "Mind map Markdown" });
+      fireEvent.change(editor, { target: { value: "## Missing root" } });
+
+      // The error waits for a typing pause instead of flashing immediately.
+      expect(screen.getByText("Changes sync automatically")).toBeInTheDocument();
+      act(() => {
+        jest.advanceTimersByTime(600);
+      });
+      expect(screen.getByText(/Start with a level-one/)).toHaveTextContent(/root/i);
+      expect(context.updateMindmapData).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("continues the outline on Enter and changes levels with Tab in Markdown", () => {
     const context = createContext();
     render(<StatefulMindMap context={context} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Markdown mode" }));
-    const editor = screen.getByRole("textbox", { name: "Mind map Markdown" });
-    fireEvent.change(editor, { target: { value: "## Missing root" } });
+    const editor = screen.getByRole<HTMLTextAreaElement>("textbox", {
+      name: "Mind map Markdown",
+    });
+    const draft = "# Root\n## Child\n- Note";
+    fireEvent.change(editor, { target: { value: draft } });
 
-    expect(screen.getByText(/Start with a level-one/)).toHaveTextContent(/root/i);
-    expect(context.updateMindmapData).not.toHaveBeenCalled();
+    editor.setSelectionRange(draft.length, draft.length);
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(editor).toHaveValue("# Root\n## Child\n- Note\n- ");
+    expect(editor.selectionStart).toBe(editor.value.length);
+
+    fireEvent.change(editor, { target: { value: `${editor.value}Detail` } });
+    editor.setSelectionRange(editor.value.length, editor.value.length);
+    fireEvent.keyDown(editor, { key: "Tab" });
+    expect(editor).toHaveValue("# Root\n## Child\n- Note\n  - Detail");
+
+    fireEvent.keyDown(editor, { key: "Tab", shiftKey: true });
+    expect(editor).toHaveValue("# Root\n## Child\n- Note\n- Detail");
+
+    fireEvent.keyDown(editor, { key: "b", metaKey: true });
+    expect(editor).toHaveValue("# Root\n## Child\n- Note\n- **Detail**");
+    expect(screen.getByText("Changes sync automatically")).toBeInTheDocument();
+  });
+
+  it("leaves Enter alone while an IME composition is active", () => {
+    const context = createContext();
+    render(<StatefulMindMap context={context} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Markdown mode" }));
+    const editor = screen.getByRole<HTMLTextAreaElement>("textbox", {
+      name: "Mind map Markdown",
+    });
+    const draft = "# Root\n- 想法";
+    fireEvent.change(editor, { target: { value: draft } });
+    editor.setSelectionRange(draft.length, draft.length);
+
+    fireEvent.keyDown(editor, { key: "Enter", isComposing: true });
+    expect(editor).toHaveValue(draft);
   });
 
   it("does not flash the previous mind map while a new route is loading", () => {
