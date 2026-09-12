@@ -174,11 +174,11 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(timeoutId);
   }, [currentMindmapId, isDirty, mindmapData, saveMindmap]);
 
-  // Drop the focus when its node disappears (deleted, or replaced via Markdown).
-  useEffect(() => {
-    if (!focusedNodeId) return;
+  // Focus only counts while its node exists (it can be deleted or replaced via Markdown).
+  const activeFocusedNodeId = useMemo(() => {
+    if (!focusedNodeId) return null;
     const root = mindmapData?.root ?? mindmapData?.nodeData;
-    if (!root || !findNode(root, focusedNodeId)) setFocusedNodeId(null);
+    return root && findNode(root, focusedNodeId) ? focusedNodeId : null;
   }, [focusedNodeId, mindmapData]);
 
   const loadMindmap = useCallback(async (id: string): Promise<MindmapData | null> => {
@@ -301,7 +301,8 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
 
       const fullRoot = mindmapData.root ?? mindmapData.nodeData;
       const root =
-        (focusedNodeId ? findNode(fullRoot, focusedNodeId) : null) ?? fullRoot;
+        (activeFocusedNodeId ? findNode(fullRoot, activeFocusedNodeId) : null) ??
+        fullRoot;
       const safeTitle = sanitizeFilename(root.topic);
 
       try {
@@ -329,7 +330,7 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
         toast.error("An error occurred during the export process.");
       }
     },
-    [focusedNodeId, mindmapData]
+    [activeFocusedNodeId, mindmapData]
   );
 
   const value = useMemo<MindmapContextValue>(
@@ -345,16 +346,16 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
       getAllMindmaps,
       selectedNode,
       setSelectedNode,
-      focusedNodeId,
+      focusedNodeId: activeFocusedNodeId,
       setFocusedNodeId,
       updateNodeHyperlink,
       exportMindMap,
     }),
     [
+      activeFocusedNodeId,
       currentMindmapId,
       currentMindmapTitle,
       exportMindMap,
-      focusedNodeId,
       getAllMindmaps,
       loadMindmap,
       mindmapData,

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useState } from "react";
 import { toast } from "react-toastify";
 import { authContext } from "@/lib/store/auth-context";
 import { EyeIcon, EyeOffIcon } from "./Icons";
@@ -9,6 +9,13 @@ interface FormData {
   password: string;
 }
 
+const EMPTY_FORM: FormData = { name: "", email: "", password: "" };
+const DEMO_FORM: FormData = {
+  name: "",
+  email: "demo@gmail.com",
+  password: "123456",
+};
+
 function Authentication() {
   const {
     googleLoginHandler,
@@ -18,20 +25,13 @@ function Authentication() {
 
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [formData, setFormData] = useState<FormData>({
-    name: "",
-    email: "",
-    password: "",
-  });
+  const [formData, setFormData] = useState<FormData>(DEMO_FORM);
   const [useDemoAccount, setUseDemoAccount] = useState(true);
 
-  useEffect(() => {
-    if (useDemoAccount) {
-      setFormData({ name: "", email: "demo@gmail.com", password: "123456" });
-    } else {
-      setFormData({ name: "", email: "", password: "" });
-    }
-  }, [useDemoAccount, isRegistering]);
+  const applyDemoAccount = (nextUseDemoAccount: boolean) => {
+    setUseDemoAccount(nextUseDemoAccount);
+    setFormData(nextUseDemoAccount ? DEMO_FORM : EMPTY_FORM);
+  };
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -68,7 +68,7 @@ function Authentication() {
   const handleRegisterLoginToggle = () => {
     const nextIsRegistering = !isRegistering;
     setIsRegistering(nextIsRegistering);
-    setUseDemoAccount(!nextIsRegistering);
+    applyDemoAccount(!nextIsRegistering);
   };
 
   return (
@@ -140,7 +140,7 @@ function Authentication() {
             <input
               type="checkbox"
               checked={useDemoAccount}
-              onChange={() => setUseDemoAccount((previous) => !previous)}
+              onChange={() => applyDemoAccount(!useDemoAccount)}
             />
             <span>Use the ready-to-try demo account</span>
           </label>
