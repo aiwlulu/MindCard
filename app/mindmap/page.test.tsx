@@ -32,22 +32,37 @@ jest.mock("firebase/firestore/lite", () => ({
 }));
 
 jest.mock("@/lib/firebase", () => ({ db: { name: "database" } }));
+const mockToast = jest.fn();
+const mockToastError = jest.fn();
+jest.mock("react-toastify", () => ({
+  toast: Object.assign(
+    (...args: unknown[]) => mockToast(...args),
+    { error: (...args: unknown[]) => mockToastError(...args) }
+  ),
+}));
 jest.mock("@/components/MindMapList", () =>
   function MockMindMapList({
     mindMaps,
     isLoading,
     onTogglePublic,
+    onDeleteMindMap,
   }: {
     mindMaps: Array<{ id: string; isPublic?: boolean }>;
     isLoading: boolean;
     onTogglePublic: (id: string, isPublic: boolean) => void;
+    onDeleteMindMap: (id: string) => void;
   }) {
     if (isLoading) return <div role="status">Loading mind maps…</div>;
 
     return mindMaps.length ? (
-      <button onClick={() => onTogglePublic(mindMaps[0].id, true)}>
-        Publish test map
-      </button>
+      <>
+        <button onClick={() => onTogglePublic(mindMaps[0].id, true)}>
+          Publish test map
+        </button>
+        <button onClick={() => onDeleteMindMap(mindMaps[0].id)}>
+          Delete test map
+        </button>
+      </>
     ) : (
       <div>No maps</div>
     );
@@ -84,6 +99,8 @@ describe("Mindmap folder public sharing", () => {
     mockBatchSet.mockClear();
     mockBatchDelete.mockClear();
     mockBatchCommit.mockClear().mockResolvedValue(undefined);
+    mockToast.mockClear();
+    mockToastError.mockClear();
     mockGetDoc.mockReset().mockResolvedValue({
       exists: () => true,
       data: () => ({
@@ -136,6 +153,31 @@ describe("Mindmap folder public sharing", () => {
     expect(JSON.stringify(mockBatchSet.mock.calls[0][1])).not.toContain(
       "secret-map"
     );
+  });
+
+  it("keeps the map listed and reports the failure when deletion is rejected", async () => {
+    mockBatchCommit.mockRejectedValueOnce(new Error("permission-denied"));
+
+    await act(async () => {
+      render(
+        <authContext.Provider
+          value={{ user: { uid: "user-1" } as never, loading: false } as never}
+        >
+          <MindmapContext.Provider value={context}>
+            <MindmapPage />
+          </MindmapContext.Provider>
+        </authContext.Provider>
+      );
+    });
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole("button", { name: "Delete test map" }));
+    });
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith("Unable to delete the mind map.")
+    );
+    expect(screen.getByRole("button", { name: "Delete test map" })).toBeInTheDocument();
   });
 
   it("shows a loading state while mind maps are being fetched", async () => {

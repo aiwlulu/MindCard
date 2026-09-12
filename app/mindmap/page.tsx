@@ -70,7 +70,11 @@ export default function MindmapPage() {
   }, [user, getAllMindmaps]);
 
   const handleMindMapCreate = async () => {
-    if (user) {
+    if (!user) {
+      toast.error("Sign in to create a mind map.");
+      return;
+    }
+    try {
       const docRef = await addDoc(collection(db, "mindmaps"), {
         data: { nodeData: { id: "root", root: true, topic: "New Mind Map" } },
         userId: user.uid,
@@ -78,17 +82,22 @@ export default function MindmapPage() {
         createdAt: serverTimestamp(),
       });
       router.push(`/mindmap/${docRef.id}`);
-    } else {
-      alert("You must be logged in to create a new mind map.");
+    } catch {
+      toast.error("Unable to create the mind map. Please try again.");
     }
   };
 
   const deleteMindMap = async (id: string) => {
-    const batch = writeBatch(db);
-    batch.delete(doc(db, "publicMindmaps", id));
-    batch.delete(doc(db, "mindmaps", id));
-    await batch.commit();
-    setMindMaps((prev) => prev.filter((map) => map.id !== id));
+    try {
+      const batch = writeBatch(db);
+      batch.delete(doc(db, "publicMindmaps", id));
+      batch.delete(doc(db, "mindmaps", id));
+      await batch.commit();
+      setMindMaps((prev) => prev.filter((map) => map.id !== id));
+      toast("Mind map deleted.", { autoClose: 1200 });
+    } catch {
+      toast.error("Unable to delete the mind map.");
+    }
   };
 
   const publicUrl = (id: string) => `${window.location.origin}/share/${id}`;
