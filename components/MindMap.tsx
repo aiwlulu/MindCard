@@ -203,7 +203,11 @@ export default function MindMap({ id }: MindMapProps) {
   const [markdownDraft, setMarkdownDraft] = useState("");
   const [markdownError, setMarkdownError] = useState<string | null>(null);
   // Errors surface after a short pause so a half-typed line does not flash red.
-  const [visibleMarkdownError, setVisibleMarkdownError] = useState<string | null>(null);
+  const [settledMarkdownError, setSettledMarkdownError] = useState<string | null>(
+    null
+  );
+  const visibleMarkdownError =
+    markdownError && settledMarkdownError === markdownError ? markdownError : null;
   const [cardLinkCompletedVersion, setCardLinkCompletedVersion] = useState(0);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -410,12 +414,9 @@ export default function MindMap({ id }: MindMapProps) {
   );
 
   useEffect(() => {
-    if (!markdownError) {
-      setVisibleMarkdownError(null);
-      return undefined;
-    }
+    if (!markdownError) return undefined;
     const timer = window.setTimeout(
-      () => setVisibleMarkdownError(markdownError),
+      () => setSettledMarkdownError(markdownError),
       MARKDOWN_ERROR_DELAY_MS
     );
     return () => window.clearTimeout(timer);
