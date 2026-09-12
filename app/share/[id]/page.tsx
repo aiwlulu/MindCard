@@ -1,6 +1,7 @@
 "use client";
 
 import React, { use, useEffect, useState } from "react";
+import Link from "next/link";
 import { doc, getDoc } from "firebase/firestore/lite";
 import PublicMindMapViewer from "@/components/PublicMindMapViewer";
 import { db } from "@/lib/firebase";
@@ -60,7 +61,7 @@ export default function PublicMindMapPage({ params }: PageProps) {
       <main className="public-share-state">
         <p>Private or unavailable</p>
         <h1>This shared mind map is no longer public.</h1>
-        <a href="/">Go to MindCard</a>
+        <Link href="/">Go to MindCard</Link>
       </main>
     );
   }

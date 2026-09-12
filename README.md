@@ -99,12 +99,13 @@ These choices follow the official MCP guidance for [OAuth-based authorization](h
 ## Quality checks
 
 ```bash
+npm run lint
+npm run typecheck
 npm test -- --runInBand
-npx tsc --noEmit --incremental false
 npm run build
 ```
 
-The explicit `--incremental false` keeps the type check read-only and avoids creating `tsconfig.tsbuildinfo` in restricted worktrees.
+The same four steps run in GitHub Actions (`.github/workflows/ci.yml`) on every pull request and on pushes to `main`. CI builds with placeholder Firebase values, so no secrets are required.
 
 ## Architecture
 
