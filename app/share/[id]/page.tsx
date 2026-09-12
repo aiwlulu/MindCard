@@ -17,28 +17,38 @@ type PublicMapState =
   | { status: "ready"; data: MindmapData }
   | { status: "unavailable" };
 
+interface ResolvedPublicMap {
+  id: string;
+  state: PublicMapState;
+}
+
 export default function PublicMindMapPage({ params }: PageProps) {
   const { id } = use(params);
-  const [state, setState] = useState<PublicMapState>({ status: "loading" });
+  const [resolved, setResolved] = useState<ResolvedPublicMap | null>(null);
+  // A stale result from the previous id reads as loading until the new fetch lands.
+  const state: PublicMapState =
+    resolved?.id === id ? resolved.state : { status: "loading" };
 
   useEffect(() => {
     let active = true;
-    setState({ status: "loading" });
 
     getDoc(doc(db, "publicMindmaps", id))
       .then((snapshot) => {
-        if (!active || !snapshot.exists()) return setState({ status: "unavailable" });
+        if (!active) return;
+        if (!snapshot.exists()) {
+          return setResolved({ id, state: { status: "unavailable" } });
+        }
         const stored = snapshot.data() as { data?: unknown; isPublic?: boolean };
         if (stored.isPublic !== true) {
-          setState({ status: "unavailable" });
+          setResolved({ id, state: { status: "unavailable" } });
           return;
         }
         const data = normalizeMindmapData(stored.data);
         document.title = `${data.nodeData.topic} | MindCard public view`;
-        setState({ status: "ready", data });
+        setResolved({ id, state: { status: "ready", data } });
       })
       .catch(() => {
-        if (active) setState({ status: "unavailable" });
+        if (active) setResolved({ id, state: { status: "unavailable" } });
       });
 
     return () => {

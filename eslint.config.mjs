@@ -16,9 +16,6 @@ const config = [
   },
   {
     rules: {
-      // Existing prop/route reset effects are tracked as warnings until each
-      // one is migrated to derived state.
-      "react-hooks/set-state-in-effect": "warn",
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", ignoreRestSiblings: true },

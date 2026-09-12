@@ -231,18 +231,9 @@ export default function MindMap({ id }: MindMapProps) {
     [contextMenu, root]
   );
 
+  // The route keys this component, so a new id remounts it with fresh canvas state.
   useEffect(() => {
     if (id) void loadMindmap(id);
-    setPan({ x: 0, y: 0 });
-    setInteractionMode("select");
-    setIsPanning(false);
-    setHistory([]);
-    setRedoHistory([]);
-    setSelectedNodeIds(new Set());
-    setEditorMode("map");
-    setMarkdownDraft("");
-    setMarkdownError(null);
-    markdownHistoryCapturedRef.current = false;
   }, [id, loadMindmap]);
 
   useEffect(() => {
