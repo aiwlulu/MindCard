@@ -497,7 +497,7 @@ function normalizeNode(raw: Record<string, unknown>, isRoot: boolean): NodeData 
 }
 
 function omitChildren(node: NodeData): NodeData {
-  const { children: _children, ...withoutChildren } = node;
+  const { children, ...withoutChildren } = node;
   return withoutChildren;
 }
 

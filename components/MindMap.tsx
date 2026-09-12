@@ -29,6 +29,14 @@ import {
   reconcileMarkdownTree,
 } from "@/lib/mindmap/markdown";
 import {
+  applyMarkdownEdit,
+  continueMarkdownLine,
+  indentMarkdownLines,
+  outdentMarkdownLines,
+  toggleMarkdownBold,
+  type MarkdownEdit,
+} from "@/lib/mindmap/markdown-editing";
+import {
   cloneNodeWithNewIds,
   countDescendants,
   createNode,
@@ -96,6 +104,8 @@ interface NodeDragState {
 
 type TreeUpdater = (root: NodeData) => NodeData;
 type EditorMode = "map" | "markdown" | "split";
+
+const MARKDOWN_ERROR_DELAY_MS = 600;
 type InteractionMode = "select" | "pan";
 type DropPosition = "before" | "inside" | "after";
 
@@ -192,6 +202,12 @@ export default function MindMap({ id }: MindMapProps) {
   const [editorMode, setEditorMode] = useState<EditorMode>("map");
   const [markdownDraft, setMarkdownDraft] = useState("");
   const [markdownError, setMarkdownError] = useState<string | null>(null);
+  // Errors surface after a short pause so a half-typed line does not flash red.
+  const [settledMarkdownError, setSettledMarkdownError] = useState<string | null>(
+    null
+  );
+  const visibleMarkdownError =
+    markdownError && settledMarkdownError === markdownError ? markdownError : null;
   const [cardLinkCompletedVersion, setCardLinkCompletedVersion] = useState(0);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -231,18 +247,9 @@ export default function MindMap({ id }: MindMapProps) {
     [contextMenu, root]
   );
 
+  // The route keys this component, so a new id remounts it with fresh canvas state.
   useEffect(() => {
     if (id) void loadMindmap(id);
-    setPan({ x: 0, y: 0 });
-    setInteractionMode("select");
-    setIsPanning(false);
-    setHistory([]);
-    setRedoHistory([]);
-    setSelectedNodeIds(new Set());
-    setEditorMode("map");
-    setMarkdownDraft("");
-    setMarkdownError(null);
-    markdownHistoryCapturedRef.current = false;
   }, [id, loadMindmap]);
 
   useEffect(() => {
@@ -404,6 +411,49 @@ export default function MindMap({ id }: MindMapProps) {
       });
     },
     [mindmapData, updateMindmapData]
+  );
+
+  useEffect(() => {
+    if (!markdownError) return undefined;
+    const timer = window.setTimeout(
+      () => setSettledMarkdownError(markdownError),
+      MARKDOWN_ERROR_DELAY_MS
+    );
+    return () => window.clearTimeout(timer);
+  }, [markdownError]);
+
+  const handleMarkdownKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      const textarea = event.currentTarget;
+      const { value, selectionStart, selectionEnd } = textarea;
+      const commandKey = event.metaKey || event.ctrlKey;
+      let edit: MarkdownEdit | null = null;
+
+      if (event.key === "Enter") {
+        // Shift+Enter inserts a plain line; IME candidate confirmation is left alone.
+        if (commandKey || event.altKey || event.shiftKey || event.nativeEvent.isComposing) {
+          return;
+        }
+        edit = continueMarkdownLine(value, selectionStart, selectionEnd);
+        if (!edit) return;
+      } else if (event.key === "Tab" && !commandKey && !event.altKey) {
+        event.preventDefault();
+        edit = event.shiftKey
+          ? outdentMarkdownLines(value, selectionStart, selectionEnd)
+          : indentMarkdownLines(value, selectionStart, selectionEnd);
+        if (!edit) return;
+      } else if (commandKey && !event.altKey && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        edit = toggleMarkdownBold(value, selectionStart, selectionEnd);
+        if (!edit) return;
+      } else {
+        return;
+      }
+
+      event.preventDefault();
+      applyMarkdownEdit(textarea, edit, updateMarkdownDraft);
+    },
+    [updateMarkdownDraft]
   );
 
   const startEditing = useCallback(
@@ -1364,10 +1414,10 @@ export default function MindMap({ id }: MindMapProps) {
           </span>
         )) : (
           <span
-            className={`mindmap-markdown-status${markdownError ? " is-error" : ""}`}
+            className={`mindmap-markdown-status${visibleMarkdownError ? " is-error" : ""}`}
             role="status"
           >
-            {markdownError ?? "Changes sync automatically"}
+            {visibleMarkdownError ?? "Changes sync automatically"}
           </span>
         )}
         {editorMode !== "markdown" ? (
@@ -1499,21 +1549,11 @@ export default function MindMap({ id }: MindMapProps) {
                 value={markdownDraft}
                 spellCheck={false}
                 onChange={(event) => updateMarkdownDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key !== "Tab") return;
-                  event.preventDefault();
-                  const textarea = event.currentTarget;
-                  const start = textarea.selectionStart;
-                  const end = textarea.selectionEnd;
-                  const nextDraft = `${markdownDraft.slice(0, start)}  ${markdownDraft.slice(end)}`;
-                  updateMarkdownDraft(nextDraft);
-                  window.requestAnimationFrame(() => {
-                    textarea.setSelectionRange(start + 2, start + 2);
-                  });
-                }}
+                onKeyDown={handleMarkdownKeyDown}
               />
               <p id="mindmap-markdown-help">
-                Use headings or indented bullets. Tab inserts two spaces.
+                Enter adds a sibling · Tab / Shift+Tab change level · ⌘B bold ·
+                Shift+Enter plain line
               </p>
             </div>
           ) : null}

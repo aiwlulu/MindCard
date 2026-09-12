@@ -26,5 +26,5 @@ export default function Page({ params }: PageProps) {
     };
   }, [mindmapTitle]);
 
-  return <DynamicMindmap id={id} />;
+  return <DynamicMindmap key={id} id={id} />;
 }
