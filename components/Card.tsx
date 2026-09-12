@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import SweetAlert from "./SweetAlert";
 import { toast } from "react-toastify";
@@ -20,15 +20,14 @@ const Card: React.FC<CardProps> = ({
   const [mindmaps, setMindmaps] = useState<FirestoreMindmapDoc[]>([]);
   const { getAllMindmaps, selectedNode } = useContext(MindmapContext);
   const [showInstruction, setShowInstruction] = useState(false);
-  const previousLinkCompletedVersion = useRef(linkCompletedVersion);
+  const [handledLinkVersion, setHandledLinkVersion] = useState(linkCompletedVersion);
 
-  useEffect(() => {
-    if (linkCompletedVersion !== previousLinkCompletedVersion.current) {
-      setIsOpen(false);
-      setShowInstruction(false);
-      previousLinkCompletedVersion.current = linkCompletedVersion;
-    }
-  }, [linkCompletedVersion]);
+  // A completed link closes the picker; reset while rendering, not in an effect.
+  if (linkCompletedVersion !== handledLinkVersion) {
+    setHandledLinkVersion(linkCompletedVersion);
+    setIsOpen(false);
+    setShowInstruction(false);
+  }
 
   useEffect(() => {
     const fetchMindmaps = async () => {

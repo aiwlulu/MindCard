@@ -101,12 +101,13 @@ These choices follow the official MCP guidance for [OAuth-based authorization](h
 ## Quality checks
 
 ```bash
+npm run lint
+npm run typecheck
 npm test -- --runInBand
-npx tsc --noEmit --incremental false
 npm run build
 ```
 
-The explicit `--incremental false` keeps the type check read-only and avoids creating `tsconfig.tsbuildinfo` in restricted worktrees.
+The same four steps run in GitHub Actions (`.github/workflows/ci.yml`) on every pull request and on pushes to `main`. CI builds with placeholder Firebase values, so no secrets are required.
 
 ## Architecture
 
@@ -115,6 +116,7 @@ MindCard no longer depends on a mind-map rendering package. The editor is implem
 - `lib/mindmap/layout.ts` — deterministic right-growing tree layout
 - `lib/mindmap/tree.ts` — structural edits, movement, collapse, and reparenting
 - `lib/mindmap/markdown.ts` — Markdown outline parsing and serialization
+- `lib/mindmap/markdown-editing.ts` — Enter/Tab/⌘B keyboard behaviour for the Markdown editor
 - `lib/mindmap/export.ts` — PNG, SVG, and Markdown export
 - `components/MindMap.tsx` — canvas interaction, keyboard flow, split view, and autosave UI
 - `components/PublicMindMapViewer.tsx` — isolated read-only public renderer

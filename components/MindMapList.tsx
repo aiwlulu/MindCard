@@ -67,10 +67,15 @@ function MindMapList({
 }: MindMapListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialPage = parseInt(searchParams.get("page") ?? "1", 10) || 1;
-  const [currentPage, setCurrentPage] = useState(initialPage);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isSearchRestored, setIsSearchRestored] = useState(false);
+  const routePage = parseInt(searchParams.get("page") ?? "1", 10) || 1;
+  const [page, setPage] = useState({ selected: routePage, fromRoute: routePage });
+  // A new ?page= value wins over the locally selected page.
+  if (page.fromRoute !== routePage) {
+    setPage({ selected: routePage, fromRoute: routePage });
+  }
+  const setCurrentPage = (pageNumber: number) =>
+    setPage({ selected: pageNumber, fromRoute: routePage });
+  const [searchTerm, setSearchTerm] = useState(readStoredSearch);
   const [sortMode, setSortMode] = useState<MindMapSortMode>("created");
   const [isTransitioning, setIsTransitioning] = useState(false);
   const pageTransitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -86,17 +91,7 @@ function MindMapList({
     setCurrentPage(1);
   };
 
-  useEffect(() => setCurrentPage(initialPage), [initialPage]);
-
-  useEffect(() => {
-    setSearchTerm(readStoredSearch());
-    setIsSearchRestored(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isSearchRestored) return;
-    writeStoredSearch(searchTerm);
-  }, [isSearchRestored, searchTerm]);
+  useEffect(() => writeStoredSearch(searchTerm), [searchTerm]);
 
   useEffect(
     () => () => {
@@ -130,13 +125,14 @@ function MindMapList({
 
   const totalPages = Math.ceil(filteredMindMaps.length / mapsPerPage);
   const publicCount = mindMaps.filter((map) => map.isPublic).length;
+  const lastAvailablePage = Math.max(1, totalPages);
+  // Shrinking results can strand the selected page past the end of the list.
+  const currentPage = Math.min(page.selected, lastAvailablePage);
 
   useEffect(() => {
-    const lastAvailablePage = Math.max(1, totalPages);
-    if (currentPage <= lastAvailablePage) return;
-    setCurrentPage(lastAvailablePage);
+    if (page.selected <= lastAvailablePage) return;
     router.replace(`/mindmap/?page=${lastAvailablePage}`);
-  }, [currentPage, router, totalPages]);
+  }, [lastAvailablePage, page.selected, router]);
 
   const handleMindMapSelect = (id: string) => {
     router.push(`/mindmap/${id}`);
