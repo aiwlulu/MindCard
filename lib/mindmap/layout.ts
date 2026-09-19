@@ -241,26 +241,95 @@ export function wrapTopicSegments(
     const last = current[current.length - 1];
     if (last && last.bold === bold) last.text += character;
     else current.push({ text: character, bold });
+    width += estimateCharacterWidth(character);
   }
 
-  for (const segment of parseInlineBold(topic)) {
-    const paragraphs = segment.text.split("\n");
-    paragraphs.forEach((paragraph, index) => {
-      if (index > 0) pushLine();
-      for (const character of Array.from(paragraph)) {
-        const characterWidth = estimateCharacterWidth(character);
-        if (current.length && width + characterWidth > availableWidth) {
-          pushLine();
-        }
-        appendCharacter(character, segment.bold);
-        width += characterWidth;
-      }
-    });
+  function appendToken(token: TopicCharacter[]) {
+    for (const { character, bold } of token) appendCharacter(character, bold);
   }
+
+  splitParagraphs(parseInlineBold(topic)).forEach((paragraph, index) => {
+    if (index > 0) pushLine();
+    // Leading whitespace is kept for paragraphs but dropped on wrapped lines.
+    let wrapped = false;
+    for (const token of tokenizeParagraph(paragraph)) {
+      const tokenWidth = token.reduce(
+        (total, { character }) => total + estimateCharacterWidth(character),
+        0
+      );
+      const first = token[0].character;
+
+      if (/\s/.test(first)) {
+        if (width + tokenWidth > availableWidth) {
+          pushLine();
+          wrapped = true;
+        } else if (current.length || !wrapped) {
+          appendToken(token);
+        }
+      } else if (width + tokenWidth <= availableWidth) {
+        appendToken(token);
+      } else if (token.length === 1 && NO_LINE_START.test(first)) {
+        // Let closing punctuation hang instead of starting a new line.
+        appendToken(token);
+      } else if (tokenWidth <= availableWidth) {
+        pushLine();
+        wrapped = true;
+        appendToken(token);
+      } else {
+        // Word longer than a full line: break it by character.
+        for (const item of token) {
+          const characterWidth = estimateCharacterWidth(item.character);
+          if (current.length && width + characterWidth > availableWidth) {
+            pushLine();
+            wrapped = true;
+          }
+          appendCharacter(item.character, item.bold);
+        }
+      }
+    }
+  });
 
   pushLine();
 
   return lines;
+}
+
+type TopicCharacter = { character: string; bold: boolean };
+
+// CJK ideographs, kana, hangul and full-width forms may break between any characters.
+const BREAK_ANYWHERE = /[\u2e80-\u9fff\uac00-\ud7af\uff00-\uffef\u3000-\u303f]/;
+// Punctuation that should not start a line (simplified kinsoku).
+const NO_LINE_START = /[，。、；：！？）」』】〉》〕,.;:!?)\]}%]/;
+
+function splitParagraphs(segments: TopicSegment[]): TopicCharacter[][] {
+  const paragraphs: TopicCharacter[][] = [[]];
+  for (const segment of segments) {
+    for (const character of Array.from(segment.text)) {
+      if (character === "\n") paragraphs.push([]);
+      else paragraphs[paragraphs.length - 1].push({ character, bold: segment.bold });
+    }
+  }
+  return paragraphs;
+}
+
+// Group runs of non-CJK, non-space characters (e.g. English words, URLs) into one token.
+function tokenizeParagraph(paragraph: TopicCharacter[]): TopicCharacter[][] {
+  const tokens: TopicCharacter[][] = [];
+  let word: TopicCharacter[] = [];
+  const flush = () => {
+    if (word.length) tokens.push(word);
+    word = [];
+  };
+  for (const item of paragraph) {
+    if (/\s/.test(item.character) || BREAK_ANYWHERE.test(item.character)) {
+      flush();
+      tokens.push([item]);
+    } else {
+      word.push(item);
+    }
+  }
+  flush();
+  return tokens;
 }
 
 function trimLineEnd(line: TopicSegment[]): TopicSegment[] {
