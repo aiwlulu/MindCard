@@ -1,5 +1,10 @@
 import type { NodeData } from "@/lib/types";
-import { layoutMindmap, NODE_MAX_WIDTH, NODE_MIN_HEIGHT } from "./layout";
+import {
+  layoutMindmap,
+  NODE_MAX_WIDTH,
+  NODE_MIN_HEIGHT,
+  wrapTopic,
+} from "./layout";
 
 describe("mind map layout", () => {
   it("places every branch to the right of its parent", () => {
@@ -56,6 +61,33 @@ describe("mind map layout", () => {
     expect(node.lines.length).toBeGreaterThan(1);
     expect(node.width).toBeLessThanOrEqual(NODE_MAX_WIDTH);
     expect(node.height).toBeGreaterThan(NODE_MIN_HEIGHT);
+  });
+
+  it("keeps English words on one line when wrapping", () => {
+    const topic =
+      "如果現成 AI 工具已經夠用，就繼續用；當任務固定重複、資料分散、流程有規則時，才比較值得做自己的 Agent";
+    const lines = wrapTopic(topic);
+
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.some((line) => /(^|\s)Agent$/.test(line))).toBe(true);
+    expect(lines.join("").replace(/\s/g, "")).toBe(topic.replace(/\s/g, ""));
+  });
+
+  it("does not start a line with closing punctuation", () => {
+    const lines = wrapTopic("一二三四五六七八九十一二三四五六七八九十，後面的文字");
+
+    expect(lines.every((line) => !/^[，。；、]/.test(line))).toBe(true);
+  });
+
+  it("breaks words that are longer than a whole line", () => {
+    const lines = wrapTopic("a".repeat(200));
+
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.join("")).toBe("a".repeat(200));
+  });
+
+  it("preserves explicit line breaks", () => {
+    expect(wrapTopic("first\nsecond")).toEqual(["first", "second"]);
   });
 
   it("does not lay out descendants of a collapsed branch", () => {
