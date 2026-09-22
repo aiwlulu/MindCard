@@ -165,6 +165,16 @@ describe("MindMap editor", () => {
     );
   });
 
+  it("keeps the page position when selecting a node", () => {
+    const focusSpy = jest.spyOn(HTMLElement.prototype, "focus");
+    renderMindMap();
+    focusSpy.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Child" }));
+
+    expect(focusSpy).toHaveBeenLastCalledWith({ preventScroll: true });
+  });
+
   it("enters inline editing on double click and commits the new topic", () => {
     const context = createContext();
     renderMindMap(context);

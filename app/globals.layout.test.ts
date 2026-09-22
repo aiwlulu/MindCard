@@ -27,7 +27,7 @@ describe("zoom-resilient mind map editor layout", () => {
 
     expect(editor).toMatch(/display:\s*flex/);
     expect(editor).toMatch(/flex-direction:\s*column/);
-    expect(editor).toMatch(/overflow:\s*auto/);
+    expect(editor).toMatch(/overflow-y:\s*auto/);
 
     expect(commandBar).toMatch(/position:\s*relative/);
     expect(commandBar).toMatch(/flex:\s*0\s+0\s+auto/);
@@ -36,5 +36,14 @@ describe("zoom-resilient mind map editor layout", () => {
     expect(showcase).toMatch(/flex:\s*1\s+1\s+auto/);
     expect(showcase).toMatch(/height:\s*auto/);
     expect(showcase).toMatch(/min-height:\s*0/);
+  });
+
+  it("prevents a narrow command bar from creating horizontal editor overflow", () => {
+    const editor = ruleBody(".mindmap-editor");
+    const commandBar = ruleBody(".mindmap-commandbar");
+
+    expect(editor).toMatch(/overflow-x:\s*hidden/);
+    expect(editor).toMatch(/overflow-y:\s*auto/);
+    expect(commandBar).toMatch(/min-width:\s*0/);
   });
 });

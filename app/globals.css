@@ -589,7 +589,8 @@ html {
   flex-direction: column;
   height: calc(100vh - 5rem);
   min-height: calc(100vh - 5rem);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   color: #dedee4;
   background: #171921;
   outline: none;
@@ -833,6 +834,7 @@ html {
   right: auto;
   left: auto;
   flex: 0 0 auto;
+  min-width: 0;
   z-index: 30;
   display: flex;
   min-height: 2.35rem;

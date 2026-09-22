@@ -319,7 +319,7 @@ export default function MindMap({ id }: MindMapProps) {
         return next;
       });
       setSelectedNode(node);
-      editorRef.current?.focus();
+      editorRef.current?.focus({ preventScroll: true });
     },
     [setSelectedNode]
   );
@@ -354,7 +354,7 @@ export default function MindMap({ id }: MindMapProps) {
       setSelectedNode(node);
       setSelectedNodeIds(new Set([node.id]));
       setContextMenu(null);
-      editorRef.current?.focus();
+      editorRef.current?.focus({ preventScroll: true });
     },
     [setFocusedNodeId, setSelectedNode]
   );
@@ -364,7 +364,7 @@ export default function MindMap({ id }: MindMapProps) {
     setPan({ x: 0, y: 0 });
     setZoom(1);
     setContextMenu(null);
-    editorRef.current?.focus();
+    editorRef.current?.focus({ preventScroll: true });
   }, [setFocusedNodeId]);
 
   const switchEditorMode = useCallback(
