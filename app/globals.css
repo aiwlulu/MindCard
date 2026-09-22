@@ -585,9 +585,11 @@ html {
 
 .mindmap-editor {
   position: relative;
+  display: flex;
+  flex-direction: column;
   height: calc(100vh - 5rem);
   min-height: calc(100vh - 5rem);
-  overflow: hidden;
+  overflow: auto;
   color: #dedee4;
   background: #171921;
   outline: none;
@@ -600,7 +602,8 @@ html {
 
 .showcase {
   position: relative;
-  height: 100%;
+  flex: 1 1 auto;
+  height: auto;
   min-height: 0;
 }
 
@@ -825,16 +828,18 @@ html {
 }
 
 .mindmap-commandbar {
-  position: absolute;
-  top: 0.75rem;
-  right: 1rem;
-  left: 1rem;
+  position: relative;
+  top: auto;
+  right: auto;
+  left: auto;
+  flex: 0 0 auto;
   z-index: 30;
   display: flex;
   min-height: 2.35rem;
   align-items: center;
   gap: 0.25rem;
   flex-wrap: wrap;
+  margin: 0.75rem 1rem 0;
   padding: 0.3rem;
   border: 1px solid rgba(143, 141, 196, 0.2);
   border-radius: 0.65rem;
@@ -1657,8 +1662,9 @@ html {
   }
 
   .mindmap-commandbar {
-    right: 0.6rem;
-    left: 0.6rem;
+    right: auto;
+    left: auto;
+    margin-inline: 0.6rem;
   }
 
   .mindmap-commandbar-topic,
