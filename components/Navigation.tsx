@@ -63,7 +63,7 @@ function Nav() {
   }, [isShareRoute, user]);
 
   return (
-    <header className="h-20 w-full md:w-11/12 mx-auto px-4 sm:px-6 py-2 flex items-center justify-between">
+    <header className="page-frame h-20 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <Image
           src="/icon.png"
