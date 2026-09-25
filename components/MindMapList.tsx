@@ -177,7 +177,7 @@ function MindMapList({
   const renderPageNumbers = () => {
     const pageNumbers: React.ReactNode[] = [];
     const maxPageNumbersToShow = 5;
-    const ellipsis = "...";
+    const ellipsis = "…";
 
     const pageBtn = (i: number) => (
       <button
@@ -201,7 +201,7 @@ function MindMapList({
         pageNumbers.push(pageBtn(1));
         if (startPage > 2) {
           pageNumbers.push(
-            <span key="start-ellipsis" className="mindmap-pagination-ellipsis">
+            <span key="start-ellipsis" className="mindmap-pagination-ellipsis" aria-hidden="true">
               {ellipsis}
             </span>
           );
@@ -213,7 +213,7 @@ function MindMapList({
       if (endPage < totalPages) {
         if (endPage < totalPages - 1) {
           pageNumbers.push(
-            <span key="end-ellipsis" className="mindmap-pagination-ellipsis">
+            <span key="end-ellipsis" className="mindmap-pagination-ellipsis" aria-hidden="true">
               {ellipsis}
             </span>
           );
@@ -226,7 +226,7 @@ function MindMapList({
   };
 
   return (
-    <main className="mindmap-library">
+    <main className="mindmap-library page-frame">
       <header className="mindmap-library-header">
         <div>
           <p>Your workspace</p>

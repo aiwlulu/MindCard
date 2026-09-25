@@ -100,6 +100,19 @@ html {
   scroll-behavior: smooth;
 }
 
+:root {
+  --page-max-width: 92rem;
+  --page-gutter: clamp(1rem, 4vw, 3.5rem);
+}
+
+/* Shared horizontal frame so header and page content line up */
+.page-frame {
+  width: 100%;
+  max-width: calc(var(--page-max-width) + var(--page-gutter) * 2);
+  margin-inline: auto;
+  padding-inline: var(--page-gutter);
+}
+
 .landing-route-loading {
   min-height: calc(100vh - 5rem);
   background: #111827;
@@ -1907,9 +1920,8 @@ html {
 }
 
 .mindmap-library {
-  width: min(92rem, calc(100% - 2rem));
-  margin: 0 auto;
-  padding: 2.5rem 0 3rem;
+  padding-top: 2.5rem;
+  padding-bottom: 3rem;
 }
 
 .mindmap-library-header {
@@ -2266,6 +2278,8 @@ html {
 
 .mindmap-pagination > div {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
   gap: 0.25rem;
 }
@@ -2306,6 +2320,16 @@ html {
   white-space: nowrap;
 }
 
+.mindmap-pagination-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  min-height: 2rem;
+  line-height: 1;
+  user-select: none;
+}
+
 @media (min-width: 600px) {
   .mindmap-list-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2334,7 +2358,6 @@ html {
 
 @media (max-width: 680px) {
   .mindmap-library {
-    width: min(100% - 1.25rem, 92rem);
     padding-top: 1.5rem;
   }
 
