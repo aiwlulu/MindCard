@@ -40,6 +40,11 @@ describe("MindCard landing page", () => {
       "#get-started"
     );
     expect(
+      screen.getByRole("heading", {
+        name: "Craft, speed, and trust in one focused flow.",
+      })
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("img", {
         name: "MindCard turns Markdown into a live mind map",
       })
