@@ -269,6 +269,15 @@ html {
   border-top: 1px solid rgb(148 163 184 / 14%);
 }
 
+.landing-quality h2 {
+  margin-top: 0.75rem;
+  color: #ececf1;
+  font-size: clamp(2rem, 4vw, 3.6rem);
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  line-height: 1.08;
+}
+
 .landing-quality-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
