@@ -7,7 +7,8 @@ import { collection, query, where, getDocs } from "firebase/firestore/lite";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { LogoutIcon } from "./Icons";
+import { ChevronRightIcon, LogoutIcon } from "./Icons";
+import ThemeToggle from "./ThemeToggle";
 import type { MindmapExportFormat } from "@/lib/types";
 
 const MindmapActions = dynamic(() => import("./MindmapActions"), {
@@ -16,13 +17,14 @@ const MindmapActions = dynamic(() => import("./MindmapActions"), {
 
 function Nav() {
   const { user, loading, logout } = useContext(authContext);
-  const { saveMindmap, exportMindMap } = useContext(MindmapContext);
+  const { saveMindmap, exportMindMap, currentMindmapTitle } =
+    useContext(MindmapContext);
   const router = useRouter();
   const [displayName, setDisplayName] = useState<string | null>(null);
   const pathname = usePathname();
   const isShareRoute = pathname.startsWith("/share/");
-  const showSaveButton =
-    pathname.startsWith("/mindmap/") && pathname.length > 9;
+  const isEditorRoute = pathname.startsWith("/mindmap/") && pathname.length > 9;
+  const showSaveButton = isEditorRoute;
 
   const logoutAndRedirect = () => {
     logout();
@@ -62,42 +64,69 @@ function Nav() {
     void fetchDisplayName();
   }, [isShareRoute, user]);
 
+  const signedIn = Boolean(user) && !loading && !isShareRoute;
+  const initial = (displayName ?? user?.email ?? "?").trim().charAt(0).toUpperCase();
+
   return (
-    <header className="page-frame h-20 py-2 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <Image
-          src="/icon.png"
-          alt="MindCard logo"
-          width={64}
-          height={64}
-          loading="eager"
-          className="cursor-pointer logo-hover"
-          onClick={navigateToMindmap}
-        />
-        <strong
-          className="text-xl font-semibold cursor-pointer mindcard-hover"
-          onClick={navigateToMindmap}
-        >
-          MindCard
-        </strong>
-        {user && !loading && !showSaveButton && !isShareRoute && (
-          <small className="truncate">Hi, {displayName}!</small>
-        )}
-      </div>
-      <div className="flex items-center gap-4">
-        {user && !loading && showSaveButton && !isShareRoute && (
-          <MindmapActions
-            onSave={() => void saveMindmap()}
-            onNavigateToMindmap={navigateToMindmap}
-            onExport={handleExport}
-          />
-        )}
-        {user && !loading && !isShareRoute && (
-          <button onClick={logoutAndRedirect} className="btn btn-danger">
-            <LogoutIcon size={20} className="block lg:hidden" />
-            <span className="hidden lg:block truncate">Sign out</span>
+    <header className={`app-nav${isEditorRoute ? " app-nav--editor" : ""}`}>
+      <div className="app-nav-inner page-frame">
+        <div className="app-nav-brand">
+          <button
+            type="button"
+            className="app-nav-logo"
+            onClick={navigateToMindmap}
+            aria-label="MindCard home"
+          >
+            <Image
+              src="/icon.png"
+              alt="MindCard logo"
+              width={28}
+              height={28}
+              loading="eager"
+            />
           </button>
-        )}
+          <button type="button" className="app-nav-wordmark" onClick={navigateToMindmap}>
+            MindCard
+          </button>
+          {isEditorRoute && currentMindmapTitle ? (
+            <span className="app-nav-crumb" title={currentMindmapTitle}>
+              <ChevronRightIcon size={14} />
+              <span>{currentMindmapTitle}</span>
+            </span>
+          ) : null}
+        </div>
+
+        <div className="app-nav-side">
+          {signedIn && showSaveButton ? (
+            <MindmapActions
+              onSave={() => void saveMindmap()}
+              onNavigateToMindmap={navigateToMindmap}
+              onExport={handleExport}
+            />
+          ) : null}
+          <ThemeToggle />
+          {signedIn ? (
+            <>
+              {!showSaveButton && displayName ? (
+                <span className="app-nav-user" title={displayName}>
+                  <span className="app-nav-avatar" aria-hidden="true">
+                    {initial}
+                  </span>
+                  <small>Hi, {displayName}!</small>
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={logoutAndRedirect}
+                className="icon-button"
+                aria-label="Sign out"
+                title="Sign out"
+              >
+                <LogoutIcon size={18} />
+              </button>
+            </>
+          ) : null}
+        </div>
       </div>
     </header>
   );

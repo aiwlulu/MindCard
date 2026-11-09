@@ -14,7 +14,8 @@ MindCard is a keyboard-first mind-mapping workspace for turning rough notes into
 - **Links without visual noise.** Attach external URLs or private card links while keeping long addresses out of node labels.
 - **Safe sharing.** Publish a revocable, read-only URL for anyone to view without exposing Markdown mode or private card links.
 - **Portable output.** Export PNG, SVG, or Markdown from the editor. Public viewers can export PNG only.
-- **Calm by default.** Right-growing layout, connected XMind-inspired branches, muted rainbow families, autosave, undo, and redo.
+- **Calm by default.** Right-growing layout, XMind-style topic hierarchy (filled central and first-level topics, line-style subtopics), seven branch colour families, autosave, undo, and redo.
+- **Light and dark.** Pick Light, Dark, or follow the system from the theme menu in the header; exports use the theme you are looking at.
 
 ## Editor controls
 
@@ -29,7 +30,7 @@ MindCard is a keyboard-first mind-mapping workspace for turning rough notes into
 | Pan mode | `H` |
 | Undo / redo | `Cmd/Ctrl + Z` / `Cmd/Ctrl + Shift + Z` |
 
-Right-drag and middle-drag also browse the canvas. Left-drag remains available for multi-selection and reparenting.
+Selecting a topic shows a floating toolbar for the same actions (child, sibling, edit, collapse, link, focus, delete). Right-drag and middle-drag also browse the canvas. Left-drag remains available for multi-selection and reparenting.
 
 ## Local development
 

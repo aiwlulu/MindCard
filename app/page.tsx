@@ -1,8 +1,16 @@
 "use client";
 import React, { useContext, useEffect } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Authentication from "@/components/Authentication";
+import LandingPreview from "@/components/LandingPreview";
+import {
+  CollapseIcon,
+  KeyboardIcon,
+  LockIcon,
+  MarkdownIcon,
+  ShareIcon,
+  SparkIcon,
+} from "@/components/Icons";
 import { authContext } from "@/lib/store/auth-context";
 
 const features = [
@@ -10,21 +18,25 @@ const features = [
     number: "01",
     title: "Write or map",
     copy: "Edit as Markdown, work directly on the canvas, or keep both views open with live sync.",
+    Icon: MarkdownIcon,
   },
   {
     number: "02",
     title: "Stay in flow",
     copy: "Keyboard-first editing, Chinese IME support, bullet-list paste, undo, redo, and automatic saving.",
+    Icon: KeyboardIcon,
   },
   {
     number: "03",
     title: "See the whole thought",
     copy: "Collapse branches, attach external or reusable card links, recenter instantly, and browse large maps without losing context.",
+    Icon: CollapseIcon,
   },
   {
     number: "04",
     title: "Share the result",
     copy: "Publish a revocable read-only link without exposing private card links, or export PNG, SVG, and Markdown.",
+    Icon: ShareIcon,
   },
 ];
 
@@ -32,14 +44,17 @@ const qualityPillars = [
   {
     title: "Craft clarity",
     copy: "Quiet visual hierarchy, careful spacing, and focused typography keep ideas readable during long sessions.",
+    Icon: SparkIcon,
   },
   {
     title: "Instant response",
     copy: "Keyboard-first interactions, low-friction edits, and deterministic layout help the canvas keep up with thought.",
+    Icon: KeyboardIcon,
   },
   {
     title: "Trust by default",
     copy: "Private-by-default documents, revocable sharing, and clean exports support both personal and collaborative work.",
+    Icon: LockIcon,
   },
 ];
 
@@ -75,23 +90,15 @@ export default function Home() {
               Explore the workflow
             </a>
           </div>
-          <p className="landing-proof-line">
-            Native TypeScript <span aria-hidden="true">·</span> No mind-map
-            dependency <span aria-hidden="true">·</span> Private by default
-          </p>
+          <ul className="landing-proof-line" aria-label="Highlights">
+            <li>Light and dark themes</li>
+            <li>Keyboard first</li>
+            <li>Private by default</li>
+          </ul>
         </div>
 
         <figure className="landing-demo">
-          <div className="landing-demo-frame">
-            <Image
-              src="/readme/mindcard-product-demo.gif"
-              alt="MindCard turns Markdown into a live mind map"
-              width={960}
-              height={540}
-              loading="eager"
-              unoptimized
-            />
-          </div>
+          <LandingPreview />
           <figcaption>
             <span>Live sync</span>
             Markdown on the left. A connected mind map on the right.
@@ -108,10 +115,13 @@ export default function Home() {
           <h2 id="quality-title">Craft, speed, and trust in one focused flow.</h2>
         </header>
         <div className="landing-quality-grid">
-          {qualityPillars.map((pillar) => (
-            <article key={pillar.title}>
-              <h3>{pillar.title}</h3>
-              <p>{pillar.copy}</p>
+          {qualityPillars.map(({ title, copy, Icon }) => (
+            <article key={title}>
+              <span className="landing-icon" aria-hidden="true">
+                <Icon size={18} />
+              </span>
+              <h3>{title}</h3>
+              <p>{copy}</p>
             </article>
           ))}
         </div>
@@ -129,11 +139,16 @@ export default function Home() {
           </h2>
         </header>
         <div className="landing-feature-list">
-          {features.map((feature) => (
-            <article key={feature.number}>
-              <span>{feature.number}</span>
-              <h3>{feature.title}</h3>
-              <p>{feature.copy}</p>
+          {features.map(({ number, title, copy, Icon }) => (
+            <article key={number}>
+              <span className="landing-icon" aria-hidden="true">
+                <Icon size={18} />
+              </span>
+              <h3>
+                <small>{number}</small>
+                {title}
+              </h3>
+              <p>{copy}</p>
             </article>
           ))}
         </div>

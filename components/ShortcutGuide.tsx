@@ -1,4 +1,54 @@
 import React, { useState } from "react";
+import { ClearIcon, KeyboardIcon } from "./Icons";
+
+const SHORTCUT_GROUPS: { title: string; items: [string, string][] }[] = [
+  {
+    title: "Topics",
+    items: [
+      ["Enter", "Add sibling topic"],
+      ["Tab", "Add child topic"],
+      ["F2", "Edit topic"],
+      ["Delete", "Delete topic"],
+      ["Space", "Collapse or expand branch"],
+      ["Shift + Space", "Expand or collapse entire subtree"],
+      ["Alt ↑ / ↓", "Reorder siblings"],
+      ["⌘ / Ctrl C / V", "Copy or paste topics"],
+      ["Paste lines", "Create child branches"],
+    ],
+  },
+  {
+    title: "Navigate",
+    items: [
+      ["↑ / ↓", "Move between siblings"],
+      ["← / →", "Move to parent or first child"],
+      ["Right click", "Focus a node as the main topic"],
+      ["Esc", "Exit focus mode"],
+      ["⌘ / Ctrl Click", "Select multiple topics"],
+      ["Left drag", "Marquee select topics"],
+      ["Drag topics", "Move below target"],
+    ],
+  },
+  {
+    title: "Canvas",
+    items: [
+      ["H", "Toggle pan mode"],
+      ["Right / middle drag", "Pan canvas"],
+      ["⌘ / Ctrl + / −", "Zoom"],
+      ["⌘ / Ctrl 0", "Center map"],
+    ],
+  },
+  {
+    title: "Document",
+    items: [
+      ["⌘ / Ctrl Z", "Undo"],
+      ["⇧⌘Z / Ctrl Y", "Redo"],
+      ["⌘ / Ctrl S", "Save"],
+      ["⌘ / Ctrl E", "Toggle Markdown mode"],
+      ["Enter / Tab", "Continue or nest Markdown lines"],
+      ["⌘ / Ctrl B", "Bold topic in Markdown"],
+    ],
+  },
+];
 
 const ShortcutGuide: React.FC = () => {
   const [showGuide, setShowGuide] = useState(false);
@@ -6,42 +56,37 @@ const ShortcutGuide: React.FC = () => {
   return (
     <div className="mindmap-shortcut-guide">
       <button
+        type="button"
         onClick={() => setShowGuide((prev) => !prev)}
-        className="mindmap-floating-trigger"
+        className={`mindmap-floating-trigger${showGuide ? " is-active" : ""}`}
         aria-expanded={showGuide}
+        aria-label={showGuide ? "Close shortcuts" : "Shortcuts"}
+        title="Keyboard shortcuts"
       >
-        {showGuide ? "Close shortcuts" : "Shortcuts"}
+        {showGuide ? <ClearIcon size={15} /> : <KeyboardIcon size={16} />}
+        <span>Shortcuts</span>
       </button>
       {showGuide && (
-        <div className="mindmap-shortcut-popover">
-          <ul>
-            <li><kbd>Enter</kbd><span>Add sibling topic</span></li>
-            <li><kbd>Tab</kbd><span>Add child topic</span></li>
-            <li><kbd>F2</kbd><span>Edit topic</span></li>
-            <li><kbd>Space</kbd><span>Collapse or expand branch</span></li>
-            <li><kbd>Shift + Space</kbd><span>Expand or collapse entire subtree</span></li>
-            <li><kbd>Delete</kbd><span>Delete topic</span></li>
-            <li><kbd>Alt ↑ / ↓</kbd><span>Reorder siblings</span></li>
-            <li><kbd>↑ / ↓</kbd><span>Move between siblings</span></li>
-            <li><kbd>← / →</kbd><span>Move to parent or first child</span></li>
-            <li><kbd>⌘ / Ctrl Z</kbd><span>Undo</span></li>
-            <li><kbd>⇧⌘Z / Ctrl Y</kbd><span>Redo</span></li>
-            <li><kbd>⌘ / Ctrl S</kbd><span>Save</span></li>
-            <li><kbd>H</kbd><span>Toggle pan mode</span></li>
-            <li><kbd>Right click</kbd><span>Focus a node as the main topic</span></li>
-            <li><kbd>Esc</kbd><span>Exit focus mode</span></li>
-            <li><kbd>⌘ / Ctrl E</kbd><span>Toggle Markdown mode</span></li>
-            <li><kbd>Enter / Tab</kbd><span>Continue or nest Markdown lines</span></li>
-            <li><kbd>⌘ / Ctrl B</kbd><span>Bold topic in Markdown</span></li>
-            <li><kbd>⌘ / Ctrl C / V</kbd><span>Copy or paste topics</span></li>
-            <li><kbd>⌘ / Ctrl Click</kbd><span>Select multiple topics</span></li>
-            <li><kbd>Left drag</kbd><span>Marquee select topics</span></li>
-            <li><kbd>Drag topics</kbd><span>Move below target</span></li>
-            <li><kbd>Paste lines</kbd><span>Create child branches</span></li>
-            <li><kbd>Right / middle drag</kbd><span>Pan canvas</span></li>
-            <li><kbd>⌘ / Ctrl + / −</kbd><span>Zoom</span></li>
-            <li><kbd>⌘ / Ctrl 0</kbd><span>Center map</span></li>
-          </ul>
+        <div className="mindmap-shortcut-popover floating-panel">
+          <header className="floating-panel-header">
+            <strong>Keyboard shortcuts</strong>
+            <span>Work without leaving the keyboard</span>
+          </header>
+          <div className="mindmap-shortcut-groups">
+            {SHORTCUT_GROUPS.map((group) => (
+              <section key={group.title}>
+                <h4>{group.title}</h4>
+                <ul>
+                  {group.items.map(([keys, label]) => (
+                    <li key={`${group.title}-${keys}`}>
+                      <kbd>{keys}</kbd>
+                      <span>{label}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
         </div>
       )}
     </div>

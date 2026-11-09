@@ -8,6 +8,20 @@ export const NODE_WIDTH = 190;
 export const NODE_HEIGHT = NODE_MIN_HEIGHT;
 export const NODE_HORIZONTAL_PADDING = 16;
 export const NODE_VERTICAL_PADDING = 8;
+// Root and first-level topics render as filled pills and need more breathing room.
+const DEPTH_PADDING: Record<number, { x: number; y: number }> = {
+  0: { x: 24, y: 12 },
+  1: { x: 18, y: 9 },
+};
+
+export function getNodePadding(depth: number): { x: number; y: number } {
+  return (
+    DEPTH_PADDING[depth] ?? {
+      x: NODE_HORIZONTAL_PADDING,
+      y: NODE_VERTICAL_PADDING,
+    }
+  );
+}
 export const NODE_LINE_HEIGHT = 22;
 export const NODE_LINK_HEIGHT = 18;
 export const LEVEL_GAP = 100;
@@ -79,9 +93,9 @@ export function layoutMindmap(
   const nodes: LayoutNode[] = [];
   const edges: LayoutEdge[] = [];
   const subtreeCache = new Map<NodeData, SubtreeMetrics>();
-  const rootMetrics = cachedMeasureSubtree(root);
+  const rootMetrics = cachedMeasureSubtree(root, 0);
   const rootChildren = visibleChildren(root);
-  const childrenHeight = stackHeight(rootChildren);
+  const childrenHeight = stackHeight(rootChildren, 1);
   const contentHeight = Math.max(rootMetrics.height, childrenHeight);
   const canvasHeight = Math.max(contentHeight + padding * 2, 360);
   const canvasWidth = padding * 2 + rootMetrics.subtreeWidth;
@@ -98,10 +112,17 @@ export function layoutMindmap(
     height: canvasHeight,
   };
 
-  function cachedMeasureSubtree(node: NodeData): SubtreeMetrics {
+  function cachedMeasureSubtree(node: NodeData, depth: number): SubtreeMetrics {
     let cached = subtreeCache.get(node);
     if (!cached) {
-      cached = measureSubtree(node, nodeMaxWidth, siblingGap, levelGap, subtreeCache);
+      cached = measureSubtree(
+        node,
+        nodeMaxWidth,
+        siblingGap,
+        levelGap,
+        depth,
+        subtreeCache
+      );
       subtreeCache.set(node, cached);
     }
     return cached;
@@ -116,12 +137,12 @@ export function layoutMindmap(
     branchIndex: number | null,
     parent?: LayoutNode
   ): LayoutNode {
-    const metrics = measureNode(node, nodeMaxWidth);
+    const metrics = measureNode(node, nodeMaxWidth, depth);
     const nodeY =
       depth === 0
         ? subtreeTop
         : subtreeTop +
-          (cachedMeasureSubtree(node).subtreeHeight - metrics.height) / 2;
+          (cachedMeasureSubtree(node, depth).subtreeHeight - metrics.height) / 2;
     const connectionY = getConnectionY(node, nodeY, metrics, depth);
     const layoutNode: LayoutNode = {
       node,
@@ -164,7 +185,7 @@ export function layoutMindmap(
 
     let childTop = parent.y + parent.height / 2 - groupHeight / 2;
     for (const [branchIndex, child] of children.entries()) {
-      const metrics = cachedMeasureSubtree(child);
+      const metrics = cachedMeasureSubtree(child, 1);
       const childX = parent.x + parent.width + levelGap;
       const childLayout = assignNode(
         child,
@@ -184,10 +205,10 @@ export function layoutMindmap(
     const children = visibleChildren(parent.node);
     if (!children.length) return;
 
-    const groupHeight = stackHeight(children);
+    const groupHeight = stackHeight(children, parent.depth + 1);
     let childTop = parent.y + parent.height / 2 - groupHeight / 2;
     for (const child of children) {
-      const metrics = cachedMeasureSubtree(child);
+      const metrics = cachedMeasureSubtree(child, parent.depth + 1);
       const childX = parent.x + parent.width + levelGap;
       const childLayout = assignNode(
         child,
@@ -203,11 +224,11 @@ export function layoutMindmap(
     }
   }
 
-  function stackHeight(nodes: NodeData[]): number {
+  function stackHeight(nodes: NodeData[], depth: number): number {
     if (!nodes.length) return 0;
     return (
       nodes.reduce(
-        (total, node) => total + cachedMeasureSubtree(node).subtreeHeight,
+        (total, node) => total + cachedMeasureSubtree(node, depth).subtreeHeight,
         0
       ) +
       siblingGap * (nodes.length - 1)
@@ -348,17 +369,18 @@ function measureSubtree(
   nodeMaxWidth: number,
   siblingGap: number,
   levelGap: number,
+  depth: number,
   cache?: Map<NodeData, SubtreeMetrics>
 ): SubtreeMetrics {
   if (cache?.has(node)) return cache.get(node)!;
-  const metrics = measureNode(node, nodeMaxWidth);
+  const metrics = measureNode(node, nodeMaxWidth, depth);
   const children = visibleChildren(node);
   let result: SubtreeMetrics;
   if (!children.length) {
     result = { ...metrics, subtreeWidth: metrics.width, subtreeHeight: metrics.height };
   } else {
     const childrenMetrics = children.map((child) =>
-      measureSubtree(child, nodeMaxWidth, siblingGap, levelGap, cache)
+      measureSubtree(child, nodeMaxWidth, siblingGap, levelGap, depth + 1, cache)
     );
     const childrenHeight =
       childrenMetrics.reduce((total, child) => total + child.subtreeHeight, 0) +
@@ -376,7 +398,12 @@ function measureSubtree(
   return result;
 }
 
-function measureNode(node: NodeData, nodeMaxWidth: number): NodeMetrics {
+function measureNode(
+  node: NodeData,
+  nodeMaxWidth: number,
+  depth = 2
+): NodeMetrics {
+  const padding = getNodePadding(depth);
   const richLines = wrapTopicSegments(node.topic, nodeMaxWidth);
   const lines = richLines.map((line) =>
     line.map((segment) => segment.text).join("")
@@ -384,11 +411,11 @@ function measureNode(node: NodeData, nodeMaxWidth: number): NodeMetrics {
   const longestLineWidth = Math.max(...lines.map(estimateTextWidth));
   const width = Math.min(
     nodeMaxWidth,
-    Math.max(NODE_MIN_WIDTH, longestLineWidth + NODE_HORIZONTAL_PADDING * 2)
+    Math.max(NODE_MIN_WIDTH, longestLineWidth + padding.x * 2)
   );
   const height = Math.max(
     NODE_MIN_HEIGHT,
-    NODE_VERTICAL_PADDING * 2 +
+    padding.y * 2 +
       lines.length * NODE_LINE_HEIGHT +
       getNodeLinkCount(node) * NODE_LINK_HEIGHT
   );
@@ -406,7 +433,8 @@ function getConnectionY(
   metrics: NodeMetrics,
   depth: number
 ): number {
-  if (depth === 0) return y + metrics.height / 2;
+  // Filled pills (root and first level) connect at their vertical centre.
+  if (depth <= 1) return y + metrics.height / 2;
 
   const topicHeight = metrics.lines.length * NODE_LINE_HEIGHT;
   const linkHeight = getNodeLinkCount(node) * NODE_LINK_HEIGHT;

@@ -48,7 +48,7 @@ describe("MindCard landing page", () => {
       screen.getByRole("img", {
         name: "MindCard turns Markdown into a live mind map",
       })
-    ).toHaveAttribute("src", expect.stringContaining("mindcard-product-demo.gif"));
+    ).toBeInTheDocument();
     expect(screen.getByText("Authentication form")).toBeInTheDocument();
   });
 });

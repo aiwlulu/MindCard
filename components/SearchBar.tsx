@@ -1,5 +1,5 @@
 import React from "react";
-import { ClearIcon } from "./Icons";
+import { ClearIcon, SearchIcon } from "./Icons";
 
 interface SearchBarProps {
   value: string;
@@ -12,7 +12,7 @@ function SearchBar({ value, onChange, onClear }: SearchBarProps) {
     <div className="mindmap-library-search">
       <label className="mindmap-library-search-label" htmlFor="mindmap-search">
         <span className="sr-only">Search mind maps</span>
-        <span aria-hidden="true">⌕</span>
+        <SearchIcon size={16} />
       </label>
       <input
         id="mindmap-search"
@@ -30,7 +30,7 @@ function SearchBar({ value, onChange, onClear }: SearchBarProps) {
           aria-label="Clear search"
           onClick={onClear}
         >
-          <ClearIcon />
+          <ClearIcon size={14} />
         </button>
       ) : null}
     </div>

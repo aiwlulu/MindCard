@@ -4,8 +4,21 @@ import { useRouter, useSearchParams } from "next/navigation";
 import SweetAlert from "./SweetAlert";
 import debounce from "@/lib/utils/debounce";
 import SearchBar from "./SearchBar";
-import { TrashIcon } from "./Icons";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ClockIcon,
+  CopyIcon,
+  GlobeIcon,
+  LockIcon,
+  PlusIcon,
+  SearchIcon,
+  TrashIcon,
+} from "./Icons";
 import MindMapLoader from "./MindMapLoader";
+import { getBranchColor } from "@/lib/mindmap/colors";
+import { useTheme } from "@/lib/store/theme-context";
+import type { ResolvedTheme } from "@/lib/theme";
 import type { MindmapListItem } from "@/lib/types";
 
 type MindMapSortMode = "created" | "updated";
@@ -66,6 +79,7 @@ function MindMapList({
   onCopyPublicLink,
 }: MindMapListProps) {
   const router = useRouter();
+  const { theme } = useTheme();
   const searchParams = useSearchParams();
   const routePage = parseInt(searchParams.get("page") ?? "1", 10) || 1;
   const [page, setPage] = useState({ selected: routePage, fromRoute: routePage });
@@ -140,9 +154,10 @@ function MindMapList({
 
   const handleDelete = (id: string) => {
     void SweetAlert({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
+      title: "Delete this mind map?",
+      text: "This removes the map and its public link. This cannot be undone.",
       icon: "warning",
+      confirmButtonText: "Delete map",
       onConfirm: () => onDeleteMindMap(id),
     });
   };
@@ -240,7 +255,7 @@ function MindMapList({
           </span>
         </div>
         <button className="mindmap-library-new" onClick={handleCreate}>
-          <span aria-hidden="true">＋</span>
+          <PlusIcon size={16} />
           New mind map
         </button>
       </header>
@@ -280,10 +295,10 @@ function MindMapList({
       >
         {isLoading ? (
           <MindMapLoader variant="inline" label="Loading mind maps…" />
-        ) : currentMaps.map((map) => (
+        ) : currentMaps.map((map, index) => (
           <article
             key={map.id}
-            className="mindmap-list-slot"
+            className={`mindmap-list-slot${map.isPublic ? " is-public" : ""}`}
           >
             <button
               type="button"
@@ -291,21 +306,26 @@ function MindMapList({
               aria-label={`Open ${map.title}`}
               onClick={() => handleMindMapSelect(map.id)}
             >
+              <MapThumbnail seed={indexOfFirstMap + index} theme={theme} />
               <div className="mindmap-list-card-copy">
                 <h2>{map.title}</h2>
-                <p>{map.description}</p>
+                <p>
+                  <ClockIcon size={12} />
+                  {map.description}
+                </p>
               </div>
             </button>
             <button
               type="button"
               className="mindmap-list-delete"
               aria-label={`Delete ${map.title}`}
+              title="Delete"
               onClick={(event) => {
                 event.stopPropagation();
                 handleDelete(map.id);
               }}
             >
-              <TrashIcon />
+              <TrashIcon size={15} />
             </button>
             <div className="mindmap-list-share-actions">
               <button
@@ -313,23 +333,26 @@ function MindMapList({
                 aria-label={map.isPublic ? `Make ${map.title} private` : `Make ${map.title} public`}
                 aria-pressed={map.isPublic === true}
                 className={map.isPublic ? "is-public" : undefined}
+                title={map.isPublic ? "Public link is on. Click to make private." : "Publish a read-only link"}
                 onClick={(event) => {
                   event.stopPropagation();
                   onTogglePublic(map.id, !map.isPublic);
                 }}
               >
-                <span aria-hidden="true">{map.isPublic ? "●" : "○"}</span>
+                {map.isPublic ? <GlobeIcon size={13} /> : <LockIcon size={13} />}
                 {map.isPublic ? "Public" : "Share"}
               </button>
               {map.isPublic ? (
                 <button
                   type="button"
                   aria-label={`Copy public link for ${map.title}`}
+                  title="Copy public link"
                   onClick={(event) => {
                     event.stopPropagation();
                     onCopyPublicLink(map.id);
                   }}
                 >
+                  <CopyIcon size={13} />
                   Copy link
                 </button>
               ) : null}
@@ -338,9 +361,15 @@ function MindMapList({
         ))}
         {!isLoading && !currentMaps.length ? (
           <div className="mindmap-library-empty">
-            <span aria-hidden="true">⌕</span>
+            <span className="mindmap-library-empty-icon" aria-hidden="true">
+              <SearchIcon size={22} />
+            </span>
             <h2>No mind maps found</h2>
             <p>Try another search, or create a new mind map.</p>
+            <button type="button" className="mindmap-library-new" onClick={handleCreate}>
+              <PlusIcon size={16} />
+              New mind map
+            </button>
           </div>
         ) : null}
       </div>
@@ -351,7 +380,8 @@ function MindMapList({
             disabled={currentPage <= 1 || isTransitioning}
             onClick={() => handlePageChange(currentPage - 1)}
           >
-            ← Previous
+            <ArrowLeftIcon size={14} />
+            Previous
           </button>
           <div>{renderPageNumbers()}</div>
           <span>Page {currentPage} of {totalPages}</span>
@@ -360,11 +390,32 @@ function MindMapList({
             disabled={currentPage >= totalPages || isTransitioning}
             onClick={() => handlePageChange(currentPage + 1)}
           >
-            Next →
+            Next
+            <ArrowRightIcon size={14} />
           </button>
         </nav>
       ) : null}
     </main>
+  );
+}
+
+// Decorative mini map so cards read as maps, not as plain tiles.
+function MapThumbnail({ seed, theme }: { seed: number; theme: ResolvedTheme }) {
+  const branchColors = [0, 1, 2].map((offset) =>
+    getBranchColor((seed + offset) % 7, 1, theme)
+  );
+  return (
+    <svg className="mindmap-list-thumb" viewBox="0 0 120 56" aria-hidden="true">
+      <rect x="6" y="22" width="30" height="12" rx="6" className="mindmap-list-thumb-root" />
+      <path d="M36 28 C50 28 50 12 62 12" stroke={branchColors[0]} />
+      <path d="M36 28 C50 28 50 28 62 28" stroke={branchColors[1]} />
+      <path d="M36 28 C50 28 50 44 62 44" stroke={branchColors[2]} />
+      <rect x="62" y="7" width="34" height="10" rx="5" fill={branchColors[0]} />
+      <rect x="62" y="23" width="26" height="10" rx="5" fill={branchColors[1]} />
+      <rect x="62" y="39" width="40" height="10" rx="5" fill={branchColors[2]} />
+      <path d="M96 12 C104 12 104 4 112 4" stroke={branchColors[0]} />
+      <path d="M88 28 C96 28 96 28 112 28" stroke={branchColors[1]} />
+    </svg>
   );
 }
 

@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 import { toast } from "react-toastify";
 import { authContext } from "@/lib/store/auth-context";
-import { EyeIcon, EyeOffIcon } from "./Icons";
+import { EyeIcon, EyeOffIcon, GoogleIcon } from "./Icons";
 
 interface FormData {
   name: string;
@@ -159,7 +159,9 @@ function Authentication() {
           type="button"
           className="landing-auth-google"
         >
-          <span aria-hidden="true">G</span>
+          <span aria-hidden="true">
+            <GoogleIcon size={15} />
+          </span>
           Continue with Google
         </button>
 

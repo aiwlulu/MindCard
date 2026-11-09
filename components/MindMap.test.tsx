@@ -658,7 +658,7 @@ describe("MindMap editor", () => {
 
     const count = screen.getByText("+1");
     expect(count).toHaveClass("mindmap-collapse-count");
-    expect(count.previousElementSibling).toHaveAttribute("height", "16");
+    expect(count.previousElementSibling).toHaveAttribute("height", "18");
   });
 
   it("uses a muted branch color consistently across a branch", () => {
@@ -669,11 +669,11 @@ describe("MindMap editor", () => {
       '[data-node-depth="2"] .mindmap-node-underline'
     );
 
-    expect(edges[0]).toHaveAttribute("stroke", "#c98286");
+    expect(edges[0]).toHaveAttribute("stroke", "#e35d73");
     expect(edges[0]).toHaveAttribute("stroke-width", "3");
-    expect(edges[1]).toHaveAttribute("stroke", "#b9777c");
+    expect(edges[1]).toHaveAttribute("stroke", "#e06f82");
     expect(edges[1]).toHaveAttribute("stroke-width", "2");
-    expect(underline).toHaveAttribute("stroke", "#b9777c");
+    expect(underline).toHaveAttribute("stroke", "#e06f82");
     expect(underline).toHaveAttribute("stroke-width", "2");
   });
 

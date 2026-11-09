@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import SweetAlert from "./SweetAlert";
 import { toast } from "react-toastify";
-import { InfoIcon } from "./Icons";
+import { ClearIcon, InfoIcon, LayersIcon, MapIcon, UnlinkIcon } from "./Icons";
 import type { FirestoreMindmapDoc } from "@/lib/types";
 
 interface CardProps {
@@ -46,9 +46,10 @@ const Card: React.FC<CardProps> = ({
     }
 
     void SweetAlert({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
+      title: "Remove this card link?",
+      text: "The topic stays. Only the link to the other mind map is removed.",
       icon: "warning",
+      confirmButtonText: "Remove link",
       onConfirm: () => {
         removeHyperlink();
         setIsOpen(false);
@@ -74,47 +75,59 @@ const Card: React.FC<CardProps> = ({
   return (
     <div className="mindmap-card-panel">
       <div className="mindmap-card-panel-inner">
-        <div>
-          <button
-            className="mindmap-floating-trigger"
-            onClick={() => setIsOpen((prev) => !prev)}
-            aria-expanded={isOpen}
-          >
-            {isOpen ? "Close Cards" : "Cards"}
-          </button>
-        </div>
+        <button
+          type="button"
+          className={`mindmap-floating-trigger${isOpen ? " is-active" : ""}`}
+          onClick={() => setIsOpen((prev) => !prev)}
+          aria-expanded={isOpen}
+          aria-label={isOpen ? "Close Cards" : "Cards"}
+          title="Link another mind map as a card"
+        >
+          {isOpen ? <ClearIcon size={15} /> : <LayersIcon size={16} />}
+          <span>Cards</span>
+        </button>
 
         {isOpen && (
-          <div className="mindmap-card-popover">
+          <div className="mindmap-card-popover floating-panel">
+            <header className="floating-panel-header">
+              <strong>Link a card</strong>
+              <span>
+                {selectedNode
+                  ? `Drag a map onto the canvas to link it to "${selectedNode.topic}"`
+                  : "Select a topic first, then drag a map onto the canvas"}
+              </span>
+            </header>
             <div className="mindmap-card-actions">
               <button
+                type="button"
                 className="mindmap-card-remove"
                 onClick={handleRemoveHyperlinkClick}
               >
+                <UnlinkIcon size={14} />
                 Remove link
               </button>
               <button
                 type="button"
-                className="mindmap-card-info"
+                className="mindmap-card-info icon-button"
                 aria-label="Card instructions"
+                aria-pressed={showInstruction}
                 onClick={() => setShowInstruction((prev) => !prev)}
               >
-                <InfoIcon size={18} />
+                <InfoIcon size={16} />
               </button>
             </div>
 
             {showInstruction && (
               <div className="mindmap-card-instructions">
-                <div>
-                  <p>Select a node, then drag a card onto the canvas to create a link.</p>
-                  <p>Use the card link below the node to open the linked mind map.</p>
-                  <button
-                    onClick={() => setShowInstruction(false)}
-                    className="mindmap-card-got-it"
-                  >
-                    Got it
-                  </button>
-                </div>
+                <p>Select a node, then drag a card onto the canvas to create a link.</p>
+                <p>Use the card link below the node to open the linked mind map.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowInstruction(false)}
+                  className="mindmap-card-got-it"
+                >
+                  Got it
+                </button>
               </div>
             )}
 
@@ -131,6 +144,7 @@ const Card: React.FC<CardProps> = ({
                     onDragStart={(e) => handleDragStart(e, map)}
                     className="mindmap-card-item"
                   >
+                    <MapIcon size={15} />
                     <h3>{map.title}</h3>
                   </div>
                 ))

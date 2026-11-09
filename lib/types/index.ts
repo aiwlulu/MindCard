@@ -101,6 +101,7 @@ export interface SweetAlertOptions {
   title: string;
   text: string;
   icon: "warning" | "error" | "success" | "info" | "question";
+  confirmButtonText?: string;
   onConfirm?: () => void;
   onCancel?: () => void;
 }

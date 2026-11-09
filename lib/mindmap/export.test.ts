@@ -42,8 +42,8 @@ describe("mind map exports", () => {
     expect(svg).toContain("Open linked mind map");
     expect(svg).toContain('role="img"');
     expect(svg).toContain("path");
-    expect(svg).toContain('stroke="#c98286"');
-    expect(svg).toContain('stroke="#c99665"');
+    expect(svg).toContain('stroke="#e35d73"');
+    expect(svg).toContain('stroke="#ef8a3a"');
     expect(svg).toContain('stroke-width="3"');
     expect(svg).toContain('target="_blank"');
   });

@@ -37,6 +37,7 @@ import {
   updateNode,
 } from "@/lib/mindmap/tree";
 import { toPublicMindmapData } from "@/lib/mindmap/public";
+import { readDocumentTheme } from "@/lib/theme";
 import type {
   FirestoreMindmapDoc,
   HyperlinkData,
@@ -314,16 +315,20 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
+        // Exports mirror the theme the user is currently looking at.
+        const exportOptions = { theme: readDocumentTheme() };
         if (format === "png") {
           downloadBlob(
-            await buildMindmapPng(root),
+            await buildMindmapPng(root, 2, exportOptions),
             `MindCard-${safeTitle}.png`
           );
           return;
         }
 
         downloadBlob(
-          new Blob([buildMindmapSvg(root)], { type: "image/svg+xml;charset=utf-8" }),
+          new Blob([buildMindmapSvg(root, exportOptions)], {
+            type: "image/svg+xml;charset=utf-8",
+          }),
           `MindCard-${safeTitle}.svg`
         );
       } catch {

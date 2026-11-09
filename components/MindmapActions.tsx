@@ -2,7 +2,15 @@
 
 import React from "react";
 import { Menu, MenuButton, MenuItems, MenuItem } from "@headlessui/react";
-import { DownloadIcon, FolderIcon, SaveIcon } from "./Icons";
+import {
+  ChevronDownIcon,
+  CodeFileIcon,
+  DownloadIcon,
+  FolderIcon,
+  ImageIcon,
+  MarkdownIcon,
+  SaveIcon,
+} from "./Icons";
 import debounce from "@/lib/utils/debounce";
 import type { MindmapExportFormat } from "@/lib/types";
 
@@ -11,6 +19,17 @@ interface MindmapActionsProps {
   onNavigateToMindmap: () => void;
   onExport: (format: MindmapExportFormat) => void;
 }
+
+const EXPORT_FORMATS: {
+  format: MindmapExportFormat;
+  label: string;
+  hint: string;
+  Icon: typeof ImageIcon;
+}[] = [
+  { format: "png", label: "Export as PNG", hint: "Image for slides and chat", Icon: ImageIcon },
+  { format: "svg", label: "Export as SVG", hint: "Scalable vector", Icon: CodeFileIcon },
+  { format: "markdown", label: "Export as Markdown", hint: "Outline text", Icon: MarkdownIcon },
+];
 
 export default function MindmapActions({
   onSave,
@@ -22,67 +41,53 @@ export default function MindmapActions({
   }, 300);
 
   return (
-    <>
+    <div className="nav-actions">
       <button
-        onClick={debouncedSaveMindmap}
-        className="btn btn-primary lg:mr-4"
-      >
-        <SaveIcon size={20} className="block lg:hidden" />
-        <span className="hidden lg:block">Save</span>
-      </button>
-
-      <button
+        type="button"
         onClick={onNavigateToMindmap}
-        className="btn btn-primary lg:mr-4 hidden md:block"
+        className="nav-button nav-button--ghost"
+        aria-label="Folder"
+        title="Back to your mind maps"
       >
-        <FolderIcon size={20} className="block lg:hidden" />
-        <span className="hidden lg:block">Folder</span>
+        <FolderIcon size={17} />
+        <span className="nav-button-label">Library</span>
       </button>
 
-      <Menu as="div" className="relative inline-block text-left">
-        <MenuButton className="btn btn-primary flex items-center gap-2">
-          <DownloadIcon size={20} className="block lg:hidden" />
-          <span className="hidden lg:block">Export</span>
+      <Menu as="div" className="nav-menu">
+        <MenuButton className="nav-button nav-button--ghost" aria-label="Export">
+          <DownloadIcon size={17} />
+          <span className="nav-button-label">Export</span>
+          <ChevronDownIcon size={14} className="nav-button-caret" />
         </MenuButton>
-        <MenuItems className="absolute right-0 mt-2 w-40 bg-slate-700 text-white shadow-md rounded-md py-1 z-50">
-          <MenuItem>
-            {({ active }: { active: boolean }) => (
+        <MenuItems anchor="bottom end" className="menu-panel export-menu">
+          {EXPORT_FORMATS.map(({ format, label, hint, Icon }) => (
+            <MenuItem key={format}>
               <button
-                onClick={() => onExport("png")}
-                className={`${
-                  active ? "bg-slate-600" : "bg-slate-700"
-                } flex items-center w-full px-4 py-2 text-sm text-left whitespace-nowrap rounded-md`}
+                type="button"
+                className="menu-item menu-item--stacked"
+                aria-label={label}
+                onClick={() => onExport(format)}
               >
-                Export as PNG
+                <Icon size={16} />
+                <span>
+                  <span className="menu-item-title">{label}</span>
+                  <span className="menu-item-hint">{hint}</span>
+                </span>
               </button>
-            )}
-          </MenuItem>
-          <MenuItem>
-            {({ active }: { active: boolean }) => (
-              <button
-                onClick={() => onExport("svg")}
-                className={`${
-                  active ? "bg-slate-600" : "bg-slate-700"
-                } flex items-center w-full px-4 py-2 text-sm text-left whitespace-nowrap rounded-md`}
-              >
-                Export as SVG
-              </button>
-            )}
-          </MenuItem>
-          <MenuItem>
-            {({ active }: { active: boolean }) => (
-              <button
-                onClick={() => onExport("markdown")}
-                className={`${
-                  active ? "bg-slate-600" : "bg-slate-700"
-                } flex items-center w-full px-4 py-2 text-sm text-left whitespace-nowrap rounded-md`}
-              >
-                Export as Markdown
-              </button>
-            )}
-          </MenuItem>
+            </MenuItem>
+          ))}
         </MenuItems>
       </Menu>
-    </>
+
+      <button
+        type="button"
+        onClick={debouncedSaveMindmap}
+        className="nav-button nav-button--primary"
+        aria-label="Save"
+      >
+        <SaveIcon size={17} />
+        <span className="nav-button-label">Save</span>
+      </button>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 module.exports = {
   testEnvironment: "jest-environment-jsdom",
-  setupFilesAfterEnv: ["@testing-library/jest-dom/"],
+  setupFilesAfterEnv: ["<rootDir>/test/setup.ts"],
   moduleNameMapper: {
     "^@/lib/firebase$": "<rootDir>/test/mocks/firebase.ts",
     "^@/lib/(.*)$": "<rootDir>/lib/$1",
