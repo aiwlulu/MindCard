@@ -37,6 +37,7 @@ import {
   updateNode,
 } from "@/lib/mindmap/tree";
 import { toPublicMindmapData } from "@/lib/mindmap/public";
+import { stripBoldMarkers } from "@/lib/mindmap/richtext";
 import { readDocumentTheme } from "@/lib/theme";
 import type {
   FirestoreMindmapDoc,
@@ -245,6 +246,9 @@ export function MindmapProvider({ children }: { children: React.ReactNode }) {
               createdAt: data.createdAt ?? null,
               updatedAt: data.updatedAt ?? null,
               isPublic: data.isPublic === true,
+              branches: (normalized.nodeData.children ?? [])
+                .map((child) => stripBoldMarkers(child.topic ?? "").trim())
+                .filter(Boolean),
             };
           })
           .filter((mindmap) => mindmap.id !== excludeId);

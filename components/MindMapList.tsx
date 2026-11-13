@@ -16,7 +16,7 @@ import {
   TrashIcon,
 } from "./Icons";
 import MindMapLoader from "./MindMapLoader";
-import { getBranchColor } from "@/lib/mindmap/colors";
+import { getBranchColor, MAP_PALETTES } from "@/lib/mindmap/colors";
 import { useTheme } from "@/lib/store/theme-context";
 import type { ResolvedTheme } from "@/lib/theme";
 import type { MindmapListItem } from "@/lib/types";
@@ -295,7 +295,7 @@ function MindMapList({
       >
         {isLoading ? (
           <MindMapLoader variant="inline" label="Loading mind maps…" />
-        ) : currentMaps.map((map, index) => (
+        ) : currentMaps.map((map) => (
           <article
             key={map.id}
             className={`mindmap-list-slot${map.isPublic ? " is-public" : ""}`}
@@ -306,13 +306,9 @@ function MindMapList({
               aria-label={`Open ${map.title}`}
               onClick={() => handleMindMapSelect(map.id)}
             >
-              <MapThumbnail seed={indexOfFirstMap + index} theme={theme} />
+              <MapPreview branches={map.branches ?? []} theme={theme} />
               <div className="mindmap-list-card-copy">
                 <h2>{map.title}</h2>
-                <p>
-                  <ClockIcon size={12} />
-                  {map.description}
-                </p>
               </div>
             </button>
             <button
@@ -327,35 +323,41 @@ function MindMapList({
             >
               <TrashIcon size={15} />
             </button>
-            <div className="mindmap-list-share-actions">
-              <button
-                type="button"
-                aria-label={map.isPublic ? `Make ${map.title} private` : `Make ${map.title} public`}
-                aria-pressed={map.isPublic === true}
-                className={map.isPublic ? "is-public" : undefined}
-                title={map.isPublic ? "Public link is on. Click to make private." : "Publish a read-only link"}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onTogglePublic(map.id, !map.isPublic);
-                }}
-              >
-                {map.isPublic ? <GlobeIcon size={13} /> : <LockIcon size={13} />}
-                {map.isPublic ? "Public" : "Share"}
-              </button>
-              {map.isPublic ? (
+            <div className="mindmap-list-foot">
+              <p className="mindmap-list-date" aria-label={`Updated ${map.description}`}>
+                <ClockIcon size={12} />
+                <span>{map.description}</span>
+              </p>
+              <div className="mindmap-list-share-actions">
                 <button
                   type="button"
-                  aria-label={`Copy public link for ${map.title}`}
-                  title="Copy public link"
+                  aria-label={map.isPublic ? `Make ${map.title} private` : `Make ${map.title} public`}
+                  aria-pressed={map.isPublic === true}
+                  className={map.isPublic ? "is-public" : undefined}
+                  title={map.isPublic ? "Public link is on. Click to make private." : "Publish a read-only link"}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onCopyPublicLink(map.id);
+                    onTogglePublic(map.id, !map.isPublic);
                   }}
                 >
-                  <CopyIcon size={13} />
-                  Copy link
+                  {map.isPublic ? <GlobeIcon size={13} /> : <LockIcon size={13} />}
+                  {map.isPublic ? "Public" : "Share"}
                 </button>
-              ) : null}
+                {map.isPublic ? (
+                  <button
+                    type="button"
+                    className="is-icon"
+                    aria-label={`Copy public link for ${map.title}`}
+                    title="Copy public link"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onCopyPublicLink(map.id);
+                    }}
+                  >
+                    <CopyIcon size={13} />
+                  </button>
+                ) : null}
+              </div>
             </div>
           </article>
         ))}
@@ -399,23 +401,76 @@ function MindMapList({
   );
 }
 
-// Decorative mini map so cards read as maps, not as plain tiles.
-function MapThumbnail({ seed, theme }: { seed: number; theme: ResolvedTheme }) {
-  const branchColors = [0, 1, 2].map((offset) =>
-    getBranchColor((seed + offset) % 7, 1, theme)
-  );
+const PREVIEW_BRANCH_LIMIT = 3;
+// Row height and gap of the preview list, in tenths of a rem.
+const PREVIEW_ROW = 13;
+const PREVIEW_GAP = 4;
+const PREVIEW_LINK_WIDTH = 40;
+
+// Mini map of the first top-level topics, so a card shows what the map covers.
+function MapPreview({
+  branches,
+  theme,
+}: {
+  branches: string[];
+  theme: ResolvedTheme;
+}) {
+  const shown = branches.slice(0, PREVIEW_BRANCH_LIMIT);
+  const hiddenCount = branches.length - shown.length;
+
+  if (!shown.length) {
+    return (
+      <div className="mindmap-list-thumb is-empty">
+        <span className="mindmap-list-thumb-root" aria-hidden="true" />
+        <span>No topics yet</span>
+      </div>
+    );
+  }
+
+  const height = shown.length * PREVIEW_ROW + (shown.length - 1) * PREVIEW_GAP;
+  const rootY = height / 2;
+  const colors = shown.map((_, index) => getBranchColor(index, 1, theme));
+
   return (
-    <svg className="mindmap-list-thumb" viewBox="0 0 120 56" aria-hidden="true">
-      <rect x="6" y="22" width="30" height="12" rx="6" className="mindmap-list-thumb-root" />
-      <path d="M36 28 C50 28 50 12 62 12" stroke={branchColors[0]} />
-      <path d="M36 28 C50 28 50 28 62 28" stroke={branchColors[1]} />
-      <path d="M36 28 C50 28 50 44 62 44" stroke={branchColors[2]} />
-      <rect x="62" y="7" width="34" height="10" rx="5" fill={branchColors[0]} />
-      <rect x="62" y="23" width="26" height="10" rx="5" fill={branchColors[1]} />
-      <rect x="62" y="39" width="40" height="10" rx="5" fill={branchColors[2]} />
-      <path d="M96 12 C104 12 104 4 112 4" stroke={branchColors[0]} />
-      <path d="M88 28 C96 28 96 28 112 28" stroke={branchColors[1]} />
-    </svg>
+    <div className={`mindmap-list-thumb${hiddenCount > 0 ? " has-more" : ""}`}>
+      <svg
+        className="mindmap-list-thumb-links"
+        width={`${PREVIEW_LINK_WIDTH / 10}rem`}
+        height={`${height / 10}rem`}
+        viewBox={`0 0 ${PREVIEW_LINK_WIDTH} ${height}`}
+        aria-hidden="true"
+      >
+        {shown.map((_, index) => {
+          const y = index * (PREVIEW_ROW + PREVIEW_GAP) + PREVIEW_ROW / 2;
+          return (
+            <path
+              key={index}
+              d={`M14 ${rootY} C28 ${rootY} 24 ${y} ${PREVIEW_LINK_WIDTH} ${y}`}
+              stroke={colors[index]}
+            />
+          );
+        })}
+        <rect x="1" y={rootY - 4} width="14" height="8" rx="4" />
+      </svg>
+      <div className="mindmap-list-thumb-topics">
+        <ul>
+          {shown.map((topic, index) => (
+            <li
+              key={index}
+              style={{
+                background: colors[index],
+                color: MAP_PALETTES[theme].firstLevelText,
+              }}
+            >
+              {topic}
+            </li>
+          ))}
+        </ul>
+        {hiddenCount > 0 ? (
+          <span className="mindmap-list-thumb-more">+{hiddenCount} more</span>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

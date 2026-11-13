@@ -16,17 +16,8 @@ import { authContext } from "@/lib/store/auth-context";
 import { MindmapContext } from "@/lib/store/mindmap-context";
 import { normalizeMindmapData } from "@/lib/mindmap/tree";
 import { toPublicMindmapData } from "@/lib/mindmap/public";
+import { formatShortDate } from "@/lib/utils/relative-date";
 import type { MindmapListItem } from "@/lib/types";
-
-const dateFormatter = new Intl.DateTimeFormat("en", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
-
-const formatDate = (date: Date): string => dateFormatter.format(date).replace(/,([^,]*)$/, " ·$1");
 
 export default function MindmapPage() {
   const router = useRouter();
@@ -52,7 +43,7 @@ export default function MindmapPage() {
         const formattedMaps: MindmapListItem[] = maps.map((map) => ({
           ...map,
           description: (map.updatedAt ?? map.createdAt)
-            ? `Updated ${formatDate(new Date((map.updatedAt ?? map.createdAt)!.seconds * 1000))}`
+            ? formatShortDate(new Date((map.updatedAt ?? map.createdAt)!.seconds * 1000))
             : "Not available",
         }));
         setMindMaps(formattedMaps);

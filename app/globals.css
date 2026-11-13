@@ -1435,16 +1435,15 @@ kbd {
 }
 
 .mindmap-list-thumb {
-  display: block;
+  position: relative;
+  display: flex;
   width: 100%;
   height: 6.75rem;
   flex: 0 0 auto;
-  padding: 0.9rem 1.1rem 0.3rem;
+  align-items: center;
+  padding: 0 2.4rem 0 1rem;
   border-bottom: 1px solid var(--color-border);
   background: var(--canvas-bg);
-  fill: none;
-  stroke-width: 1.5;
-  stroke-linecap: round;
   transition: background-color var(--duration-base) ease;
 }
 
@@ -1452,20 +1451,80 @@ kbd {
   background: color-mix(in srgb, var(--canvas-bg) 70%, var(--color-accent-soft));
 }
 
+/* Lift the map so the "+N more" line clears the bottom edge. */
+.mindmap-list-thumb.has-more {
+  padding-bottom: 0.9rem;
+}
+
+.mindmap-list-thumb-links {
+  flex: 0 0 auto;
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.mindmap-list-thumb-links rect,
 .mindmap-list-thumb-root {
   fill: var(--map-root-fill);
+  stroke: none;
+}
+
+.mindmap-list-thumb-topics {
+  position: relative;
+  min-width: 0;
+}
+
+.mindmap-list-thumb ul {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.mindmap-list-thumb li {
+  overflow: hidden;
+  max-width: 100%;
+  height: 1.3rem;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.3rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mindmap-list-thumb-more {
+  position: absolute;
+  top: calc(100% + 0.2rem);
+  left: 0.6rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  font-size: 0.64rem;
+  font-weight: 550;
+}
+
+.mindmap-list-thumb.is-empty {
+  gap: 0.6rem;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.mindmap-list-thumb.is-empty .mindmap-list-thumb-root {
+  width: 1.6rem;
+  height: 0.8rem;
+  border-radius: 999px;
+  background: var(--map-root-fill);
+  opacity: 0.55;
 }
 
 .mindmap-list-card-copy {
-  display: grid;
-  gap: 0.3rem;
   width: 100%;
-  padding: 0.9rem 1rem 0;
+  padding: 0.8rem 1rem 0;
 }
 
 .mindmap-list-card-copy h2 {
   overflow: hidden;
-  padding-right: 2rem;
   color: var(--color-text);
   font-size: 0.95rem;
   font-weight: 650;
@@ -1475,13 +1534,35 @@ kbd {
   white-space: nowrap;
 }
 
-.mindmap-list-card-copy p {
-  display: inline-flex;
+/* Date and share actions share one row so they can never overlap. */
+.mindmap-list-foot {
+  position: absolute;
+  right: 0.8rem;
+  bottom: 0.75rem;
+  left: 1rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  pointer-events: none;
+}
+
+.mindmap-list-date {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
   align-items: center;
   gap: 0.35rem;
-  overflow: hidden;
   color: var(--color-text-muted);
   font-size: 0.72rem;
+}
+
+.mindmap-list-date svg {
+  flex: 0 0 auto;
+}
+
+.mindmap-list-date span {
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1517,13 +1598,11 @@ kbd {
 }
 
 .mindmap-list-share-actions {
-  position: absolute;
-  right: 0.8rem;
-  bottom: 0.8rem;
-  z-index: 1;
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0.3rem;
+  pointer-events: auto;
 }
 
 .mindmap-list-share-actions button {
@@ -1538,6 +1617,10 @@ kbd {
   font-size: 0.7rem;
   font-weight: 600;
   line-height: 1;
+}
+
+.mindmap-list-share-actions button.is-icon {
+  padding: 0.3rem 0.4rem;
 }
 
 .mindmap-list-share-actions button:hover,

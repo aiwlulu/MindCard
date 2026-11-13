@@ -28,6 +28,8 @@ export interface FirestoreMindmapDoc {
   createdAt: Timestamp | null;
   updatedAt?: Timestamp | null;
   isPublic?: boolean;
+  /** First-level topics, in map order, for list previews. */
+  branches?: string[];
 }
 
 export interface MindmapListItem extends FirestoreMindmapDoc {

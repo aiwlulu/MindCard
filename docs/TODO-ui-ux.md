@@ -31,11 +31,6 @@ scope for that change. Roughly ordered by expected impact.
 
 ## Library
 
-- [ ] **Real thumbnails.** Render the first two levels of each map with
-      `buildMindmapSvg` (store a cached SVG string on save) instead of the
-      decorative placeholder in `MapThumbnail`.
-- [ ] **Relative dates** ("Updated 2 days ago") with the absolute date in a
-      tooltip.
 - [ ] **Rename and duplicate** from the card menu; bulk select for delete.
 - [ ] **List view toggle** for people with many maps.
 

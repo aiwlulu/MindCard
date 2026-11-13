@@ -243,4 +243,32 @@ describe("MindMapList pagination", () => {
     expect(onTogglePublic).toHaveBeenCalledWith("map-21", false);
     expect(mockRouterPush).not.toHaveBeenCalledWith("/mindmap/map-21");
   });
+
+  it("previews the first three top-level topics and counts the rest", () => {
+    mockPage = "1";
+    render(
+      <MindMapList
+        mindMaps={[
+          {
+            ...mindMaps[0],
+            branches: ["Why", "How", "What", "Risks", "Next steps"],
+          },
+          mindMaps[1],
+        ]}
+        onMindMapCreate={jest.fn()}
+        onDeleteMindMap={jest.fn()}
+        onTogglePublic={jest.fn()}
+        onCopyPublicLink={jest.fn()}
+      />
+    );
+
+    const preview = screen.getByRole("button", { name: "Open Map 1" });
+    expect(preview).toHaveTextContent("Why");
+    expect(preview).toHaveTextContent("What");
+    expect(preview).toHaveTextContent("+2 more");
+    expect(preview).not.toHaveTextContent("Risks");
+    expect(screen.getByRole("button", { name: "Open Map 2" })).toHaveTextContent(
+      "No topics yet"
+    );
+  });
 });
