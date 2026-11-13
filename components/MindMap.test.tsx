@@ -98,7 +98,9 @@ function renderMindMap(context = createContext()) {
 }
 
 function StatefulMindMap({ context }: { context: MindmapContextValue }) {
-  const [currentData, setCurrentData] = React.useState(data);
+  const [currentData, setCurrentData] = React.useState(
+    context.mindmapData ?? data
+  );
   const [currentSelection, setCurrentSelection] = React.useState(
     context.selectedNode
   );
@@ -773,6 +775,72 @@ describe("MindMap editor", () => {
     expect(
       updated.nodeData.children?.[0].children?.map((node) => node.topic)
     ).toEqual(["Grandchild", "Copied topic"]);
+  });
+
+  it("pastes every topic of a multi-topic MindCard copy", () => {
+    const context = createContext();
+    context.selectedNode = data.nodeData.children?.[0] ?? null;
+    renderMindMap(context);
+
+    fireEvent.paste(screen.getByRole("application", { name: "Mind map editor" }), {
+      clipboardData: {
+        getData: () =>
+          JSON.stringify([
+            { id: "copied-a", topic: "Copied A" },
+            { id: "copied-b", topic: "Copied B" },
+          ]),
+      },
+    });
+
+    const update = (context.updateMindmapData as jest.Mock).mock.calls.at(-1)?.[0] as (
+      current: MindmapData
+    ) => MindmapData;
+    expect(
+      update(data).nodeData.children?.[0].children?.map((node) => node.topic)
+    ).toEqual(["Grandchild", "Copied A", "Copied B"]);
+  });
+
+  it("copies every selected branch, not only the last one clicked", () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    const originalClipboard = navigator.clipboard;
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const context = createContext();
+    context.mindmapData = {
+      nodeData: {
+        id: "root",
+        root: true,
+        topic: "Root",
+        children: [
+          { id: "first", topic: "First" },
+          { id: "second", topic: "Second" },
+        ],
+      },
+    };
+    render(<StatefulMindMap context={context} />);
+
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "First" }));
+      fireEvent.click(screen.getByRole("button", { name: "Second" }), {
+        ctrlKey: true,
+      });
+      fireEvent.keyDown(
+        screen.getByRole("application", { name: "Mind map editor" }),
+        { key: "c", metaKey: true }
+      );
+
+      expect(JSON.parse(writeText.mock.calls[0][0] as string)).toEqual([
+        { id: "first", topic: "First" },
+        { id: "second", topic: "Second" },
+      ]);
+    } finally {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: originalClipboard,
+      });
+    }
   });
 
   it("keeps secondary actions inside the More menu", () => {

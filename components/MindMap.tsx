@@ -66,6 +66,7 @@ import {
 } from "@/lib/mindmap/markdown-editing";
 import {
   cloneNodeWithNewIds,
+  collectSelectedSubtrees,
   countDescendants,
   createNode,
   findNode,
@@ -196,7 +197,7 @@ export default function MindMap({ id }: MindMapProps) {
   const nodeDragRef = useRef<NodeDragState | null>(null);
   const suppressNodeClickRef = useRef(false);
   const nodeClickResetTimerRef = useRef<number | null>(null);
-  const clipboardRef = useRef<NodeData | null>(null);
+  const clipboardRef = useRef<NodeData[]>([]);
   const markdownHistoryCapturedRef = useRef(false);
   const {
     mindmapData,
@@ -804,9 +805,9 @@ export default function MindMap({ id }: MindMapProps) {
   const pasteContent = useCallback((text: string): boolean => {
     if (!currentSelectedNode) return false;
 
-    const clipboardNode = parseClipboardNode(text);
-    const children = clipboardNode
-      ? [cloneNodeWithNewIds(clipboardNode)]
+    const clipboardNodes = parseClipboardNodes(text);
+    const children = clipboardNodes.length
+      ? clipboardNodes.map(cloneNodeWithNewIds)
       : parsePastedOutline(text);
     if (!children.length) return false;
 
@@ -825,11 +826,11 @@ export default function MindMap({ id }: MindMapProps) {
 
     try {
       const text = await navigator.clipboard.readText();
-      if (!pasteContent(text) && clipboardRef.current) {
+      if (!pasteContent(text) && clipboardRef.current.length) {
         pasteContent(JSON.stringify(clipboardRef.current));
       }
     } catch {
-      if (clipboardRef.current) {
+      if (clipboardRef.current.length) {
         pasteContent(JSON.stringify(clipboardRef.current));
       }
     }
@@ -958,11 +959,23 @@ export default function MindMap({ id }: MindMapProps) {
         redo();
         return;
       }
-      if (commandKey && key === "c" && currentSelectedNode && !currentSelectedNode.root) {
-        event.preventDefault();
-        clipboardRef.current = currentSelectedNode;
-        void navigator.clipboard?.writeText(JSON.stringify(currentSelectedNode));
-        return;
+      if (commandKey && key === "c") {
+        const copied = (
+          selectedNodeIds.size > 1 && mindmapData
+            ? collectSelectedSubtrees(mindmapData.nodeData, selectedNodeIds)
+            : currentSelectedNode
+              ? [currentSelectedNode]
+              : []
+        ).filter((node) => !node.root);
+        if (copied.length) {
+          event.preventDefault();
+          clipboardRef.current = copied;
+          // A single topic keeps the plain object form older tabs can paste.
+          void navigator.clipboard?.writeText(
+            JSON.stringify(copied.length === 1 ? copied[0] : copied)
+          );
+          return;
+        }
       }
       if (commandKey && key === "v") {
         event.preventDefault();
@@ -1065,6 +1078,7 @@ export default function MindMap({ id }: MindMapProps) {
       focusedNodeId,
       interactionMode,
       isCanvasRoot,
+      mindmapData,
       pasteNode,
       root,
       redo,
@@ -2557,13 +2571,18 @@ function isTextEntryTarget(target: EventTarget | null): boolean {
   );
 }
 
-function parseClipboardNode(text: string): NodeData | null {
+function parseClipboardNodes(text: string): NodeData[] {
+  const isNode = (value: unknown): value is NodeData =>
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as NodeData).id === "string" &&
+    typeof (value as NodeData).topic === "string";
+
   try {
-    const value = JSON.parse(text) as Partial<NodeData>;
-    return typeof value.id === "string" && typeof value.topic === "string"
-      ? (value as NodeData)
-      : null;
+    const value: unknown = JSON.parse(text);
+    if (Array.isArray(value)) return value.every(isNode) ? value : [];
+    return isNode(value) ? [value] : [];
   } catch {
-    return null;
+    return [];
   }
 }

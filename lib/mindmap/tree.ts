@@ -83,6 +83,20 @@ export function findNode(root: NodeData, nodeId: string): NodeData | null {
   return null;
 }
 
+/**
+ * Selected nodes in map order. A node under another selected node is skipped,
+ * since its ancestor's subtree already carries it.
+ */
+export function collectSelectedSubtrees(
+  root: NodeData,
+  nodeIds: ReadonlySet<string>
+): NodeData[] {
+  if (nodeIds.has(root.id)) return [root];
+  return (root.children ?? []).flatMap((child) =>
+    collectSelectedSubtrees(child, nodeIds)
+  );
+}
+
 /** Path from the root down to the node, inclusive. Empty when absent. */
 export function findNodePath(root: NodeData, nodeId: string): NodeData[] {
   if (root.id === nodeId) return [root];

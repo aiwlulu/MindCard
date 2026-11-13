@@ -4,6 +4,7 @@ import {
   cloneNodeWithNewIds,
   createNode,
   findNode,
+  collectSelectedSubtrees,
   findNodePath,
   formatHiddenDescendantCount,
   insertChild,
@@ -251,4 +252,13 @@ it("returns the ancestor path down to a node", () => {
     "root",
   ]);
   expect(findNodePath(baseTree(), "missing")).toEqual([]);
+});
+
+it("collects selected nodes in map order and skips nested selections", () => {
+  const ids = (selected: string[]) =>
+    collectSelectedSubtrees(baseTree(), new Set(selected)).map((node) => node.id);
+
+  expect(ids(["two", "one"])).toEqual(["one", "two"]);
+  expect(ids(["one-a", "one"])).toEqual(["one"]);
+  expect(ids(["missing"])).toEqual([]);
 });
