@@ -6,10 +6,8 @@ import LandingPreview from "@/components/LandingPreview";
 import {
   CollapseIcon,
   KeyboardIcon,
-  LockIcon,
   MarkdownIcon,
   ShareIcon,
-  SparkIcon,
 } from "@/components/Icons";
 import { authContext } from "@/lib/store/auth-context";
 
@@ -37,24 +35,6 @@ const features = [
     title: "Share the result",
     copy: "Publish a revocable read-only link without exposing private card links, or export PNG, SVG, and Markdown.",
     Icon: ShareIcon,
-  },
-];
-
-const qualityPillars = [
-  {
-    title: "Craft clarity",
-    copy: "Quiet visual hierarchy, careful spacing, and focused typography keep ideas readable during long sessions.",
-    Icon: SparkIcon,
-  },
-  {
-    title: "Instant response",
-    copy: "Keyboard-first interactions, low-friction edits, and deterministic layout help the canvas keep up with thought.",
-    Icon: KeyboardIcon,
-  },
-  {
-    title: "Trust by default",
-    copy: "Private-by-default documents, revocable sharing, and clean exports support both personal and collaborative work.",
-    Icon: LockIcon,
   },
 ];
 
@@ -104,27 +84,6 @@ export default function Home() {
             Markdown and the map update each other as you type.
           </figcaption>
         </figure>
-      </section>
-
-      <section
-        className="landing-quality"
-        aria-labelledby="quality-title"
-      >
-        <header>
-          <p className="landing-eyebrow">Built to feel premium at every touchpoint</p>
-          <h2 id="quality-title">Craft, speed, and trust in one focused flow.</h2>
-        </header>
-        <div className="landing-quality-grid">
-          {qualityPillars.map(({ title, copy, Icon }) => (
-            <article key={title}>
-              <span className="landing-icon" aria-hidden="true">
-                <Icon size={18} />
-              </span>
-              <h3>{title}</h3>
-              <p>{copy}</p>
-            </article>
-          ))}
-        </div>
       </section>
 
       <section

@@ -39,11 +39,13 @@ describe("MindCard landing page", () => {
       "href",
       "#get-started"
     );
+    // The demo leads straight into the workflow; no self-descriptive section in between.
     expect(
       screen.getByRole("heading", {
-        name: "Craft, speed, and trust in one focused flow.",
+        name: "Fast enough for capture. Clear enough for recall.",
       })
     ).toBeInTheDocument();
+    expect(screen.queryByText(/premium/i)).not.toBeInTheDocument();
     expect(
       screen.getByRole("img", {
         name: "MindCard turns Markdown into a live mind map",
