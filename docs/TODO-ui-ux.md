@@ -5,9 +5,9 @@ scope for that change. Roughly ordered by expected impact.
 
 ## Editor
 
-- [ ] **Zoom to fit vs. 100%.** Fit now equals 100% only when the map is smaller
-      than the pane. Add a separate "Fit" action that scales a large map down
-      and keeps "100%" as a true reset.
+- [x] **Zoom to fit vs. 100%.** The readout shows the real on-screen scale;
+      clicking it jumps to 100% and back to fit, and the Fit button always fits.
+      Zoom steps are ratios and anchor on the cursor (2026-11-20).
 - [ ] **Smooth zoom and pan.** Animate zoom/pan transitions (CSS transition on
       the transform group, disabled while dragging) so fit/centre feel like
       XMind rather than snapping.

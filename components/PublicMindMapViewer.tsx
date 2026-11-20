@@ -28,6 +28,7 @@ import { toPublicMindmapNode } from "@/lib/mindmap/public";
 import { useTheme } from "@/lib/store/theme-context";
 import type { ResolvedTheme } from "@/lib/theme";
 import type { NodeData } from "@/lib/types";
+import { clampZoom, wheelZoomFactor, ZOOM_STEP } from "@/lib/mindmap/zoom";
 import {
   CollapseIcon,
   CopyIcon,
@@ -100,8 +101,8 @@ export default function PublicMindMapViewer({ root: sourceRoot }: PublicMindMapV
     setZoom(1);
   };
 
-  const zoomBy = (delta: number) => {
-    setZoom((current) => Math.min(8, Math.max(0.45, current + delta)));
+  const zoomBy = (factor: number) => {
+    setZoom((current) => clampZoom(current * factor));
   };
 
   const toggleBranch = (node: NodeData) => {
@@ -184,7 +185,7 @@ export default function PublicMindMapViewer({ root: sourceRoot }: PublicMindMapV
           onContextMenu={(event) => event.preventDefault()}
           onWheel={(event) => {
             event.preventDefault();
-            zoomBy(event.deltaY < 0 ? 0.08 : -0.08);
+            zoomBy(wheelZoomFactor(event.deltaY));
           }}
           onPointerDown={(event) => {
             const target = event.target as Element;
@@ -252,11 +253,11 @@ export default function PublicMindMapViewer({ root: sourceRoot }: PublicMindMapV
         </svg>
 
         <div className="mindmap-toolbar public-mindmap-toolbar" aria-label="Public map controls">
-          <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-0.1)}>
+          <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / ZOOM_STEP)}>
             <ZoomOutIcon />
           </button>
           <span className="mindmap-zoom-level" aria-live="polite">{Math.round(zoom * 100)}%</span>
-          <button type="button" aria-label="Zoom in" onClick={() => zoomBy(0.1)}>
+          <button type="button" aria-label="Zoom in" onClick={() => zoomBy(ZOOM_STEP)}>
             <ZoomInIcon />
           </button>
           <span className="mindmap-toolbar-divider" aria-hidden="true" />

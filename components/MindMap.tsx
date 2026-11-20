@@ -52,6 +52,13 @@ import {
 import { formatExternalLinkLabel, normalizeExternalUrl } from "@/lib/mindmap/links";
 import { parsePastedOutline } from "@/lib/mindmap/outline";
 import {
+  clampZoom,
+  fitScale,
+  panForZoom,
+  wheelZoomFactor,
+  ZOOM_STEP,
+} from "@/lib/mindmap/zoom";
+import {
   convertToMarkdown,
   parseMindmapMarkdown,
   reconcileMarkdownTree,
@@ -145,8 +152,6 @@ const MARKDOWN_ERROR_DELAY_MS = 600;
 type InteractionMode = "select" | "pan";
 type DropPosition = "before" | "inside" | "after";
 
-const MIN_ZOOM = 0.45;
-const MAX_ZOOM = 8;
 const EDITOR_MIN_WIDTH = 260;
 const EDITOR_MAX_WIDTH = 520;
 const EDITOR_MIN_HEIGHT = 96;
@@ -278,6 +283,8 @@ export default function MindMap({ id }: MindMapProps) {
         : null,
     [layout, svgBounds]
   );
+  // On-screen size of one map unit: below 1 when a large map is shrunk to fit the pane.
+  const viewScale = useMemo(() => fitScale(viewBox, svgBounds), [svgBounds, viewBox]);
   const contentOffset = useMemo(
     () =>
       layout && viewBox
@@ -847,30 +854,52 @@ export default function MindMap({ id }: MindMapProps) {
     setInteractionMode((current) => (current === "select" ? "pan" : "select"));
   }, []);
 
-  const zoomBy = useCallback(
-    (delta: number, clientPoint?: { x: number; y: number }) => {
-      const nextZoom = clampZoom(zoom + delta);
+  const zoomTo = useCallback(
+    (targetZoom: number, clientPoint?: { x: number; y: number }) => {
+      const nextZoom = clampZoom(targetZoom, viewScale);
       if (nextZoom === zoom) return;
 
       const svg = svgRef.current;
-      if (clientPoint && svg && viewBox) {
+      if (svg && viewBox) {
         const bounds = svg.getBoundingClientRect();
         if (bounds.width && bounds.height) {
-          const pointX =
-            ((clientPoint.x - bounds.left) / bounds.width) * viewBox.width;
-          const pointY =
-            ((clientPoint.y - bounds.top) / bounds.height) * viewBox.height;
-          setPan((current) => ({
-            x: current.x + (zoom - nextZoom) * pointX,
-            y: current.y + (zoom - nextZoom) * pointY,
-          }));
+          // Anchor on the cursor, or on the middle of the pane for buttons and shortcuts.
+          const anchor = clientPoint ?? {
+            x: bounds.left + bounds.width / 2,
+            y: bounds.top + bounds.height / 2,
+          };
+          const scale = Math.min(
+            bounds.width / viewBox.width,
+            bounds.height / viewBox.height
+          );
+          const point = {
+            x: (anchor.x - bounds.left - (bounds.width - viewBox.width * scale) / 2) / scale,
+            y: (anchor.y - bounds.top - (bounds.height - viewBox.height * scale) / 2) / scale,
+          };
+          setPan((current) => panForZoom(current, point, zoom, nextZoom));
         }
       }
 
       setZoom(nextZoom);
     },
-    [viewBox, zoom]
+    [viewBox, viewScale, zoom]
   );
+
+  const zoomBy = useCallback(
+    (factor: number, clientPoint?: { x: number; y: number }) =>
+      zoomTo(zoom * factor, clientPoint),
+    [zoom, zoomTo]
+  );
+
+  // The zoom readout jumps between real size and the whole map.
+  const toggleActualSize = useCallback(() => {
+    const actualZoom = 1 / viewScale;
+    if (Math.abs(zoom - actualZoom) < 0.005) {
+      centerMap();
+      return;
+    }
+    zoomTo(actualZoom);
+  }, [centerMap, viewScale, zoom, zoomTo]);
 
   const handleWheel = useCallback(
     (event: React.WheelEvent<SVGSVGElement>) => {
@@ -878,7 +907,7 @@ export default function MindMap({ id }: MindMapProps) {
 
       // Pinch-to-zoom on trackpads is reported as a ctrl/meta-modified wheel event.
       if (event.ctrlKey || event.metaKey) {
-        zoomBy(event.deltaY < 0 ? 0.08 : -0.08, {
+        zoomBy(wheelZoomFactor(event.deltaY), {
           x: event.clientX,
           y: event.clientY,
         });
@@ -984,12 +1013,12 @@ export default function MindMap({ id }: MindMapProps) {
       }
       if (commandKey && (event.key === "+" || event.key === "=")) {
         event.preventDefault();
-        zoomBy(0.1);
+        zoomBy(ZOOM_STEP);
         return;
       }
       if (commandKey && event.key === "-") {
         event.preventDefault();
-        zoomBy(-0.1);
+        zoomBy(1 / ZOOM_STEP);
         return;
       }
       if (commandKey && event.key === "0") {
@@ -1938,19 +1967,23 @@ export default function MindMap({ id }: MindMapProps) {
             <PanIcon />
           </button>
           <span className="mindmap-toolbar-divider" aria-hidden="true" />
-          <button type="button" title="Zoom out (⌘−)" aria-label="Zoom out" onClick={() => zoomBy(-0.1)}>
+          <button type="button" title="Zoom out (⌘−)" aria-label="Zoom out" onClick={() => zoomBy(1 / ZOOM_STEP)}>
             <ZoomOutIcon />
           </button>
           <button
             type="button"
             className="mindmap-zoom-level"
-            title="Reset zoom"
+            title={
+              Math.abs(zoom * viewScale - 1) < 0.005
+                ? "Fit map to view"
+                : "Zoom to actual size (100%)"
+            }
             aria-label="Zoom level"
-            onClick={centerMap}
+            onClick={toggleActualSize}
           >
-            {Math.round(zoom * 100)}%
+            {Math.round(zoom * viewScale * 100)}%
           </button>
-          <button type="button" title="Zoom in (⌘+)" aria-label="Zoom in" onClick={() => zoomBy(0.1)}>
+          <button type="button" title="Zoom in (⌘+)" aria-label="Zoom in" onClick={() => zoomBy(ZOOM_STEP)}>
             <ZoomInIcon />
           </button>
           <span className="mindmap-toolbar-divider" aria-hidden="true" />
@@ -2561,9 +2594,6 @@ function selectionRectAttributes(selection: SelectionBoxState) {
   };
 }
 
-function clampZoom(value: number): number {
-  return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Number(value.toFixed(2))));
-}
 
 function openInNewTab(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");

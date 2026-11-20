@@ -1356,15 +1356,19 @@ describe("MindMap editor", () => {
     ).toBeInTheDocument();
   });
 
-  it("allows zooming beyond 250 percent for large maps", () => {
+  it("zooms in equal ratios so a few clicks reach reading size, up to 400%", () => {
     renderMindMap();
     const zoomIn = screen.getByRole("button", { name: "Zoom in" });
 
-    for (let index = 0; index < 20; index += 1) {
+    for (let index = 0; index < 5; index += 1) {
       fireEvent.click(zoomIn);
     }
+    expect(screen.getByText("305%")).toBeInTheDocument();
 
-    expect(screen.getByText("300%")).toBeInTheDocument();
+    for (let index = 0; index < 15; index += 1) {
+      fireEvent.click(zoomIn);
+    }
+    expect(screen.getByText("400%")).toBeInTheDocument();
   });
 
   it("switches to Markdown editing and syncs valid changes to the mind map", () => {
