@@ -3,6 +3,8 @@ import { parseInlineBold, type TopicSegment } from "./richtext";
 
 export const NODE_MIN_WIDTH = 96;
 export const NODE_MAX_WIDTH = 300;
+// Subtopics hold whole sentences, so they get a longer line than the filled pills.
+export const NODE_SUBTOPIC_EXTRA_WIDTH = 60;
 export const NODE_MIN_HEIGHT = 28;
 export const NODE_WIDTH = 190;
 export const NODE_HEIGHT = NODE_MIN_HEIGHT;
@@ -21,6 +23,14 @@ export function getNodePadding(depth: number): { x: number; y: number } {
       y: NODE_VERTICAL_PADDING,
     }
   );
+}
+// Text sizes the canvas and the exports draw with; widths are estimated from them.
+export function getNodeFontSize(depth: number): number {
+  return depth === 0 ? 17 : depth === 1 ? 15 : 14;
+}
+
+export function getNodeMaxWidth(depth: number, nodeMaxWidth = NODE_MAX_WIDTH): number {
+  return depth >= 2 ? nodeMaxWidth + NODE_SUBTOPIC_EXTRA_WIDTH : nodeMaxWidth;
 }
 export const NODE_LINE_HEIGHT = 22;
 export const NODE_LINK_HEIGHT = 18;
@@ -236,17 +246,23 @@ export function layoutMindmap(
   }
 }
 
-export function wrapTopic(topic: string, maxWidth = NODE_MAX_WIDTH): string[] {
-  return wrapTopicSegments(topic, maxWidth).map((line) =>
+export function wrapTopic(
+  topic: string,
+  maxWidth = NODE_MAX_WIDTH,
+  depth = 2
+): string[] {
+  return wrapTopicSegments(topic, maxWidth, depth).map((line) =>
     line.map((segment) => segment.text).join("")
   );
 }
 
 export function wrapTopicSegments(
   topic: string,
-  maxWidth = NODE_MAX_WIDTH
+  maxWidth = NODE_MAX_WIDTH,
+  depth = 2
 ): TopicSegment[][] {
-  const availableWidth = Math.max(1, maxWidth - NODE_HORIZONTAL_PADDING * 2);
+  const fontSize = getNodeFontSize(depth);
+  const availableWidth = Math.max(1, maxWidth - getNodePadding(depth).x * 2);
   const lines: TopicSegment[][] = [];
   let current: TopicSegment[] = [];
   let width = 0;
@@ -262,7 +278,7 @@ export function wrapTopicSegments(
     const last = current[current.length - 1];
     if (last && last.bold === bold) last.text += character;
     else current.push({ text: character, bold });
-    width += estimateCharacterWidth(character);
+    width += estimateCharacterWidth(character, fontSize);
   }
 
   function appendToken(token: TopicCharacter[]) {
@@ -275,7 +291,7 @@ export function wrapTopicSegments(
     let wrapped = false;
     for (const token of tokenizeParagraph(paragraph)) {
       const tokenWidth = token.reduce(
-        (total, { character }) => total + estimateCharacterWidth(character),
+        (total, { character }) => total + estimateCharacterWidth(character, fontSize),
         0
       );
       const first = token[0].character;
@@ -299,7 +315,7 @@ export function wrapTopicSegments(
       } else {
         // Word longer than a full line: break it by character.
         for (const item of token) {
-          const characterWidth = estimateCharacterWidth(item.character);
+          const characterWidth = estimateCharacterWidth(item.character, fontSize);
           if (current.length && width + characterWidth > availableWidth) {
             pushLine();
             wrapped = true;
@@ -404,13 +420,17 @@ function measureNode(
   depth = 2
 ): NodeMetrics {
   const padding = getNodePadding(depth);
-  const richLines = wrapTopicSegments(node.topic, nodeMaxWidth);
+  const fontSize = getNodeFontSize(depth);
+  const maxWidth = getNodeMaxWidth(depth, nodeMaxWidth);
+  const richLines = wrapTopicSegments(node.topic, maxWidth, depth);
   const lines = richLines.map((line) =>
     line.map((segment) => segment.text).join("")
   );
-  const longestLineWidth = Math.max(...lines.map(estimateTextWidth));
+  const longestLineWidth = Math.max(
+    ...lines.map((line) => estimateTextWidth(line, fontSize))
+  );
   const width = Math.min(
-    nodeMaxWidth,
+    maxWidth,
     Math.max(NODE_MIN_WIDTH, longestLineWidth + padding.x * 2)
   );
   const height = Math.max(
@@ -449,17 +469,20 @@ function getNodeLinkCount(node: NodeData): number {
   return Number(Boolean(node.hyperLink)) + Number(Boolean(node.externalLink));
 }
 
-function estimateTextWidth(text: string): number {
+function estimateTextWidth(text: string, fontSize: number): number {
   return Array.from(text).reduce(
-    (width, character) => width + estimateCharacterWidth(character),
+    (width, character) => width + estimateCharacterWidth(character, fontSize),
     0
   );
 }
 
-function estimateCharacterWidth(character: string): number {
-  if (/\s/.test(character)) return 4;
+// Full-width glyphs are exactly one em wide. Treating them as 16px while the
+// subtopics draw at 14px wrapped CJK lines about 12% before the node edge.
+// Latin letters vary, so they keep a slightly generous average.
+function estimateCharacterWidth(character: string, fontSize: number): number {
+  if (/\s/.test(character)) return fontSize * 0.28;
   if (/[\u2e80-\u9fff\uac00-\ud7af\uff00-\uffef]/.test(character)) {
-    return 16;
+    return fontSize;
   }
-  return 8.5;
+  return fontSize * 0.6;
 }

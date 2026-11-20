@@ -1,5 +1,8 @@
 import type { NodeData } from "@/lib/types";
 import {
+  getNodeFontSize,
+  getNodeMaxWidth,
+  getNodePadding,
   layoutMindmap,
   NODE_MAX_WIDTH,
   NODE_MIN_HEIGHT,
@@ -84,6 +87,38 @@ describe("mind map layout", () => {
 
     expect(lines.length).toBeGreaterThan(1);
     expect(lines.join("")).toBe("a".repeat(200));
+  });
+
+  it("fills a subtopic line with CJK text instead of wrapping early", () => {
+    const sentence = "建立分層目錄與搜尋機制，平常只載入必要資訊，需要時再透過精確比對取得相關內容";
+    const layout = layoutMindmap({
+      id: "root",
+      topic: "Root",
+      children: [{ id: "a", topic: "Branch", children: [{ id: "b", topic: sentence }] }],
+    });
+    const node = layout.nodes.find((item) => item.node.id === "b")!;
+    const padding = getNodePadding(2).x * 2;
+    const fontSize = getNodeFontSize(2);
+
+    // Every full line comes within one character of the usable width, and none overflows.
+    for (const line of node.lines.slice(0, -1)) {
+      const lineWidth = Array.from(line).length * fontSize;
+      expect(lineWidth).toBeLessThanOrEqual(node.width - padding);
+      expect(lineWidth).toBeGreaterThan(node.width - padding - fontSize * 2);
+    }
+    // 14px text in a 360px subtopic: 23 characters a line, so this sentence takes two lines.
+    expect(node.lines.length).toBe(2);
+    expect(node.width).toBeLessThanOrEqual(getNodeMaxWidth(2));
+  });
+
+  it("keeps filled topics at the narrower width", () => {
+    const layout = layoutMindmap({
+      id: "root",
+      topic: "Root",
+      children: [{ id: "a", topic: "這是一個非常非常長的第一層主題名稱，用來確認膠囊節點不會變得太寬" }],
+    });
+    const node = layout.nodes.find((item) => item.node.id === "a")!;
+    expect(node.width).toBeLessThanOrEqual(NODE_MAX_WIDTH);
   });
 
   it("preserves explicit line breaks", () => {
