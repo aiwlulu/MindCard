@@ -101,7 +101,7 @@ export default function Home() {
           <LandingPreview />
           <figcaption>
             <span>Live sync</span>
-            Markdown on the left. A connected mind map on the right.
+            Markdown and the map update each other as you type.
           </figcaption>
         </figure>
       </section>

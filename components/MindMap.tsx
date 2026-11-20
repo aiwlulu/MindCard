@@ -1815,15 +1815,20 @@ export default function MindMap({ id }: MindMapProps) {
                   <circle cx="1" cy="1" r="1" className="mindmap-canvas-dot" />
                 </pattern>
               </defs>
+              {/* Oversized so the letterbox around a scaled-down map is painted too */}
               <rect
-                width="100%"
-                height="100%"
+                x="-200%"
+                y="-200%"
+                width="500%"
+                height="500%"
                 className="mindmap-canvas-background"
                 data-canvas-background="true"
               />
               <rect
-                width="100%"
-                height="100%"
+                x="-200%"
+                y="-200%"
+                width="500%"
+                height="500%"
                 fill="url(#mindmap-dot-grid)"
                 className="mindmap-canvas-grid"
                 data-canvas-background="true"

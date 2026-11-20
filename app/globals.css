@@ -3407,3 +3407,40 @@ kbd {
     display: none;
   }
 }
+
+/* Polish pass */
+
+/* Sign-in feedback: an inline message and a visibly busy button. */
+.landing-auth-error {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 35%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.landing-auth-submit:disabled,
+.landing-auth-google:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+/* Touch screens: editor controls grow to a comfortable tap size. */
+@media (pointer: coarse) {
+  .mindmap-toolbar button {
+    min-width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .mindmap-node-toolbar button {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .mindmap-commandbar .mindmap-mode-switch button {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+  }
+}

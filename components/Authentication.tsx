@@ -1,5 +1,4 @@
 import React, { useContext, useState } from "react";
-import { toast } from "react-toastify";
 import { authContext } from "@/lib/store/auth-context";
 import { EyeIcon, EyeOffIcon, GoogleIcon } from "./Icons";
 
@@ -27,6 +26,8 @@ function Authentication() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [formData, setFormData] = useState<FormData>(DEMO_FORM);
   const [useDemoAccount, setUseDemoAccount] = useState(true);
+  const [pending, setPending] = useState<"form" | "google" | null>(null);
+  const [formError, setFormError] = useState("");
 
   const applyDemoAccount = (nextUseDemoAccount: boolean) => {
     setUseDemoAccount(nextUseDemoAccount);
@@ -38,36 +39,56 @@ function Authentication() {
     setFormData((previous) => ({ ...previous, [name]: value }));
   };
 
+  const describeError = (code?: string) => {
+    if (code === "auth/email-already-in-use") {
+      return "That email already has an account. Sign in instead.";
+    }
+    if (code === "auth/invalid-login-credentials" || code === "auth/invalid-credential") {
+      return "Incorrect email or password.";
+    }
+    if (code === "auth/network-request-failed") {
+      return "No connection. Check your network and try again.";
+    }
+    if (code === "auth/too-many-requests") {
+      return "Too many attempts. Wait a moment and try again.";
+    }
+    return "Something went wrong. Please try again.";
+  };
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (pending) return;
     const { name, email, password } = formData;
+    setFormError("");
+    setPending("form");
+    const request = isRegistering
+      ? registerWithEmailAndPassword(email, password, name)
+      : loginWithEmailAndPassword(email, password);
+    // On success the page redirects, so the busy state only clears on failure.
+    request.catch((error: { code?: string }) => {
+      setFormError(describeError(error.code));
+      setPending(null);
+    });
+  };
 
-    if (isRegistering) {
-      registerWithEmailAndPassword(email, password, name).catch(
-        (error: { code?: string }) => {
-          if (error.code === "auth/email-already-in-use") {
-            toast.error("The email address is already in use by another account.");
-          }
-        }
-      );
-      return;
-    }
-
-    loginWithEmailAndPassword(email, password).catch(
-      (error: { code?: string }) => {
-        if (
-          error.code === "auth/invalid-login-credentials" ||
-          error.code === "auth/invalid-credential"
-        ) {
-          toast.error("Incorrect email or password.");
-        }
-      }
-    );
+  const handleGoogle = () => {
+    if (pending) return;
+    setFormError("");
+    setPending("google");
+    googleLoginHandler().catch((error: { code?: string }) => {
+      // Closing the popup is a choice, not an error worth reporting.
+      const dismissed =
+        error.code === "auth/popup-closed-by-user" ||
+        error.code === "auth/cancelled-popup-request";
+      if (!dismissed) setFormError(describeError(error.code));
+      setPending(null);
+    });
   };
 
   const handleRegisterLoginToggle = () => {
     const nextIsRegistering = !isRegistering;
     setIsRegistering(nextIsRegistering);
+    setFormError("");
     applyDemoAccount(!nextIsRegistering);
   };
 
@@ -146,8 +167,25 @@ function Authentication() {
           </label>
         ) : null}
 
-        <button type="submit" className="landing-auth-submit">
-          {isRegistering ? "Create account" : "Sign in"}
+        {formError ? (
+          <p className="landing-auth-error" role="alert">
+            {formError}
+          </p>
+        ) : null}
+
+        <button
+          type="submit"
+          className="landing-auth-submit"
+          disabled={pending !== null}
+          aria-busy={pending === "form"}
+        >
+          {pending === "form"
+            ? isRegistering
+              ? "Creating account…"
+              : "Signing in…"
+            : isRegistering
+              ? "Create account"
+              : "Sign in"}
         </button>
 
         <div className="landing-auth-divider">
@@ -155,9 +193,11 @@ function Authentication() {
         </div>
 
         <button
-          onClick={() => void googleLoginHandler()}
+          onClick={handleGoogle}
           type="button"
           className="landing-auth-google"
+          disabled={pending !== null}
+          aria-busy={pending === "google"}
         >
           <span aria-hidden="true">
             <GoogleIcon size={15} />

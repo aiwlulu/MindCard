@@ -46,7 +46,7 @@ export default function MindmapActions({
         type="button"
         onClick={onNavigateToMindmap}
         className="nav-button nav-button--ghost"
-        aria-label="Folder"
+        aria-label="Library"
         title="Back to your mind maps"
       >
         <FolderIcon size={17} />

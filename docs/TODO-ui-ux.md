@@ -24,8 +24,9 @@ scope for that change. Roughly ordered by expected impact.
       node, surfaced in the floating toolbar.
 - [ ] **Drag reparent feedback.** Show a ghost of the dragged subtree and a
       clearer insertion line colour in dark mode.
-- [ ] **Touch gestures.** Pinch to zoom and two-finger pan on tablets; the
-      floating node toolbar should also work with touch targets of 44px.
+- [ ] **Touch gestures.** Pinch to zoom and two-finger pan on tablets.
+      (Touch targets grew on coarse pointers on 2026-11-20: 44px zoom
+      controls, 40px node toolbar and mode switch.)
 - [ ] **Right-click on macOS.** Verify that the context menu opens on
       `mousedown`-driven `contextmenu` events; the pan gesture may suppress it.
 
@@ -38,8 +39,8 @@ scope for that change. Roughly ordered by expected impact.
 
 - [ ] **Animated preview.** Type the Markdown in `LandingPreview` and grow the
       map line by line (respect `prefers-reduced-motion`).
-- [ ] **Loading and error states** on the sign-in form (spinner, inline error
-      instead of toast only).
+- [x] **Loading and error states** on the sign-in form: the button shows a
+      busy label and failures appear inline (2026-11-20).
 
 ## Share page
 

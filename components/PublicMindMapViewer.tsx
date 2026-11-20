@@ -230,8 +230,8 @@ export default function PublicMindMapViewer({ root: sourceRoot }: PublicMindMapV
               <circle cx="1" cy="1" r="1" className="mindmap-canvas-dot" />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" className="mindmap-canvas-background" />
-          <rect width="100%" height="100%" fill="url(#public-dot-grid)" className="mindmap-canvas-grid" />
+          <rect x="-200%" y="-200%" width="500%" height="500%" className="mindmap-canvas-background" />
+          <rect x="-200%" y="-200%" width="500%" height="500%" fill="url(#public-dot-grid)" className="mindmap-canvas-grid" />
           <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
             <g transform={`translate(${offset.x} ${offset.y})`}>
             {layout.edges.map((edge) => (
