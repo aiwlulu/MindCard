@@ -28,7 +28,14 @@ import { toPublicMindmapNode } from "@/lib/mindmap/public";
 import { useTheme } from "@/lib/store/theme-context";
 import type { ResolvedTheme } from "@/lib/theme";
 import type { NodeData } from "@/lib/types";
-import { clampZoom, wheelZoomFactor, ZOOM_STEP } from "@/lib/mindmap/zoom";
+import {
+  anchorInViewBox,
+  clampZoom,
+  fitScale,
+  panForZoom,
+  wheelZoomFactor,
+  ZOOM_STEP,
+} from "@/lib/mindmap/zoom";
 import {
   CollapseIcon,
   CopyIcon,
@@ -71,6 +78,8 @@ export default function PublicMindMapViewer({ root: sourceRoot }: PublicMindMapV
     x: (viewBox.width - layout.width) / 2,
     y: (viewBox.height - layout.height) / 2,
   };
+  // On-screen size of one map unit: below 1 when a large map is shrunk to fit the pane.
+  const viewScale = fitScale(viewBox, bounds);
 
   const measure = useCallback(() => {
     const svg = svgRef.current;
@@ -101,8 +110,24 @@ export default function PublicMindMapViewer({ root: sourceRoot }: PublicMindMapV
     setZoom(1);
   };
 
-  const zoomBy = (factor: number) => {
-    setZoom((current) => clampZoom(current * factor));
+  const zoomTo = (targetZoom: number, clientPoint?: { x: number; y: number }) => {
+    const nextZoom = clampZoom(targetZoom, viewScale);
+    if (nextZoom === zoom) return;
+    // Anchor on the cursor, or on the middle of the pane for the buttons.
+    const svg = svgRef.current;
+    const point = svg ? anchorInViewBox(svg.getBoundingClientRect(), viewBox, clientPoint) : null;
+    if (point) setPan((current) => panForZoom(current, point, zoom, nextZoom));
+    setZoom(nextZoom);
+  };
+
+  const zoomBy = (factor: number, clientPoint?: { x: number; y: number }) =>
+    zoomTo(zoom * factor, clientPoint);
+
+  const isActualSize = Math.abs(zoom * viewScale - 1) < 0.005;
+  // The zoom readout jumps between real size and the whole map.
+  const toggleActualSize = () => {
+    if (isActualSize) centerMap();
+    else zoomTo(1 / viewScale);
   };
 
   const toggleBranch = (node: NodeData) => {
@@ -185,7 +210,7 @@ export default function PublicMindMapViewer({ root: sourceRoot }: PublicMindMapV
           onContextMenu={(event) => event.preventDefault()}
           onWheel={(event) => {
             event.preventDefault();
-            zoomBy(wheelZoomFactor(event.deltaY));
+            zoomBy(wheelZoomFactor(event.deltaY), { x: event.clientX, y: event.clientY });
           }}
           onPointerDown={(event) => {
             const target = event.target as Element;
@@ -256,7 +281,15 @@ export default function PublicMindMapViewer({ root: sourceRoot }: PublicMindMapV
           <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / ZOOM_STEP)}>
             <ZoomOutIcon />
           </button>
-          <span className="mindmap-zoom-level" aria-live="polite">{Math.round(zoom * 100)}%</span>
+          <button
+            type="button"
+            className="mindmap-zoom-level"
+            title={isActualSize ? "Fit map to view" : "Zoom to actual size (100%)"}
+            aria-label="Zoom level"
+            onClick={toggleActualSize}
+          >
+            {Math.round(zoom * viewScale * 100)}%
+          </button>
           <button type="button" aria-label="Zoom in" onClick={() => zoomBy(ZOOM_STEP)}>
             <ZoomInIcon />
           </button>

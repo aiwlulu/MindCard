@@ -1,4 +1,11 @@
-import { clampZoom, fitScale, panForZoom, wheelZoomFactor, ZOOM_STEP } from "./zoom";
+import {
+  anchorInViewBox,
+  clampZoom,
+  fitScale,
+  panForZoom,
+  wheelZoomFactor,
+  ZOOM_STEP,
+} from "./zoom";
 
 describe("zoom helpers", () => {
   it("zooms by the same ratio at every level", () => {
@@ -45,5 +52,16 @@ describe("zoom helpers", () => {
     const nextPan = panForZoom(pan, point, zoom, nextZoom);
     expect(nextPan.x + content.x * nextZoom).toBeCloseTo(point.x);
     expect(nextPan.y + content.y * nextZoom).toBeCloseTo(point.y);
+  });
+
+  it("maps a cursor position through the letterbox of a shrunk map", () => {
+    // 2000x500 map in a 1000x800 pane: scale 0.5, drawn 250px tall, 275px bars above and below.
+    const rect = { left: 100, top: 50, width: 1000, height: 800 };
+    const viewBox = { width: 2000, height: 500 };
+    expect(anchorInViewBox(rect, viewBox, { x: 100, y: 50 + 275 })).toEqual({ x: 0, y: 0 });
+    expect(anchorInViewBox(rect, viewBox, { x: 1100, y: 50 + 525 })).toEqual({ x: 2000, y: 500 });
+    // No cursor: the middle of the pane.
+    expect(anchorInViewBox(rect, viewBox)).toEqual({ x: 1000, y: 250 });
+    expect(anchorInViewBox({ left: 0, top: 0, width: 0, height: 0 }, viewBox)).toBeNull();
   });
 });

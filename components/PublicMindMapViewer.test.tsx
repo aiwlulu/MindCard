@@ -35,4 +35,18 @@ describe("PublicMindMapViewer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Collapse Research branch" }));
     expect(screen.queryByText("Interview users")).not.toBeInTheDocument();
   });
+
+  it("zooms in equal ratios and shows the scale on a button", () => {
+    render(<PublicMindMapViewer root={{ id: "root", root: true, topic: "Public plan" }} />);
+
+    const readout = screen.getByRole("button", { name: "Zoom level" });
+    expect(readout).toHaveTextContent("100%");
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(readout).toHaveTextContent("125%");
+
+    // The readout returns to real size, and a second press goes back to the fitted view.
+    fireEvent.click(readout);
+    expect(readout).toHaveTextContent("100%");
+  });
 });

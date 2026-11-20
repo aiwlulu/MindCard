@@ -44,3 +44,23 @@ export function panForZoom(
     y: point.y - (point.y - pan.y) * ratio,
   };
 }
+
+// Converts a screen position into viewBox units, allowing for the letterbox that
+// preserveAspectRatio="xMidYMid meet" leaves around a shrunk map. Without a
+// position it returns the middle of the pane (buttons and shortcuts).
+export function anchorInViewBox(
+  rect: { left: number; top: number; width: number; height: number },
+  viewBox: { width: number; height: number },
+  clientPoint?: { x: number; y: number }
+): { x: number; y: number } | null {
+  if (!rect.width || !rect.height || !viewBox.width || !viewBox.height) return null;
+  const anchor = clientPoint ?? {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+  const scale = Math.min(rect.width / viewBox.width, rect.height / viewBox.height);
+  return {
+    x: (anchor.x - rect.left - (rect.width - viewBox.width * scale) / 2) / scale,
+    y: (anchor.y - rect.top - (rect.height - viewBox.height * scale) / 2) / scale,
+  };
+}

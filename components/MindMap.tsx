@@ -52,6 +52,7 @@ import {
 import { formatExternalLinkLabel, normalizeExternalUrl } from "@/lib/mindmap/links";
 import { parsePastedOutline } from "@/lib/mindmap/outline";
 import {
+  anchorInViewBox,
   clampZoom,
   fitScale,
   panForZoom,
@@ -859,26 +860,13 @@ export default function MindMap({ id }: MindMapProps) {
       const nextZoom = clampZoom(targetZoom, viewScale);
       if (nextZoom === zoom) return;
 
+      // Anchor on the cursor, or on the middle of the pane for buttons and shortcuts.
       const svg = svgRef.current;
-      if (svg && viewBox) {
-        const bounds = svg.getBoundingClientRect();
-        if (bounds.width && bounds.height) {
-          // Anchor on the cursor, or on the middle of the pane for buttons and shortcuts.
-          const anchor = clientPoint ?? {
-            x: bounds.left + bounds.width / 2,
-            y: bounds.top + bounds.height / 2,
-          };
-          const scale = Math.min(
-            bounds.width / viewBox.width,
-            bounds.height / viewBox.height
-          );
-          const point = {
-            x: (anchor.x - bounds.left - (bounds.width - viewBox.width * scale) / 2) / scale,
-            y: (anchor.y - bounds.top - (bounds.height - viewBox.height * scale) / 2) / scale,
-          };
-          setPan((current) => panForZoom(current, point, zoom, nextZoom));
-        }
-      }
+      const point =
+        svg && viewBox
+          ? anchorInViewBox(svg.getBoundingClientRect(), viewBox, clientPoint)
+          : null;
+      if (point) setPan((current) => panForZoom(current, point, zoom, nextZoom));
 
       setZoom(nextZoom);
     },
